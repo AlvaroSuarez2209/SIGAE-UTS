@@ -12,9 +12,10 @@
         $isCoordination = auth()->check() && auth()->user()->hasAnyRole(['administrator', 'coordination']);
         $isAdmin = auth()->check() && auth()->user()->hasRole(\App\Enums\RoleName::Administrator);
         $isReviewer = auth()->check() && auth()->user()->hasAnyRole(['administrator', 'coordination', 'leader']);
+        $canSeeReports = auth()->check() && auth()->user()->hasAnyRole(['administrator', 'coordination', 'auditor']);
     @endphp
 
-    <nav class="bg-white shadow" x-data="{ mobileOpen: false, catalogsOpen: false }">
+    <nav class="bg-white shadow" x-data="{ mobileOpen: false, catalogsOpen: false, reportsOpen: false }">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
             <div class="flex items-center gap-6">
                 <a href="{{ route('dashboard') }}" class="font-semibold text-gray-800">SIGAE-UTS</a>
@@ -49,6 +50,21 @@
                                     <a href="{{ route('catalogs.activities') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Actividades</a>
                                     <a href="{{ route('catalogs.program-units') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Programas</a>
                                     <a href="{{ route('catalogs.cross-cutting-commitments') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Compromisos transversales</a>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if ($canSeeReports)
+                            <div class="relative" @click.outside="reportsOpen = false">
+                                <button type="button" @click="reportsOpen = !reportsOpen" class="flex items-center gap-1 text-sm text-gray-600 hover:text-indigo-600">
+                                    Informes
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                <div x-show="reportsOpen" x-cloak class="absolute left-0 z-20 mt-2 w-64 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5">
+                                    <a href="{{ route('reports.teacher') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Individual por docente</a>
+                                    <a href="{{ route('reports.activity') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Por actividad</a>
+                                    <a href="{{ route('reports.cross-cutting') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Compromisos transversales</a>
+                                    <a href="{{ route('reports.consolidated') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Consolidado por periodo</a>
                                 </div>
                             </div>
                         @endif
@@ -96,6 +112,13 @@
                     <a href="{{ route('catalogs.activities') }}" class="block py-1 text-sm text-gray-600">Actividades</a>
                     <a href="{{ route('catalogs.program-units') }}" class="block py-1 text-sm text-gray-600">Programas</a>
                     <a href="{{ route('catalogs.cross-cutting-commitments') }}" class="block py-1 text-sm text-gray-600">Compromisos transversales</a>
+                @endif
+
+                @if ($canSeeReports)
+                    <a href="{{ route('reports.teacher') }}" class="block py-1 text-sm text-gray-600">Informe individual por docente</a>
+                    <a href="{{ route('reports.activity') }}" class="block py-1 text-sm text-gray-600">Informe por actividad</a>
+                    <a href="{{ route('reports.cross-cutting') }}" class="block py-1 text-sm text-gray-600">Informe de compromisos transversales</a>
+                    <a href="{{ route('reports.consolidated') }}" class="block py-1 text-sm text-gray-600">Consolidado por periodo</a>
                 @endif
 
                 <div class="mt-2 border-t border-gray-200 pt-2 text-sm text-gray-600">

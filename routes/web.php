@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
+use App\Http\Controllers\Reports\ReportExportController;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Admin\Users\UserIndex;
 use App\Livewire\Auth\Login;
@@ -22,6 +23,10 @@ use App\Livewire\Evidence\MyDeliverables;
 use App\Livewire\Leaderships\LeadershipForm;
 use App\Livewire\Leaderships\LeadershipIndex;
 use App\Livewire\Periods\PeriodIndex;
+use App\Livewire\Reports\ActivityReport;
+use App\Livewire\Reports\ConsolidatedReport;
+use App\Livewire\Reports\CrossCuttingReport;
+use App\Livewire\Reports\TeacherReport;
 use App\Livewire\Reviews\ReviewInbox;
 use App\Livewire\Reviews\ReviewShow;
 use Illuminate\Support\Facades\Route;
@@ -91,5 +96,23 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/create', DeliverableForm::class)->name('create');
             Route::get('/{deliverable}/edit', DeliverableForm::class)->name('edit');
         });
+    });
+
+    Route::middleware('role:administrator,coordination,auditor')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('/teacher', TeacherReport::class)->name('teacher');
+        Route::get('/teacher/pdf', [ReportExportController::class, 'teacherPdf'])->name('teacher.pdf');
+        Route::get('/teacher/excel', [ReportExportController::class, 'teacherExcel'])->name('teacher.excel');
+
+        Route::get('/activity', ActivityReport::class)->name('activity');
+        Route::get('/activity/pdf', [ReportExportController::class, 'activityPdf'])->name('activity.pdf');
+        Route::get('/activity/excel', [ReportExportController::class, 'activityExcel'])->name('activity.excel');
+
+        Route::get('/cross-cutting', CrossCuttingReport::class)->name('cross-cutting');
+        Route::get('/cross-cutting/pdf', [ReportExportController::class, 'crossCuttingPdf'])->name('cross-cutting.pdf');
+        Route::get('/cross-cutting/excel', [ReportExportController::class, 'crossCuttingExcel'])->name('cross-cutting.excel');
+
+        Route::get('/consolidated', ConsolidatedReport::class)->name('consolidated');
+        Route::get('/consolidated/pdf', [ReportExportController::class, 'consolidatedPdf'])->name('consolidated.pdf');
+        Route::get('/consolidated/excel', [ReportExportController::class, 'consolidatedExcel'])->name('consolidated.excel');
     });
 });
