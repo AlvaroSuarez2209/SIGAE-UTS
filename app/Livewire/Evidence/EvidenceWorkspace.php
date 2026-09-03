@@ -207,7 +207,15 @@ class EvidenceWorkspace extends Component
 
     public function render()
     {
-        $this->evidence->load(['deliverable.activity.component', 'deliverable.crossCuttingCommitment', 'currentVersion.files', 'currentVersion.links', 'versions']);
+        $this->evidence->load([
+            'deliverable.activity.component',
+            'deliverable.crossCuttingCommitment',
+            'currentVersion.files',
+            'currentVersion.links',
+            'versions',
+            'reviews.reviewer',
+            'reviews.observations',
+        ]);
 
         return view('livewire.evidence.evidence-workspace', [
             'allowed' => $this->allowedTypes(),

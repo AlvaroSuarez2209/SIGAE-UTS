@@ -46,6 +46,11 @@ class EvidenceVersion extends Model
         return $this->hasMany(EvidenceLink::class);
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->latest('decided_at');
+    }
+
     public function isSubmitted(): bool
     {
         return $this->submitted_at !== null;

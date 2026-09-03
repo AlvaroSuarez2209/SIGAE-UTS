@@ -11,6 +11,7 @@
     @php
         $isCoordination = auth()->check() && auth()->user()->hasAnyRole(['administrator', 'coordination']);
         $isAdmin = auth()->check() && auth()->user()->hasRole(\App\Enums\RoleName::Administrator);
+        $isReviewer = auth()->check() && auth()->user()->hasAnyRole(['administrator', 'coordination', 'leader']);
     @endphp
 
     <nav class="bg-white shadow" x-data="{ mobileOpen: false, catalogsOpen: false }">
@@ -21,6 +22,10 @@
                 @auth
                     <div class="hidden items-center gap-5 md:flex">
                         <a href="{{ route('my-deliverables.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Mis entregables</a>
+
+                        @if ($isReviewer)
+                            <a href="{{ route('reviews.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Revisión</a>
+                        @endif
 
                         @if ($isAdmin)
                             <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Usuarios</a>
@@ -71,6 +76,10 @@
         @auth
             <div x-show="mobileOpen" x-cloak class="space-y-1 border-t border-gray-200 px-4 py-3 md:hidden">
                 <a href="{{ route('my-deliverables.index') }}" class="block py-1 text-sm text-gray-600">Mis entregables</a>
+
+                @if ($isReviewer)
+                    <a href="{{ route('reviews.index') }}" class="block py-1 text-sm text-gray-600">Revisión</a>
+                @endif
 
                 @if ($isAdmin)
                     <a href="{{ route('admin.users.index') }}" class="block py-1 text-sm text-gray-600">Usuarios</a>

@@ -22,6 +22,8 @@ use App\Livewire\Evidence\MyDeliverables;
 use App\Livewire\Leaderships\LeadershipForm;
 use App\Livewire\Leaderships\LeadershipIndex;
 use App\Livewire\Periods\PeriodIndex;
+use App\Livewire\Reviews\ReviewInbox;
+use App\Livewire\Reviews\ReviewShow;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -43,6 +45,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
 
     Route::get('/evidence-files/{evidenceFile}/download', EvidenceFileDownloadController::class)->name('evidence-files.download');
+
+    Route::middleware('role:administrator,coordination,leader')->prefix('reviews')->name('reviews.')->group(function () {
+        Route::get('/', ReviewInbox::class)->name('index');
+        Route::get('/{evidence}', ReviewShow::class)->name('show');
+    });
 
     Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');

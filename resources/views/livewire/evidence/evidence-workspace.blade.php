@@ -133,6 +133,27 @@
         @endif
     </div>
 
+    @if ($evidence->reviews->isNotEmpty())
+        <div class="mt-6">
+            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Revisiones del líder</h2>
+            <ul class="space-y-3">
+                @foreach ($evidence->reviews as $review)
+                    <li class="rounded-md border border-gray-200 bg-white p-3 text-sm">
+                        <p>
+                            <span @class(['font-medium', 'text-green-700' => $review->decision->value === 'approved', 'text-amber-700' => $review->decision->value === 'returned'])>
+                                {{ $review->decision->label() }}
+                            </span>
+                            — {{ $review->decided_at->format('d/m/Y H:i') }}
+                        </p>
+                        @foreach ($review->observations as $observation)
+                            <p class="mt-1 text-gray-600">{{ $observation->body }}</p>
+                        @endforeach
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if ($evidence->versions->count() > 1)
         <div class="mt-6">
             <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Historial de versiones</h2>

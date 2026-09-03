@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             CrossCuttingCommitmentSeeder::class,
             DeliverableTemplateSeeder::class,
             DeliverableSeeder::class,
+            EvidenceSeeder::class,
         ]);
     }
 }
