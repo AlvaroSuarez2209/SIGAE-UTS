@@ -17,6 +17,14 @@
                     @if (auth()->user()->hasRole(\App\Enums\RoleName::Administrator))
                         <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Usuarios</a>
                     @endif
+
+                    @if (auth()->user()->hasAnyRole(['administrator', 'coordination']))
+                        <a href="{{ route('periods.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Periodos</a>
+                        <a href="{{ route('catalogs.components') }}" class="text-sm text-gray-600 hover:text-indigo-600">Componentes</a>
+                        <a href="{{ route('catalogs.subcomponents') }}" class="text-sm text-gray-600 hover:text-indigo-600">Subcomponentes</a>
+                        <a href="{{ route('catalogs.activities') }}" class="text-sm text-gray-600 hover:text-indigo-600">Actividades</a>
+                        <a href="{{ route('catalogs.program-units') }}" class="text-sm text-gray-600 hover:text-indigo-600">Programas</a>
+                    @endif
                 @endauth
             </div>
 
