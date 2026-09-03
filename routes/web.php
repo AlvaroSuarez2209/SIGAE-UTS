@@ -11,6 +11,8 @@ use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Livewire\Dashboard;
 use App\Livewire\Distribution\AssignmentForm;
 use App\Livewire\Distribution\AssignmentIndex;
+use App\Livewire\Leaderships\LeadershipForm;
+use App\Livewire\Leaderships\LeadershipIndex;
 use App\Livewire\Periods\PeriodIndex;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +49,12 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/', AssignmentIndex::class)->name('index');
             Route::get('/create', AssignmentForm::class)->name('create');
             Route::get('/{teacherAssignment}/edit', AssignmentForm::class)->name('edit');
+        });
+
+        Route::prefix('leaderships')->name('leaderships.')->group(function () {
+            Route::get('/', LeadershipIndex::class)->name('index');
+            Route::get('/create', LeadershipForm::class)->name('create');
+            Route::get('/{leadership}/edit', LeadershipForm::class)->name('edit');
         });
     });
 });

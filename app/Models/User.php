@@ -63,6 +63,32 @@ class User extends Authenticatable
         return $this->hasMany(TeacherAssignment::class);
     }
 
+    public function leaderships(): HasMany
+    {
+        return $this->hasMany(Leadership::class);
+    }
+
+    /**
+     * Whether this user currently leads the scope (program unit + activity)
+     * that the given teacher assignment belongs to — i.e. the "ámbito" a
+     * líder is authorized to see, per a leadership with no end date or one
+     * that covers today, either for the whole program unit or narrowed to
+     * this specific activity.
+     */
+    public function canLeadAssignment(TeacherAssignment $assignment): bool
+    {
+        return $this->leaderships()
+            ->where('academic_period_id', $assignment->academic_period_id)
+            ->where('program_unit_id', $assignment->program_unit_id)
+            ->where(fn ($query) => $query
+                ->whereNull('activity_id')
+                ->orWhere('activity_id', $assignment->activity_id)
+            )
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+            ->exists();
+    }
+
     public function hasRole(RoleName|string $role): bool
     {
         $name = $role instanceof RoleName ? $role->value : $role;

@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
             CatalogSeeder::class,
             AcademicPeriodSeeder::class,
             TeacherAssignmentSeeder::class,
+            LeadershipSeeder::class,
         ]);
     }
 }
