@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CatalogSeeder::class,
             AcademicPeriodSeeder::class,
+            TeacherAssignmentSeeder::class,
         ]);
     }
 }

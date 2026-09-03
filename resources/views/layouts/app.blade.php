@@ -20,6 +20,7 @@
 
                     @if (auth()->user()->hasAnyRole(['administrator', 'coordination']))
                         <a href="{{ route('periods.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Periodos</a>
+                        <a href="{{ route('distribution.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Distribución</a>
                         <a href="{{ route('catalogs.components') }}" class="text-sm text-gray-600 hover:text-indigo-600">Componentes</a>
                         <a href="{{ route('catalogs.subcomponents') }}" class="text-sm text-gray-600 hover:text-indigo-600">Subcomponentes</a>
                         <a href="{{ route('catalogs.activities') }}" class="text-sm text-gray-600 hover:text-indigo-600">Actividades</a>

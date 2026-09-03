@@ -7,6 +7,7 @@ use App\Enums\RoleName;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -55,6 +56,11 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class);
+    }
+
+    public function teacherAssignments(): HasMany
+    {
+        return $this->hasMany(TeacherAssignment::class);
     }
 
     public function hasRole(RoleName|string $role): bool

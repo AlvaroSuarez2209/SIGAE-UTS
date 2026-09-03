@@ -9,6 +9,8 @@ use App\Livewire\Catalogs\ComponentIndex;
 use App\Livewire\Catalogs\ProgramUnitIndex;
 use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Livewire\Dashboard;
+use App\Livewire\Distribution\AssignmentForm;
+use App\Livewire\Distribution\AssignmentIndex;
 use App\Livewire\Periods\PeriodIndex;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +41,12 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/components', ComponentIndex::class)->name('components');
             Route::get('/subcomponents', SubcomponentIndex::class)->name('subcomponents');
             Route::get('/activities', ActivityIndex::class)->name('activities');
+        });
+
+        Route::prefix('distribution')->name('distribution.')->group(function () {
+            Route::get('/', AssignmentIndex::class)->name('index');
+            Route::get('/create', AssignmentForm::class)->name('create');
+            Route::get('/{teacherAssignment}/edit', AssignmentForm::class)->name('edit');
         });
     });
 });
