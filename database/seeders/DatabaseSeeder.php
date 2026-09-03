@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
             AcademicPeriodSeeder::class,
             TeacherAssignmentSeeder::class,
             LeadershipSeeder::class,
+            CrossCuttingCommitmentSeeder::class,
+            DeliverableTemplateSeeder::class,
+            DeliverableSeeder::class,
         ]);
     }
 }
