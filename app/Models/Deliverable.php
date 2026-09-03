@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Deliverable extends Model
 {
@@ -73,8 +75,28 @@ class Deliverable extends Model
         return $this->belongsToMany(User::class, 'deliverable_recipients');
     }
 
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(Evidence::class);
+    }
+
     public function isCrossCutting(): bool
     {
         return $this->activity_id === null;
+    }
+
+    /**
+     * Creates a pending Evidence record for every recipient that doesn't
+     * already have one. Never removes evidence for a recipient that was
+     * later dropped from the list — evidence history is never deleted.
+     */
+    public function ensureEvidencesForRecipients(array $userIds): void
+    {
+        foreach ($userIds as $userId) {
+            Evidence::firstOrCreate(
+                ['deliverable_id' => $this->id, 'user_id' => $userId],
+                ['status' => EvidenceStatus::Pending]
+            );
+        }
     }
 }

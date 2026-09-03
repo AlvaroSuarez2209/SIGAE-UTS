@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Admin\Users\UserIndex;
 use App\Livewire\Auth\Login;
@@ -16,6 +17,8 @@ use App\Livewire\Deliverables\TemplateForm;
 use App\Livewire\Deliverables\TemplateIndex;
 use App\Livewire\Distribution\AssignmentForm;
 use App\Livewire\Distribution\AssignmentIndex;
+use App\Livewire\Evidence\EvidenceWorkspace;
+use App\Livewire\Evidence\MyDeliverables;
 use App\Livewire\Leaderships\LeadershipForm;
 use App\Livewire\Leaderships\LeadershipIndex;
 use App\Livewire\Periods\PeriodIndex;
@@ -33,6 +36,13 @@ Route::post('/logout', LogoutController::class)->name('logout')->middleware('aut
 
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+
+    Route::prefix('my-deliverables')->name('my-deliverables.')->group(function () {
+        Route::get('/', MyDeliverables::class)->name('index');
+        Route::get('/{evidence}', EvidenceWorkspace::class)->name('show');
+    });
+
+    Route::get('/evidence-files/{evidenceFile}/download', EvidenceFileDownloadController::class)->name('evidence-files.download');
 
     Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');

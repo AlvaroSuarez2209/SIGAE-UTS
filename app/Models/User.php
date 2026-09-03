@@ -68,6 +68,11 @@ class User extends Authenticatable
         return $this->hasMany(Leadership::class);
     }
 
+    public function evidences(): HasMany
+    {
+        return $this->hasMany(Evidence::class);
+    }
+
     /**
      * Whether this user currently leads the scope (program unit + activity)
      * that the given teacher assignment belongs to — i.e. the "ámbito" a

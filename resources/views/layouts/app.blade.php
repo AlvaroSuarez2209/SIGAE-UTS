@@ -20,6 +20,8 @@
 
                 @auth
                     <div class="hidden items-center gap-5 md:flex">
+                        <a href="{{ route('my-deliverables.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Mis entregables</a>
+
                         @if ($isAdmin)
                             <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Usuarios</a>
                         @endif
@@ -68,6 +70,8 @@
 
         @auth
             <div x-show="mobileOpen" x-cloak class="space-y-1 border-t border-gray-200 px-4 py-3 md:hidden">
+                <a href="{{ route('my-deliverables.index') }}" class="block py-1 text-sm text-gray-600">Mis entregables</a>
+
                 @if ($isAdmin)
                     <a href="{{ route('admin.users.index') }}" class="block py-1 text-sm text-gray-600">Usuarios</a>
                 @endif

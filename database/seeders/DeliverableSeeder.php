@@ -74,6 +74,7 @@ class DeliverableSeeder extends Seeder
         ]);
 
         $deliverable->recipients()->sync($recipients->pluck('id'));
+        $deliverable->ensureEvidencesForRecipients($recipients->pluck('id')->all());
     }
 
     private function createForActivity(AcademicPeriod $period, Activity $activity, array $definitions): void
@@ -99,6 +100,7 @@ class DeliverableSeeder extends Seeder
             ]);
 
             $deliverable->recipients()->sync($recipients);
+            $deliverable->ensureEvidencesForRecipients($recipients->all());
         }
     }
 }

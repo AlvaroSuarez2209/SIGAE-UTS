@@ -215,6 +215,7 @@ class DeliverableForm extends Component
             : $this->recipient_ids;
 
         $this->deliverable->recipients()->sync($recipientIds);
+        $this->deliverable->ensureEvidencesForRecipients($recipientIds);
 
         session()->flash('status', 'Entregable guardado correctamente.');
 
