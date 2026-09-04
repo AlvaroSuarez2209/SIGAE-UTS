@@ -1,6 +1,6 @@
 <div>
-    <h1 class="mb-6 text-lg font-semibold text-gray-800">Bitácora de auditoría</h1>
-    <p class="mb-4 text-sm text-gray-500">
+    <h1 class="mb-6 text-2xl font-semibold text-text-primary">Bitácora de auditoría</h1>
+    <p class="mb-4 text-sm text-text-secondary">
         Registro de solo lectura de accesos, cargas, envíos, revisiones, aprobaciones, devoluciones y cambios
         administrativos. Ningún usuario, incluido el Administrador, puede editar o borrar estos registros desde la
         aplicación.
@@ -8,8 +8,8 @@
 
     <div class="mb-4 flex flex-wrap items-end gap-4">
         <div>
-            <label class="block text-sm font-medium text-gray-700">Usuario</label>
-            <select wire:model.live="userFilter" class="mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <label class="field-label">Usuario</label>
+            <select wire:model.live="userFilter" class="field-input">
                 <option value="">Todos</option>
                 @foreach ($users as $user)
                     <option value="{{ $user->id }}">{{ $user->name }}</option>
@@ -18,8 +18,8 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Acción</label>
-            <select wire:model.live="actionFilter" class="mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <label class="field-label">Acción</label>
+            <select wire:model.live="actionFilter" class="field-input">
                 <option value="">Todas</option>
                 @foreach ($actions as $action)
                     <option value="{{ $action }}">{{ $action }}</option>
@@ -28,37 +28,37 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Desde</label>
-            <input type="date" wire:model.live="fromFilter" class="mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <label class="field-label">Desde</label>
+            <input type="date" wire:model.live="fromFilter" class="field-input">
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Hasta</label>
-            <input type="date" wire:model.live="toFilter" class="mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <label class="field-label">Hasta</label>
+            <input type="date" wire:model.live="toFilter" class="field-input">
         </div>
     </div>
 
-    <div class="overflow-x-auto rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Fecha</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Usuario</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Acción</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Objeto</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">IP</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Detalle</th>
+                    <th class="table-header-cell">Fecha</th>
+                    <th class="table-header-cell">Usuario</th>
+                    <th class="table-header-cell">Acción</th>
+                    <th class="table-header-cell">Objeto</th>
+                    <th class="table-header-cell">IP</th>
+                    <th class="table-header-cell">Detalle</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($logs as $log)
-                    <tr wire:key="log-{{ $log->id }}">
-                        <td class="px-4 py-2 text-sm text-gray-600">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-800">{{ $log->user->name ?? 'Sistema' }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-600">{{ $log->action }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-600">{{ $log->auditableLabel() }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-400">{{ $log->ip_address ?? '—' }}</td>
-                        <td class="px-4 py-2 text-xs text-gray-400">
+                    <tr wire:key="log-{{ $log->id }}" class="table-row">
+                        <td class="table-cell text-text-secondary">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
+                        <td class="table-cell">{{ $log->user->name ?? 'Sistema' }}</td>
+                        <td class="table-cell text-text-secondary">{{ $log->action }}</td>
+                        <td class="table-cell text-text-secondary">{{ $log->auditableLabel() }}</td>
+                        <td class="table-cell text-text-secondary">{{ $log->ip_address ?? '—' }}</td>
+                        <td class="table-cell text-xs text-text-secondary">
                             @if ($log->metadata)
                                 <code>{{ json_encode($log->metadata) }}</code>
                             @endif
@@ -66,7 +66,9 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-400">No hay registros con estos filtros.</td>
+                        <td colspan="6">
+                            <x-empty-state icon="inbox" title="No hay registros con estos filtros" description="Ajusta los filtros de usuario, acción o fecha." />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

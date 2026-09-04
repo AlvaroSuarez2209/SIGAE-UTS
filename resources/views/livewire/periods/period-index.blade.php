@@ -1,55 +1,49 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">Periodos académicos</h1>
-        <button type="button" wire:click="openCreate" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <h1 class="text-2xl font-semibold text-text-primary">Periodos académicos</h1>
+        <button type="button" wire:click="openCreate" class="btn-primary">
             Nuevo periodo
         </button>
     </div>
 
-    <div class="overflow-hidden rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Nombre</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Fechas</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Estado</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
+                    <th class="table-header-cell">Nombre</th>
+                    <th class="table-header-cell">Fechas</th>
+                    <th class="table-header-cell">Estado</th>
+                    <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($periods as $period)
-                    <tr wire:key="period-{{ $period->id }}">
-                        <td class="px-4 py-3 text-sm text-gray-800">{{ $period->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">
+                    <tr wire:key="period-{{ $period->id }}" class="table-row">
+                        <td class="table-cell">{{ $period->name }}</td>
+                        <td class="table-cell text-text-secondary">
                             {{ $period->start_date->format('d/m/Y') }} – {{ $period->end_date->format('d/m/Y') }}
                         </td>
-                        <td class="px-4 py-3 text-sm">
-                            <span @class([
-                                'rounded-full px-2 py-1 text-xs font-medium',
-                                'bg-gray-100 text-gray-600' => $period->status->value === 'planning',
-                                'bg-green-100 text-green-700' => $period->status->value === 'active',
-                                'bg-amber-100 text-amber-700' => $period->status->value === 'closed',
-                                'bg-slate-200 text-slate-600' => $period->status->value === 'archived',
-                            ])>
-                                {{ $period->status->label() }}
-                            </span>
+                        <td class="table-cell">
+                            <x-status-badge :status="$period->status" />
                         </td>
-                        <td class="px-4 py-3 text-right text-sm whitespace-nowrap">
-                            <button type="button" wire:click="openEdit({{ $period->id }})" class="text-indigo-600 hover:underline">Editar</button>
+                        <td class="table-cell text-right whitespace-nowrap">
+                            <button type="button" wire:click="openEdit({{ $period->id }})" class="btn-text">Editar</button>
 
                             @if ($period->status->value === 'planning')
-                                <button type="button" wire:click="activate({{ $period->id }})" wire:confirm="¿Activar este periodo?" class="ml-3 text-green-700 hover:underline">Activar</button>
+                                <button type="button" wire:click="activate({{ $period->id }})" wire:confirm="¿Activar este periodo?" class="btn-text ml-3 text-status-success">Activar</button>
                             @elseif ($period->status->value === 'active')
-                                <button type="button" wire:click="close({{ $period->id }})" wire:confirm="¿Cerrar este periodo? Bloqueará cargas y modificaciones ordinarias." class="ml-3 text-amber-700 hover:underline">Cerrar</button>
+                                <button type="button" wire:click="close({{ $period->id }})" wire:confirm="¿Cerrar este periodo? Bloqueará cargas y modificaciones ordinarias." class="btn-text ml-3 text-status-warning">Cerrar</button>
                             @elseif ($period->status->value === 'closed')
-                                <button type="button" wire:click="archive({{ $period->id }})" wire:confirm="¿Archivar este periodo?" class="ml-3 text-slate-600 hover:underline">Archivar</button>
-                                <button type="button" wire:click="reopen({{ $period->id }})" wire:confirm="¿Reabrir este periodo? Es una excepción que quedará registrada." class="ml-3 text-gray-600 hover:underline">Reabrir</button>
+                                <button type="button" wire:click="archive({{ $period->id }})" wire:confirm="¿Archivar este periodo?" class="btn-text ml-3 text-secondary">Archivar</button>
+                                <button type="button" wire:click="reopen({{ $period->id }})" wire:confirm="¿Reabrir este periodo? Es una excepción que quedará registrada." class="btn-text ml-3 text-text-secondary">Reabrir</button>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500">No hay periodos registrados.</td>
+                        <td colspan="4">
+                            <x-empty-state icon="clock" title="No hay periodos registrados" description='Usa el botón "Nuevo periodo" para crear el primero.' />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>
@@ -57,42 +51,42 @@
     </div>
 
     @if ($showModal)
-        <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40">
-            <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <h2 class="mb-4 text-base font-semibold text-gray-800">
+        <div class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4">
+            <div class="card w-full max-w-md p-6 shadow-lg">
+                <h2 class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar periodo' : 'Nuevo periodo' }}
                 </h2>
 
                 <form wire:submit="save" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre</label>
-                        <input type="text" wire:model="name" placeholder="Ej. 2026-1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <label class="field-label">Nombre</label>
+                        <input type="text" wire:model="name" placeholder="Ej. 2026-1" class="field-input">
+                        @error('name') <p class="field-error">{{ $message }}</p> @enderror
                     </div>
 
                     @if (! $editing || $editing->status->value === 'planning')
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Fecha de inicio</label>
-                            <input type="date" wire:model="start_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('start_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            <label class="field-label">Fecha de inicio</label>
+                            <input type="date" wire:model="start_date" class="field-input">
+                            @error('start_date') <p class="field-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Fecha de fin</label>
-                            <input type="date" wire:model="end_date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('end_date') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                            <label class="field-label">Fecha de fin</label>
+                            <input type="date" wire:model="end_date" class="field-input">
+                            @error('end_date') <p class="field-error">{{ $message }}</p> @enderror
                         </div>
                     @else
-                        <p class="text-sm text-gray-500">
+                        <p class="field-help">
                             Las fechas solo se pueden modificar mientras el periodo está en planeación.
                         </p>
                     @endif
 
                     <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        <button type="submit" class="btn-primary">
                             Guardar
                         </button>
-                        <button type="button" wire:click="$set('showModal', false)" class="text-sm text-gray-600 hover:underline">
+                        <button type="button" wire:click="$set('showModal', false)" class="btn-text text-text-secondary">
                             Cancelar
                         </button>
                     </div>

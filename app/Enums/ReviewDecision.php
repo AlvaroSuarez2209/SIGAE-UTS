@@ -14,4 +14,20 @@ enum ReviewDecision: string
             self::Returned => 'Devuelto',
         };
     }
+
+    public function color(): string
+    {
+        return match ($this) {
+            self::Approved => 'success',
+            self::Returned => 'warning',
+        };
+    }
+
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Approved => 'check-circle',
+            self::Returned => 'alert-triangle',
+        };
+    }
 }

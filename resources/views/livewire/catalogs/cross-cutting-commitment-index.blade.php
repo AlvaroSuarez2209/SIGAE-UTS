@@ -1,41 +1,39 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">Compromisos transversales</h1>
-        <button type="button" wire:click="openCreate" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <h1 class="text-2xl font-semibold text-text-primary">Compromisos transversales</h1>
+        <button type="button" wire:click="openCreate" class="btn-primary">
             Nuevo
         </button>
     </div>
 
-    <div class="overflow-hidden rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Nombre</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Estado</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
+                    <th class="table-header-cell">Nombre</th>
+                    <th class="table-header-cell">Estado</th>
+                    <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($commitments as $commitment)
-                    <tr wire:key="commitment-{{ $commitment->id }}">
-                        <td class="px-4 py-3 text-sm text-gray-800">{{ $commitment->name }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            @if ($commitment->is_active)
-                                <span class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">Activo</span>
-                            @else
-                                <span class="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-600">Inactivo</span>
-                            @endif
+                    <tr wire:key="commitment-{{ $commitment->id }}" class="table-row">
+                        <td class="table-cell">{{ $commitment->name }}</td>
+                        <td class="table-cell">
+                            <x-active-badge :active="$commitment->is_active" />
                         </td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            <button type="button" wire:click="openEdit({{ $commitment->id }})" class="text-indigo-600 hover:underline">Editar</button>
-                            <button type="button" wire:click="toggleActive({{ $commitment->id }})" class="ml-3 text-gray-600 hover:underline">
+                        <td class="table-cell text-right">
+                            <button type="button" wire:click="openEdit({{ $commitment->id }})" class="btn-text">Editar</button>
+                            <button type="button" wire:click="toggleActive({{ $commitment->id }})" class="btn-text ml-3 text-text-secondary">
                                 {{ $commitment->is_active ? 'Desactivar' : 'Activar' }}
                             </button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="px-4 py-6 text-center text-sm text-gray-500">No hay compromisos transversales registrados.</td>
+                        <td colspan="3">
+                            <x-empty-state icon="document" title="No hay compromisos transversales registrados" description='Usa el botón "Nuevo" para crear el primero.' />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>
@@ -43,29 +41,29 @@
     </div>
 
     @if ($showModal)
-        <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/40">
-            <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <h2 class="mb-4 text-base font-semibold text-gray-800">
+        <div class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4">
+            <div class="card w-full max-w-md p-6 shadow-lg">
+                <h2 class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar compromiso' : 'Nuevo compromiso' }}
                 </h2>
 
                 <form wire:submit="save" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre</label>
-                        <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <label class="field-label">Nombre</label>
+                        <input type="text" wire:model="name" class="field-input">
+                        @error('name') <p class="field-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" wire:model="is_active" id="is_active" class="rounded border-gray-300">
-                        <label for="is_active" class="text-sm text-gray-700">Activo</label>
+                        <input type="checkbox" wire:model="is_active" id="is_active" class="field-checkbox">
+                        <label for="is_active" class="text-sm text-text-secondary">Activo</label>
                     </div>
 
                     <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        <button type="submit" class="btn-primary">
                             Guardar
                         </button>
-                        <button type="button" wire:click="$set('showModal', false)" class="text-sm text-gray-600 hover:underline">
+                        <button type="button" wire:click="$set('showModal', false)" class="btn-text text-text-secondary">
                             Cancelar
                         </button>
                     </div>

@@ -1,20 +1,20 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">Usuarios</h1>
-        <a href="{{ route('admin.users.create') }}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <h1 class="text-2xl font-semibold text-text-primary">Usuarios</h1>
+        <a href="{{ route('admin.users.create') }}" class="btn-primary">
             Nuevo usuario
         </a>
     </div>
 
-    <div class="mb-4 flex gap-4">
+    <div class="mb-4 flex flex-wrap gap-4">
         <input
             type="text"
             wire:model.live.debounce.300ms="search"
             placeholder="Buscar por nombre o correo..."
-            class="w-full max-w-xs rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            class="field-input mt-0 w-full max-w-xs"
         >
 
-        <select wire:model.live="roleFilter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <select wire:model.live="roleFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los roles</option>
             @foreach ($roles as $role)
                 <option value="{{ $role->name }}">{{ $role->label }}</option>
@@ -22,41 +22,37 @@
         </select>
     </div>
 
-    <div class="overflow-hidden rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Nombre</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Correo</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Roles</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Estado</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
+                    <th class="table-header-cell">Nombre</th>
+                    <th class="table-header-cell">Correo</th>
+                    <th class="table-header-cell">Roles</th>
+                    <th class="table-header-cell">Estado</th>
+                    <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($users as $user)
-                    <tr wire:key="user-{{ $user->id }}">
-                        <td class="px-4 py-3 text-sm text-gray-800">{{ $user->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $user->email }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">
+                    <tr wire:key="user-{{ $user->id }}" class="table-row">
+                        <td class="table-cell">{{ $user->name }}</td>
+                        <td class="table-cell text-text-secondary">{{ $user->email }}</td>
+                        <td class="table-cell text-text-secondary">
                             {{ $user->roles->pluck('label')->join(', ') ?: '—' }}
                         </td>
-                        <td class="px-4 py-3 text-sm">
-                            @if ($user->is_active)
-                                <span class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">Activo</span>
-                            @else
-                                <span class="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-600">Inactivo</span>
-                            @endif
+                        <td class="table-cell">
+                            <x-active-badge :active="$user->is_active" />
                         </td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            <a href="{{ route('admin.users.edit', $user) }}" class="text-indigo-600 hover:underline">Editar</a>
+                        <td class="table-cell text-right">
+                            <a href="{{ route('admin.users.edit', $user) }}" class="btn-text">Editar</a>
 
                             @if (! auth()->user()->is($user))
                                 <button
                                     type="button"
                                     wire:click="toggleActive({{ $user->id }})"
                                     wire:confirm="¿Confirmas cambiar el estado de este usuario?"
-                                    class="ml-3 text-gray-600 hover:underline"
+                                    class="btn-text ml-3 text-text-secondary"
                                 >
                                     {{ $user->is_active ? 'Desactivar' : 'Activar' }}
                                 </button>
@@ -65,7 +61,9 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No hay usuarios registrados.</td>
+                        <td colspan="5">
+                            <x-empty-state icon="document" title="No hay usuarios registrados" description='Usa el botón "Nuevo usuario" para crear el primero.' />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

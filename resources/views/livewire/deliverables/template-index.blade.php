@@ -1,50 +1,48 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">Plantillas de entregables</h1>
-        <a href="{{ route('deliverable-templates.create') }}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <h1 class="text-2xl font-semibold text-text-primary">Plantillas de entregables</h1>
+        <a href="{{ route('deliverable-templates.create') }}" class="btn-primary">
             Nueva plantilla
         </a>
     </div>
 
-    <p class="mb-4 text-sm text-gray-500">
+    <p class="mb-4 text-sm text-text-secondary">
         Una plantilla es una configuración reutilizable (reglas, tipos de evidencia, criterios) que puedes usar como punto
         de partida al crear varios entregables concretos con fechas distintas.
     </p>
 
-    <div class="overflow-hidden rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Nombre</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Periodicidad</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Obligatorio</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Estado</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
+                    <th class="table-header-cell">Nombre</th>
+                    <th class="table-header-cell">Periodicidad</th>
+                    <th class="table-header-cell">Obligatorio</th>
+                    <th class="table-header-cell">Estado</th>
+                    <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($templates as $template)
-                    <tr wire:key="template-{{ $template->id }}">
-                        <td class="px-4 py-3 text-sm text-gray-800">{{ $template->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $template->periodicity_type->label() }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $template->is_mandatory ? 'Sí' : 'No' }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            @if ($template->is_active)
-                                <span class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">Activa</span>
-                            @else
-                                <span class="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-gray-600">Inactiva</span>
-                            @endif
+                    <tr wire:key="template-{{ $template->id }}" class="table-row">
+                        <td class="table-cell">{{ $template->name }}</td>
+                        <td class="table-cell text-text-secondary">{{ $template->periodicity_type->label() }}</td>
+                        <td class="table-cell text-text-secondary">{{ $template->is_mandatory ? 'Sí' : 'No' }}</td>
+                        <td class="table-cell">
+                            <x-active-badge :active="$template->is_active" />
                         </td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            <a href="{{ route('deliverable-templates.edit', $template) }}" class="text-indigo-600 hover:underline">Editar</a>
-                            <button type="button" wire:click="toggleActive({{ $template->id }})" class="ml-3 text-gray-600 hover:underline">
+                        <td class="table-cell text-right">
+                            <a href="{{ route('deliverable-templates.edit', $template) }}" class="btn-text">Editar</a>
+                            <button type="button" wire:click="toggleActive({{ $template->id }})" class="btn-text ml-3 text-text-secondary">
                                 {{ $template->is_active ? 'Desactivar' : 'Activar' }}
                             </button>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No hay plantillas registradas.</td>
+                        <td colspan="5">
+                            <x-empty-state icon="document" title="No hay plantillas registradas" description='Usa el botón "Nueva plantilla" para crear la primera.' />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

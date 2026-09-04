@@ -1,45 +1,44 @@
 <div class="max-w-2xl">
     @php $deliverable = $evidence->deliverable; $version = $evidence->currentVersion; @endphp
 
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-6 flex items-center justify-between gap-4">
         <div>
-            <h1 class="text-lg font-semibold text-gray-800">{{ $deliverable->name }}</h1>
-            <p class="text-sm text-gray-500">{{ $evidence->user->name }}</p>
+            <h1 class="text-2xl font-semibold text-text-primary">{{ $deliverable->name }}</h1>
+            <p class="text-sm text-text-secondary">{{ $evidence->user->name }}</p>
         </div>
-        <span @class([
-            'rounded-full px-2 py-1 text-xs font-medium',
-            'bg-indigo-100 text-indigo-700' => $evidence->status->value === 'submitted',
-            'bg-green-100 text-green-700' => $evidence->status->value === 'approved',
-            'bg-amber-100 text-amber-700' => $evidence->status->value === 'needs_adjustment',
-        ])>
-            {{ $evidence->status->label() }}
-        </span>
+        <x-status-badge :status="$evidence->status" />
     </div>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800">{{ session('status') }}</div>
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-success-subtle p-3 text-sm text-status-success">
+            <x-icon name="check-circle" class="h-4 w-4 shrink-0" />
+            {{ session('status') }}
+        </div>
     @endif
 
-    <div class="mb-6 space-y-2 rounded-lg bg-white p-4 text-sm text-gray-600 shadow">
+    <div class="card mb-6 space-y-2 p-4 text-sm text-text-secondary">
         @if ($deliverable->completion_criteria)
-            <p><span class="font-medium text-gray-700">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
+            <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
         @endif
-        <p><span class="font-medium text-gray-700">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
-        <p><span class="font-medium text-gray-700">Enviado:</span> {{ $version->submitted_at?->format('d/m/Y H:i') ?? '—' }}</p>
+        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
+        <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->format('d/m/Y H:i') ?? '—' }}</p>
     </div>
 
-    <div class="mb-6 space-y-4 rounded-lg bg-white p-6 shadow">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Evidencia enviada (versión {{ $version->version_number }})</h2>
+    <div class="card mb-6 space-y-4 p-6">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-text-secondary">Evidencia enviada (versión {{ $version->version_number }})</h2>
 
         @if ($version->description)
-            <p class="whitespace-pre-line text-sm text-gray-700">{{ $version->description }}</p>
+            <p class="whitespace-pre-line text-sm text-text-primary">{{ $version->description }}</p>
         @endif
 
         @if ($version->files->isNotEmpty())
             <ul class="space-y-1">
                 @foreach ($version->files as $file)
                     <li>
-                        <a href="{{ route('evidence-files.download', $file) }}" class="text-sm text-indigo-600 hover:underline">{{ $file->original_name }}</a>
+                        <a href="{{ route('evidence-files.download', $file) }}" class="flex items-center gap-1.5 text-sm text-brand-primary hover:underline">
+                            <x-icon name="paperclip" class="h-4 w-4 shrink-0" />
+                            {{ $file->original_name }}
+                        </a>
                     </li>
                 @endforeach
             </ul>
@@ -49,64 +48,65 @@
             <ul class="space-y-1">
                 @foreach ($version->links as $link)
                     <li>
-                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="text-sm text-indigo-600 hover:underline">{{ $link->label ?: $link->url }}</a>
+                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-sm text-brand-primary hover:underline">
+                            <x-icon name="link" class="h-4 w-4 shrink-0" />
+                            {{ $link->label ?: $link->url }}
+                        </a>
                     </li>
                 @endforeach
             </ul>
         @endif
 
         @if (! $version->description && $version->files->isEmpty() && $version->links->isEmpty())
-            <p class="text-sm text-gray-400">Esta versión no tiene contenido adjunto.</p>
+            <p class="text-sm text-text-secondary">Esta versión no tiene contenido adjunto.</p>
         @endif
     </div>
 
     @if ($evidence->status->value === 'submitted')
-        <div class="space-y-4 rounded-lg bg-white p-6 shadow">
+        <div class="card space-y-4 p-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700">
-                    Observación <span class="font-normal text-gray-400">(obligatoria si devuelves)</span>
+                <label class="field-label">
+                    Observación <span class="font-normal text-text-secondary">(obligatoria si devuelves)</span>
                 </label>
-                <textarea wire:model="observation" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                @error('observation') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <textarea wire:model="observation" rows="3" class="field-input"></textarea>
+                @error('observation') <p class="field-error">{{ $message }}</p> @enderror
             </div>
 
-            <div class="flex items-center gap-3">
-                <button type="button" wire:click="approve" wire:confirm="¿Aprobar esta evidencia?" class="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="button" wire:click="approve" wire:confirm="¿Aprobar esta evidencia?" class="btn-success">
+                    <x-icon name="check-circle" class="h-4 w-4" />
                     Aprobar
                 </button>
-                <button type="button" wire:click="returnForAdjustment" wire:confirm="¿Devolver esta evidencia para ajustes?" class="rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                <button type="button" wire:click="returnForAdjustment" wire:confirm="¿Devolver esta evidencia para ajustes?" class="btn-warning">
+                    <x-icon name="alert-triangle" class="h-4 w-4" />
                     Devolver
                 </button>
-                <a href="{{ route('reviews.index') }}" class="text-sm text-gray-600 hover:underline">Volver</a>
+                <a href="{{ route('reviews.index') }}" class="btn-text text-text-secondary">Volver</a>
             </div>
         </div>
     @else
         @can('reopen', $evidence)
             @if ($evidence->status->value === 'approved')
                 <div class="mb-4">
-                    <button type="button" wire:click="reopen" wire:confirm="¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada." class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300">
+                    <button type="button" wire:click="reopen" wire:confirm="¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada." class="btn-secondary">
                         Reabrir (permiso especial)
                     </button>
                 </div>
             @endif
         @endcan
-        <a href="{{ route('reviews.index') }}" class="inline-block text-sm text-gray-600 hover:underline">Volver</a>
+        <a href="{{ route('reviews.index') }}" class="btn-text inline-block text-text-secondary">Volver</a>
     @endif
 
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Histórico de revisiones</h2>
+            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Histórico de revisiones</h2>
             <ul class="space-y-3">
                 @foreach ($evidence->reviews as $review)
-                    <li class="rounded-md border border-gray-200 bg-white p-3 text-sm">
-                        <p>
-                            <span @class(['font-medium', 'text-green-700' => $review->decision->value === 'approved', 'text-amber-700' => $review->decision->value === 'returned'])>
-                                {{ $review->decision->label() }}
-                            </span>
-                            por {{ $review->reviewer->name }} — {{ $review->decided_at->format('d/m/Y H:i') }}
-                        </p>
+                    <li class="card p-3 text-sm">
+                        <x-status-badge :status="$review->decision" class="mb-1" />
+                        <p class="text-text-secondary">por {{ $review->reviewer->name }} — {{ $review->decided_at->format('d/m/Y H:i') }}</p>
                         @foreach ($review->observations as $observation)
-                            <p class="mt-1 text-gray-600">{{ $observation->body }}</p>
+                            <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach
                     </li>
                 @endforeach

@@ -1,59 +1,59 @@
 <div class="max-w-xl">
-    <h1 class="mb-6 text-lg font-semibold text-gray-800">
+    <h1 class="mb-6 text-2xl font-semibold text-text-primary">
         {{ $user ? 'Editar usuario' : 'Nuevo usuario' }}
     </h1>
 
-    <form wire:submit="save" class="space-y-4 rounded-lg bg-white p-6 shadow">
+    <form wire:submit="save" class="card space-y-4 p-6">
         <div>
-            <label class="block text-sm font-medium text-gray-700">Nombre completo</label>
-            <input type="text" wire:model="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="field-label">Nombre completo</label>
+            <input type="text" wire:model="name" class="field-input">
+            @error('name') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Número de documento</label>
-            <input type="text" wire:model="document_number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            @error('document_number') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="field-label">Número de documento</label>
+            <input type="text" wire:model="document_number" class="field-input">
+            @error('document_number') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Correo electrónico</label>
-            <input type="email" wire:model="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="field-label">Correo electrónico</label>
+            <input type="email" wire:model="email" class="field-input">
+            @error('email') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">
+            <label class="field-label">
                 Contraseña
-                @if ($user) <span class="font-normal text-gray-400">(dejar en blanco para no cambiarla)</span> @endif
+                @if ($user) <span class="font-normal text-text-secondary">(dejar en blanco para no cambiarla)</span> @endif
             </label>
-            <input type="password" wire:model="password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            @error('password') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <input type="password" wire:model="password" class="field-input">
+            @error('password') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <span class="block text-sm font-medium text-gray-700">Roles</span>
+            <span class="field-label">Roles</span>
             <div class="mt-2 space-y-1">
                 @foreach ($roles as $role)
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" wire:model="selectedRoles" value="{{ $role->name }}" class="rounded border-gray-300">
+                    <label class="flex items-center gap-2 text-sm text-text-secondary">
+                        <input type="checkbox" wire:model="selectedRoles" value="{{ $role->name }}" class="field-checkbox">
                         {{ $role->label }}
                     </label>
                 @endforeach
             </div>
-            @error('selectedRoles') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('selectedRoles') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex items-center gap-2">
-            <input type="checkbox" wire:model="is_active" id="is_active" class="rounded border-gray-300">
-            <label for="is_active" class="text-sm text-gray-700">Cuenta activa</label>
+            <input type="checkbox" wire:model="is_active" id="is_active" class="field-checkbox">
+            <label for="is_active" class="text-sm text-text-secondary">Cuenta activa</label>
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            <button type="submit" class="btn-primary">
                 Guardar
             </button>
-            <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:underline">Cancelar</a>
+            <a href="{{ route('admin.users.index') }}" class="btn-text text-text-secondary">Cancelar</a>
         </div>
     </form>
 </div>

@@ -4,19 +4,21 @@
     <meta charset="utf-8">
     <title>{{ $title }}</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1f2937; }
-        h1 { font-size: 16px; margin-bottom: 4px; }
-        h2 { font-size: 12px; margin-top: 18px; margin-bottom: 6px; text-transform: uppercase; color: #4b5563; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a2530; }
+        h1 { font-size: 16px; margin-bottom: 4px; color: #123252; }
+        h2 { font-size: 12px; margin-top: 18px; margin-bottom: 6px; text-transform: uppercase; color: #5b6b7a; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        th, td { border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; }
-        th { background-color: #f3f4f6; }
-        .summary { background-color: #f9fafb; padding: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
-        .footer { margin-top: 16px; font-size: 9px; color: #9ca3af; }
+        th, td { border: 1px solid #d8dee4; padding: 4px 6px; text-align: left; }
+        th { background-color: #eaf1f8; color: #123252; }
+        .summary { background-color: #f4f6f8; padding: 8px; margin-bottom: 12px; border: 1px solid #d8dee4; }
+        .footer { margin-top: 16px; font-size: 9px; color: #5b6b7a; border-top: 1px solid #d8dee4; padding-top: 6px; }
+        .brand-rule { border: none; border-top: 3px solid #1d4e89; margin: 0 0 10px; }
     </style>
 </head>
 <body>
+    <hr class="brand-rule">
     <h1>{{ $title }}</h1>
-    <p style="font-size: 10px; color: #6b7280;">SIGAE-UTS — generado el {{ now()->format('d/m/Y H:i') }}</p>
+    <p style="font-size: 10px; color: #5b6b7a;">SIGAE-UTS — Sistema de Gestión de Actividades y Evidencias Docentes — generado el {{ now()->format('d/m/Y H:i') }}</p>
 
     @if ($summary ?? null)
         <div class="summary">

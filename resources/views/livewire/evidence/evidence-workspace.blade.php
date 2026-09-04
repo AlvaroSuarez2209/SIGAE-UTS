@@ -1,66 +1,62 @@
 <div class="max-w-2xl">
     @php $deliverable = $evidence->deliverable; @endphp
 
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">{{ $deliverable->name }}</h1>
-        <span @class([
-            'rounded-full px-2 py-1 text-xs font-medium',
-            'bg-gray-100 text-gray-600' => $evidence->status->value === 'pending',
-            'bg-blue-100 text-blue-700' => $evidence->status->value === 'draft',
-            'bg-indigo-100 text-indigo-700' => $evidence->status->value === 'submitted',
-            'bg-amber-100 text-amber-700' => $evidence->status->value === 'needs_adjustment',
-            'bg-green-100 text-green-700' => $evidence->status->value === 'approved',
-            'bg-red-100 text-red-700' => $evidence->status->value === 'expired',
-            'bg-slate-200 text-slate-600' => $evidence->status->value === 'exempt',
-        ])>
-            {{ $evidence->status->label() }}
-        </span>
+    <div class="mb-6 flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold text-text-primary">{{ $deliverable->name }}</h1>
+        <x-status-badge :status="$evidence->status" />
     </div>
 
-    <div class="mb-6 space-y-2 rounded-lg bg-white p-4 text-sm text-gray-600 shadow">
+    <div class="card mb-6 space-y-2 p-4 text-sm text-text-secondary">
         @if ($deliverable->description)
             <p>{{ $deliverable->description }}</p>
         @endif
         @if ($deliverable->instructions)
-            <p><span class="font-medium text-gray-700">Instrucciones:</span> {{ $deliverable->instructions }}</p>
+            <p><span class="font-medium text-text-primary">Instrucciones:</span> {{ $deliverable->instructions }}</p>
         @endif
         @if ($deliverable->completion_criteria)
-            <p><span class="font-medium text-gray-700">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
+            <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
         @endif
-        <p><span class="font-medium text-gray-700">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
+        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
         @if ($deliverable->closes_at)
-            <p><span class="font-medium text-gray-700">Cierre:</span> {{ $deliverable->closes_at->format('d/m/Y H:i') }}</p>
+            <p><span class="font-medium text-text-primary">Cierre:</span> {{ $deliverable->closes_at->format('d/m/Y H:i') }}</p>
         @endif
     </div>
 
     @if (session('status'))
-        <div class="mb-4 rounded-md bg-green-50 p-3 text-sm text-green-800">{{ session('status') }}</div>
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-success-subtle p-3 text-sm text-status-success">
+            <x-icon name="check-circle" class="h-4 w-4 shrink-0" />
+            {{ session('status') }}
+        </div>
     @endif
 
     @if ($submissionError)
-        <div class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{{ $submissionError }}</div>
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-error-subtle p-3 text-sm text-status-error">
+            <x-icon name="alert-circle" class="h-4 w-4 shrink-0" />
+            {{ $submissionError }}
+        </div>
     @endif
 
     @if (! $evidence->status->isEditable())
-        <div class="mb-4 rounded-md bg-gray-50 p-4 text-sm text-gray-600">
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-surface-muted p-4 text-sm text-text-secondary">
+            <x-icon name="shield-check" class="h-4 w-4 shrink-0" />
             Esta evidencia está en estado "{{ $evidence->status->label() }}" y no se puede editar directamente.
         </div>
     @endif
 
-    <div class="space-y-4 rounded-lg bg-white p-6 shadow">
+    <div class="card space-y-5 p-6">
         @if (in_array('text', $allowed))
             <div>
-                <label class="block text-sm font-medium text-gray-700">Texto de la evidencia</label>
-                <textarea wire:model="description" rows="5" @disabled(! $evidence->status->isEditable()) class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                <label class="field-label">Texto de la evidencia</label>
+                <textarea wire:model="description" rows="5" @disabled(! $evidence->status->isEditable()) class="field-input"></textarea>
+                @error('description') <p class="field-error">{{ $message }}</p> @enderror
             </div>
         @endif
 
         @if (in_array('file', $allowed) || in_array('multiple_files', $allowed))
             <div>
-                <label class="block text-sm font-medium text-gray-700">
+                <label class="field-label">
                     Archivos
-                    <span class="font-normal text-gray-400">
+                    <span class="field-help inline">
                         (máx. {{ $deliverable->max_files }}, {{ $deliverable->max_file_size_mb }}MB c/u
                         @if ($deliverable->allowed_file_types)
                             , formatos: {{ collect($deliverable->allowed_file_types)->map(fn ($e) => ".$e")->join(', ') }}
@@ -72,10 +68,16 @@
                 @if ($evidence->currentVersion && $evidence->currentVersion->files->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->files as $file)
-                            <li class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                                <a href="{{ route('evidence-files.download', $file) }}" class="text-indigo-600 hover:underline">{{ $file->original_name }}</a>
+                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-sm">
+                                <a href="{{ route('evidence-files.download', $file) }}" class="flex items-center gap-1.5 text-brand-primary hover:underline">
+                                    <x-icon name="paperclip" class="h-4 w-4 shrink-0" />
+                                    {{ $file->original_name }}
+                                </a>
                                 @if ($evidence->status->isEditable())
-                                    <button type="button" wire:click="removeFile({{ $file->id }})" wire:confirm="¿Eliminar este archivo?" class="text-red-600 hover:underline">Quitar</button>
+                                    <button type="button" wire:click="removeFile({{ $file->id }})" wire:confirm="¿Eliminar este archivo?" class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline">
+                                        <x-icon name="trash" class="h-4 w-4" />
+                                        Quitar
+                                    </button>
                                 @endif
                             </li>
                         @endforeach
@@ -83,24 +85,55 @@
                 @endif
 
                 @if ($evidence->status->isEditable())
-                    <input type="file" wire:model="newFiles" multiple class="mt-2 block w-full text-sm text-gray-600">
-                    @error('newFiles') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-                    @error('newFiles.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    <div
+                        x-data="{ isDragging: false, uploading: false, progress: 0 }"
+                        x-on:livewire-upload-start="uploading = true"
+                        x-on:livewire-upload-finish="uploading = false; progress = 0"
+                        x-on:livewire-upload-error="uploading = false"
+                        x-on:livewire-upload-progress="progress = $event.detail.progress"
+                        @dragover.prevent="isDragging = true"
+                        @dragleave.prevent="isDragging = false"
+                        @drop.prevent="isDragging = false; $refs.newFilesInput.files = $event.dataTransfer.files; $refs.newFilesInput.dispatchEvent(new Event('change'))"
+                        :class="isDragging ? 'border-brand-primary bg-brand-primary-subtle' : 'border-border-subtle'"
+                        class="mt-2 rounded-md border-2 border-dashed p-6 text-center transition-colors"
+                    >
+                        <input type="file" x-ref="newFilesInput" wire:model="newFiles" multiple id="newFiles" class="sr-only">
+                        <label for="newFiles" class="flex cursor-pointer flex-col items-center gap-1.5">
+                            <x-icon name="paperclip" class="h-6 w-6 text-text-secondary" />
+                            <span class="text-sm text-text-secondary">
+                                Arrastra los archivos aquí o <span class="font-medium text-brand-primary">haz clic para seleccionar</span>
+                            </span>
+                        </label>
+
+                        <div x-show="uploading" x-cloak class="mx-auto mt-3 max-w-xs">
+                            <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+                                <div class="h-full bg-brand-primary transition-all" :style="`width: ${progress}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                    @error('newFiles') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('newFiles.*') <p class="field-error">{{ $message }}</p> @enderror
                 @endif
             </div>
         @endif
 
         @if (in_array('link', $allowed))
             <div>
-                <label class="block text-sm font-medium text-gray-700">Enlaces</label>
+                <label class="field-label">Enlaces</label>
 
                 @if ($evidence->currentVersion && $evidence->currentVersion->links->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->links as $link)
-                            <li class="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm">
-                                <a href="{{ $link->url }}" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">{{ $link->label ?: $link->url }}</a>
+                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-sm">
+                                <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-brand-primary hover:underline">
+                                    <x-icon name="link" class="h-4 w-4 shrink-0" />
+                                    {{ $link->label ?: $link->url }}
+                                </a>
                                 @if ($evidence->status->isEditable())
-                                    <button type="button" wire:click="removeLink({{ $link->id }})" wire:confirm="¿Eliminar este enlace?" class="text-red-600 hover:underline">Quitar</button>
+                                    <button type="button" wire:click="removeLink({{ $link->id }})" wire:confirm="¿Eliminar este enlace?" class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline">
+                                        <x-icon name="trash" class="h-4 w-4" />
+                                        Quitar
+                                    </button>
                                 @endif
                             </li>
                         @endforeach
@@ -109,44 +142,40 @@
 
                 @if ($evidence->status->isEditable())
                     <div class="mt-2 flex gap-2">
-                        <input type="url" wire:model="newLinkUrl" placeholder="https://..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <input type="text" wire:model="newLinkLabel" placeholder="Etiqueta (opcional)" class="block w-48 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <button type="button" wire:click="addLink" class="whitespace-nowrap rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200">Agregar</button>
+                        <input type="url" wire:model="newLinkUrl" placeholder="https://..." class="field-input mt-0">
+                        <input type="text" wire:model="newLinkLabel" placeholder="Etiqueta (opcional)" class="field-input mt-0 w-48">
+                        <button type="button" wire:click="addLink" class="btn-secondary whitespace-nowrap">Agregar</button>
                     </div>
-                    @error('newLinkUrl') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('newLinkUrl') <p class="field-error">{{ $message }}</p> @enderror
                 @endif
             </div>
         @endif
 
         @if ($evidence->status->isEditable())
             <div class="flex items-center gap-3 pt-2">
-                <button type="button" wire:click="saveDraft" class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300">
+                <button type="button" wire:click="saveDraft" class="btn-secondary">
                     Guardar borrador
                 </button>
-                <button type="button" wire:click="submit" wire:confirm="¿Confirmas el envío? Una vez enviado no podrás editar esta evidencia directamente." class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                <button type="button" wire:click="submit" wire:confirm="¿Confirmas el envío? Una vez enviado no podrás editar esta evidencia directamente." class="btn-primary">
                     Enviar evidencia
                 </button>
-                <a href="{{ route('my-deliverables.index') }}" class="text-sm text-gray-600 hover:underline">Volver</a>
+                <a href="{{ route('my-deliverables.index') }}" class="btn-text">Volver</a>
             </div>
         @else
-            <a href="{{ route('my-deliverables.index') }}" class="inline-block text-sm text-gray-600 hover:underline">Volver</a>
+            <a href="{{ route('my-deliverables.index') }}" class="btn-text inline-block">Volver</a>
         @endif
     </div>
 
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Revisiones del líder</h2>
+            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Revisiones del líder</h2>
             <ul class="space-y-3">
                 @foreach ($evidence->reviews as $review)
-                    <li class="rounded-md border border-gray-200 bg-white p-3 text-sm">
-                        <p>
-                            <span @class(['font-medium', 'text-green-700' => $review->decision->value === 'approved', 'text-amber-700' => $review->decision->value === 'returned'])>
-                                {{ $review->decision->label() }}
-                            </span>
-                            — {{ $review->decided_at->format('d/m/Y H:i') }}
-                        </p>
+                    <li class="card p-3 text-sm">
+                        <x-status-badge :status="$review->decision" class="mb-1" />
+                        <p class="text-text-secondary">{{ $review->decided_at->format('d/m/Y H:i') }}</p>
                         @foreach ($review->observations as $observation)
-                            <p class="mt-1 text-gray-600">{{ $observation->body }}</p>
+                            <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach
                     </li>
                 @endforeach
@@ -156,8 +185,8 @@
 
     @if ($evidence->versions->count() > 1)
         <div class="mt-6">
-            <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Historial de versiones</h2>
-            <ul class="space-y-1 text-sm text-gray-600">
+            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Historial de versiones</h2>
+            <ul class="space-y-1 text-sm text-text-secondary">
                 @foreach ($evidence->versions as $version)
                     <li>
                         Versión {{ $version->version_number }} —

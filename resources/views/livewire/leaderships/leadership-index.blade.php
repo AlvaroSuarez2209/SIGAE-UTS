@@ -1,13 +1,13 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-lg font-semibold text-gray-800">Líderes</h1>
-        <a href="{{ route('leaderships.create') }}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+        <h1 class="text-2xl font-semibold text-text-primary">Líderes</h1>
+        <a href="{{ route('leaderships.create') }}" class="btn-primary">
             Nuevo liderazgo
         </a>
     </div>
 
     <div class="mb-4">
-        <select wire:model.live="periodFilter" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los periodos</option>
             @foreach ($periods as $period)
                 <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
@@ -15,39 +15,39 @@
         </select>
     </div>
 
-    <div class="overflow-x-auto rounded-lg bg-white shadow">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="table-shell">
+        <table class="min-w-full divide-y divide-border-subtle">
+            <thead>
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Líder</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Periodo</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Ámbito</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Vigencia</th>
-                    <th class="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Acciones</th>
+                    <th class="table-header-cell">Líder</th>
+                    <th class="table-header-cell">Periodo</th>
+                    <th class="table-header-cell">Ámbito</th>
+                    <th class="table-header-cell">Vigencia</th>
+                    <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-border-subtle">
                 @forelse ($leaderships as $leadership)
-                    <tr wire:key="leadership-{{ $leadership->id }}">
-                        <td class="px-4 py-3 text-sm text-gray-800">{{ $leadership->user->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $leadership->academicPeriod->name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">
+                    <tr wire:key="leadership-{{ $leadership->id }}" class="table-row">
+                        <td class="table-cell">{{ $leadership->user->name }}</td>
+                        <td class="table-cell text-text-secondary">{{ $leadership->academicPeriod->name }}</td>
+                        <td class="table-cell text-text-secondary">
                             {{ $leadership->programUnit->name }}
                             @if ($leadership->activity)
-                                <span class="block text-xs text-gray-400">Solo: {{ $leadership->activity->name }}</span>
+                                <span class="block text-xs text-text-secondary">Solo: {{ $leadership->activity->name }}</span>
                             @else
-                                <span class="block text-xs text-gray-400">Todo el programa</span>
+                                <span class="block text-xs text-text-secondary">Todo el programa</span>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-600">
+                        <td class="table-cell text-text-secondary">
                             {{ $leadership->starts_at->format('d/m/Y') }}
                             –
                             {{ $leadership->ends_at?->format('d/m/Y') ?? 'vigente' }}
                         </td>
-                        <td class="px-4 py-3 text-right text-sm whitespace-nowrap">
-                            <a href="{{ route('leaderships.edit', $leadership) }}" class="text-indigo-600 hover:underline">Editar</a>
+                        <td class="table-cell text-right whitespace-nowrap">
+                            <a href="{{ route('leaderships.edit', $leadership) }}" class="btn-text">Editar</a>
                             @unless ($leadership->ends_at)
-                                <button type="button" wire:click="endNow({{ $leadership->id }})" wire:confirm="¿Finalizar este liderazgo hoy?" class="ml-3 text-gray-600 hover:underline">
+                                <button type="button" wire:click="endNow({{ $leadership->id }})" wire:confirm="¿Finalizar este liderazgo hoy?" class="btn-text ml-3 text-text-secondary">
                                     Finalizar
                                 </button>
                             @endunless
@@ -55,7 +55,9 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">No hay liderazgos registrados.</td>
+                        <td colspan="5">
+                            <x-empty-state icon="shield-check" title="No hay liderazgos registrados" description='Usa el botón "Nuevo liderazgo" para asignar un líder.' />
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

@@ -1,40 +1,41 @@
 <div class="max-w-xl">
-    <h1 class="mb-6 text-lg font-semibold text-gray-800">
+    <h1 class="mb-6 text-2xl font-semibold text-text-primary">
         {{ $assignment ? 'Editar asignación' : 'Nueva asignación' }}
     </h1>
 
     @if ($periodLocked)
-        <div class="mb-4 rounded-md bg-amber-50 p-4 text-sm text-amber-800">
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-warning-subtle p-4 text-sm text-status-warning">
+            <x-icon name="alert-triangle" class="h-4 w-4 shrink-0" />
             Este periodo está cerrado o archivado. La asignación se muestra en modo de solo consulta.
         </div>
     @endif
 
-    <form wire:submit="save" class="space-y-4 rounded-lg bg-white p-6 shadow">
+    <form wire:submit="save" class="card space-y-4 p-6">
         <div>
-            <label class="block text-sm font-medium text-gray-700">Docente</label>
-            <select wire:model="user_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif>
+            <label class="field-label">Docente</label>
+            <select wire:model="user_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona un docente</option>
                 @foreach ($teachers as $teacher)
                     <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
                 @endforeach
             </select>
-            @error('user_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('user_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Periodo académico</label>
-            <select wire:model="academic_period_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif>
+            <label class="field-label">Periodo académico</label>
+            <select wire:model="academic_period_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona un periodo</option>
                 @foreach ($periods as $period)
                     <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
                 @endforeach
             </select>
-            @error('academic_period_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('academic_period_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Actividad</label>
-            <select wire:model="activity_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif>
+            <label class="field-label">Actividad</label>
+            <select wire:model="activity_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona una actividad</option>
                 @foreach ($activities as $activity)
                     <option value="{{ $activity->id }}">
@@ -43,42 +44,42 @@
                     </option>
                 @endforeach
             </select>
-            @error('activity_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('activity_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Programa / Unidad académica</label>
-            <select wire:model="program_unit_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif>
+            <label class="field-label">Programa / Unidad académica</label>
+            <select wire:model="program_unit_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona un programa</option>
                 @foreach ($programUnits as $unit)
                     <option value="{{ $unit->id }}">{{ $unit->name }}</option>
                 @endforeach
             </select>
-            @error('program_unit_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('program_unit_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Horas asignadas</label>
-            <input type="number" step="0.5" wire:model="assigned_hours" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif>
-            <p class="mt-1 text-xs text-gray-400">
+            <label class="field-label">Horas asignadas</label>
+            <input type="number" step="0.5" wire:model="assigned_hours" class="field-input" @if ($periodLocked) disabled @endif>
+            <p class="field-help">
                 Las horas son solo información de dedicación: no determinan la cantidad de entregables.
             </p>
-            @error('assigned_hours') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            @error('assigned_hours') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Notas <span class="font-normal text-gray-400">(opcional)</span></label>
-            <textarea wire:model="notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" @if ($periodLocked) disabled @endif></textarea>
-            @error('notes') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+            <label class="field-label">Notas <span class="font-normal text-text-secondary">(opcional)</span></label>
+            <textarea wire:model="notes" rows="3" class="field-input" @if ($periodLocked) disabled @endif></textarea>
+            @error('notes') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex items-center gap-3 pt-2">
             @unless ($periodLocked)
-                <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                <button type="submit" class="btn-primary">
                     Guardar
                 </button>
             @endunless
-            <a href="{{ route('distribution.index') }}" class="text-sm text-gray-600 hover:underline">
+            <a href="{{ route('distribution.index') }}" class="btn-text text-text-secondary">
                 {{ $periodLocked ? 'Volver' : 'Cancelar' }}
             </a>
         </div>
