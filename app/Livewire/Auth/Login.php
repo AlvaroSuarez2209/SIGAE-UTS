@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -37,18 +38,24 @@ class Login extends Component
         if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($throttleKey, 60);
 
+            AuditLog::record('login_failed', null, ['email' => $this->email]);
+
             $this->addError('email', 'Las credenciales no coinciden con nuestros registros.');
 
             return;
         }
 
         if (! Auth::user()->is_active) {
+            AuditLog::record('login_blocked_inactive', Auth::user());
+
             Auth::logout();
 
             $this->addError('email', 'Tu cuenta ha sido desactivada. Contacta al administrador del sistema.');
 
             return;
         }
+
+        AuditLog::record('login', Auth::user());
 
         RateLimiter::clear($throttleKey);
         session()->regenerate();

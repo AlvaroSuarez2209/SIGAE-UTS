@@ -30,6 +30,7 @@
 
                         @if ($isAdmin)
                             <a href="{{ route('admin.users.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Usuarios</a>
+                            <a href="{{ route('admin.audit-logs.index') }}" class="text-sm text-gray-600 hover:text-indigo-600">Auditoría</a>
                         @endif
 
                         @if ($isCoordination)
@@ -99,6 +100,7 @@
 
                 @if ($isAdmin)
                     <a href="{{ route('admin.users.index') }}" class="block py-1 text-sm text-gray-600">Usuarios</a>
+                    <a href="{{ route('admin.audit-logs.index') }}" class="block py-1 text-sm text-gray-600">Auditoría</a>
                 @endif
 
                 @if ($isCoordination)

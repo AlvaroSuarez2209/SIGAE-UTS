@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Evidence extends Model
 {
-    use HasFactory;
+    use Auditable, HasFactory;
 
     protected $table = 'evidences';
 

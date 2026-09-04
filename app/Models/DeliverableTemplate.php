@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Enums\PeriodicityType;
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class DeliverableTemplate extends Model
 {
-    use HasFactory;
+    use Auditable, HasFactory;
 
     protected $fillable = [
         'name',

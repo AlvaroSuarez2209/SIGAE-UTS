@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Deliverable extends Model
 {
-    use HasFactory;
+    use Auditable, HasFactory;
 
     protected $fillable = [
         'deliverable_template_id',

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\RoleName;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\Auditable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,7 +15,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use Auditable, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.

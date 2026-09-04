@@ -5,6 +5,7 @@ use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Admin\Users\UserIndex;
+use App\Livewire\Audit\AuditLogIndex;
 use App\Livewire\Auth\Login;
 use App\Livewire\Catalogs\ActivityIndex;
 use App\Livewire\Catalogs\ComponentIndex;
@@ -60,6 +61,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');
         Route::get('/users/create', UserForm::class)->name('users.create');
         Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
+        Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index');
     });
 
     Route::middleware('role:administrator,coordination')->group(function () {
