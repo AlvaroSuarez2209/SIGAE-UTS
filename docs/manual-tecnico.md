@@ -4,7 +4,7 @@
 
 | Capa | Tecnología |
 |---|---|
-| Backend | PHP 8.3 + Laravel 12 |
+| Backend | PHP 8.2+ (desarrollado y probado con 8.3) + Laravel 12 |
 | Frontend | Blade + Livewire 4 (componentes de clase) + Alpine.js (incluido con Livewire) + Tailwind CSS 4 |
 | Base de datos | PostgreSQL 17 |
 | Autenticación | Local (Laravel `Auth`, hash bcrypt) |
@@ -19,10 +19,11 @@ de Laravel (`storage/app/private`, sin URL pública).
 
 ## 2. Requisitos previos
 
-- PHP 8.3+ con las extensiones: `pdo_pgsql`, `pgsql`, `mbstring`, `openssl`,
-  `curl`, `fileinfo`, `gd`, `intl`, `zip`.
+- PHP 8.2+ (`composer.json` fija `^8.2`; el proyecto se desarrolló y
+  probó con 8.3) con las extensiones: `pdo_pgsql`, `pgsql`, `mbstring`,
+  `openssl`, `curl`, `fileinfo`, `gd`, `intl`, `zip`.
 - Composer 2.x
-- Node.js 18+ y npm (para compilar Tailwind/Vite)
+- Node.js 20+ y npm (Tailwind CSS 4 requiere Node 20 o superior para compilar)
 - PostgreSQL 17 (u otra versión 13+) corriendo localmente
 
 En Windows, la forma más simple de tener PHP + Composer es
