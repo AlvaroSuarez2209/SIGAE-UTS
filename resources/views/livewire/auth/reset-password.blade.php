@@ -30,7 +30,7 @@
                     tabindex="-1"
                 >
                     <x-icon x-show="!show" name="eye" class="h-4 w-4" />
-                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" x-cloak />
+                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" style="display: none;" />
                 </button>
             </div>
 
@@ -109,7 +109,7 @@
                     tabindex="-1"
                 >
                     <x-icon x-show="!show" name="eye" class="h-4 w-4" />
-                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" x-cloak />
+                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" style="display: none;" />
                 </button>
             </div>
             <p id="password_confirmation-error" class="field-error flex min-h-[1.125rem] items-center gap-1" role="alert">

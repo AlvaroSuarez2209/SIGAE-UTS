@@ -124,6 +124,12 @@
 }
 
 @layer base {
+    /* Oculta elementos con x-data condicional antes de que Alpine inicialice,
+       evitando un parpadeo donde ambos estados de un x-show se ven a la vez. */
+    [x-cloak] {
+        display: none !important;
+    }
+
     :focus-visible {
         outline: 2px solid var(--color-brand-primary);
         outline-offset: 2px;
