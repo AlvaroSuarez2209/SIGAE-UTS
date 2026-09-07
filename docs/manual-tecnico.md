@@ -93,6 +93,41 @@ Esto evita que correr las pruebas borre los datos con los que se está
 navegando la aplicación manualmente (`RefreshDatabase` migra y limpia
 esta base en cada ejecución).
 
+### Correo local (recuperación de contraseña)
+
+El sistema envía un correo real cuando un usuario pide restablecer su
+contraseña (pantalla "¿Olvidó su contraseña?"). En local, ese correo se
+entrega a **Mailpit** — un servidor SMTP + bandeja web que ya viene
+incluido con Laragon, sin salir a internet ni depender de credenciales de
+un proveedor externo (Gmail, etc.):
+
+```bash
+# Laragon ya lo trae; solo hace falta arrancarlo (una vez, mientras se use):
+"C:\laragon\bin\mailpit\<version>\mailpit.exe"
+
+# o, si Laragon lo integra en su propio menú, actívalo desde ahí
+# (ícono "Mail" en la barra lateral de Laragon).
+```
+
+Con Mailpit corriendo, cualquier correo que la aplicación envíe (con la
+configuración por defecto de `.env.example`: `MAIL_MAILER=smtp`,
+`MAIL_HOST=127.0.0.1`, `MAIL_PORT=1025`) aparece de inmediato en
+**http://localhost:8025** — se puede abrir el correo, ver el HTML
+renderizado tal cual llegaría a un cliente real, y hacer clic en el
+enlace de restablecimiento directamente desde ahí.
+
+Si Mailpit no está corriendo, `php artisan serve` sigue funcionando con
+normalidad — simplemente el envío del correo fallará silenciosamente en
+segundo plano (no bloquea la respuesta al usuario) y no habrá dónde verlo.
+
+**Importante para un futuro despliegue real:** esta configuración es solo
+para desarrollo local. En un servidor de producción, `MAIL_MAILER` y las
+credenciales deben apuntar a un proveedor real (un relay SMTP
+institucional de UTS, o un servicio transaccional como Amazon SES,
+Mailgun o Postmark con el dominio de UTS verificado) — nunca a Mailpit ni
+a una cuenta de Gmail personal. El cambio es puramente de `.env`; el
+código de la aplicación no cambia entre entornos.
+
 ## 4. Usuarios de prueba (sembrados por `UserSeeder`)
 
 Todos con contraseña `password`:
