@@ -32,7 +32,7 @@
             </p>
         </div>
 
-        <div class="mt-6 w-full">
+        <div class="mt-9 w-full">
             {{ $slot }}
         </div>
 

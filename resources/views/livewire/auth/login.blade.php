@@ -34,7 +34,7 @@
         </div>
 
         <div class="flex flex-col gap-2 text-[0.8125rem] sm:flex-row sm:items-center sm:justify-between">
-            <label class="flex items-center gap-2 text-text-secondary">
+            <label class="flex items-center gap-2.5 text-text-secondary">
                 <input type="checkbox" wire:model="remember" class="field-checkbox">
                 Mantener sesión activa
             </label>

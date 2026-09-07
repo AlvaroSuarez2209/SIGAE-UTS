@@ -80,14 +80,19 @@
         @apply mt-1 text-[0.8125rem] leading-tight text-status-error;
     }
     .field-input {
-        @apply mt-1 block w-full rounded-md border-border-subtle text-base text-text-primary shadow-sm
+        @apply mt-1 block w-full rounded-md border-border-subtle px-3 py-2.5 text-base text-text-primary shadow-sm
         focus:border-brand-primary focus:ring-brand-primary disabled:bg-surface-muted disabled:text-text-secondary;
     }
+    /* Tailwind aplica 50% de opacidad por defecto a ::placeholder, lo que baja el contraste
+       por debajo de AA (≈3.1:1 sobre fondo blanco); 70% lo sube a ~5.8:1. */
+    .field-input::placeholder {
+        color: color-mix(in oklab, currentcolor 70%, transparent);
+    }
     .field-checkbox {
-        @apply rounded border-border-subtle text-brand-primary focus:ring-brand-primary;
+        @apply h-4 w-4 rounded border-border-subtle text-brand-primary focus:ring-brand-primary;
     }
     .field-radio {
-        @apply border-border-subtle text-brand-primary focus:ring-brand-primary;
+        @apply h-4 w-4 border-border-subtle text-brand-primary focus:ring-brand-primary;
     }
 
     /* Tarjetas */
