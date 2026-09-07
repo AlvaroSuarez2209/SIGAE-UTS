@@ -78,7 +78,8 @@ para no cargar una fuente sin uso real.
 | Título de página (h1) | 1.5rem / 24px | 600 (semibold) | 1.3 | "Componentes", "Mis entregables" |
 | Subtítulo de sección (h2) | 1.125rem / 18px | 600 (semibold) | 1.3 | "Panel docente", "Histórico de revisiones" |
 | Título de tarjeta (login) | 1.125rem / 18px | 500 (medium) | 1.3 | "Iniciar sesión" |
-| Nombre de programa (login) | 1rem / 16px | 500 (medium) | 1.4 | "Ingeniería de Sistemas" |
+| Nombre del sistema (login) | 1.5rem–1.875rem / 24–30px, responsivo | 600 (semibold) | 1.3 | "SIGAE-UTS" bajo el isotipo |
+| Bajada del sistema (login) | 0.875rem–1rem / 14–16px, responsivo | 500 (medium) | 1.4 | "Sistema de Información para la Gestión de Actividades y Evidencias Docentes" |
 | Cuerpo / tablas | 0.875rem / 14px | 400 (regular) | 1.5 | Celdas de tabla, texto de tarjetas |
 | Etiquetas de formulario | 0.875rem / 14px | 500 (medium) | 1.4 | `<label>` de todos los campos |
 | Campos de formulario (input) | 1rem / 16px | 400 (regular) | 1.5 | `<input>`, `<select>`, `<textarea>` — 16px evita el auto-zoom de iOS |
@@ -168,16 +169,22 @@ adicional cuyo único uso era un título que ahora es una imagen.
 
 ## 6. Estado de la identidad visual
 
-El logo institucional real (isotipo hexagonal azul/verde + wordmark
-"SIGAE-UTS") ya está integrado:
+El logo institucional real (isotipo hexagonal azul/verde, sin wordmark) ya
+está integrado:
 
 - **Login** (`layouts/guest.blade.php`): usa `public/images/logo/logo-full.png`
-  (1600×480, protagonista, sin contenedor ni rotación — el lockup horizontal
-  ya trae su propio wordmark y bajada de texto, así que envolverlo en una
-  forma no aportaba nada).
+  (isotipo, 1600×1600) como protagonista, grande y responsivo
+  (112px de alto en móvil → 160px en escritorio), sin contenedor ni
+  rotación. Como el archivo ya no trae wordmark ni bajada de texto
+  incorporados, el nombre y la descripción del sistema se muestran como
+  texto aparte debajo del isotipo — "SIGAE-UTS" (24–30px, semibold) y
+  "Sistema de Información para la Gestión de Actividades y Evidencias
+  Docentes" (14–16px, en `brand-secondary`) — ambos también escalando con
+  el tamaño de pantalla para mantener protagonismo en cualquier
+  dispositivo.
 - **Sidebar / drawer móvil / barra superior móvil** (`layouts/app.blade.php`):
-  usan `public/images/logo/logo-mark.png` (1600×1600, solo el isotipo)
-  junto al texto "SIGAE-UTS", a tamaño de ícono (28–32px).
+  usan `public/images/logo/logo-mark.png` (el mismo isotipo) junto al texto
+  "SIGAE-UTS", a tamaño de ícono (28–32px).
 - **Favicon**: generado en 5 tamaños (`public/favicon-{16,32,180,192,512}.png`)
   a partir de `public/images/logo/favicon-source.png`.
 
