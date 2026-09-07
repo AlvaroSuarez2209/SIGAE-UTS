@@ -39,7 +39,7 @@
                 'title' => 'Gestión académica',
                 'links' => collect([
                     ['route' => 'periods.index', 'label' => 'Periodos', 'icon' => 'clock'],
-                    ['route' => 'distribution.index', 'label' => 'Distribución', 'icon' => 'document'],
+                    ['route' => 'distribution.index', 'label' => 'Distribución', 'icon' => 'link'],
                     ['route' => 'leaderships.index', 'label' => 'Líderes', 'icon' => 'shield-check'],
                     ['route' => 'deliverables.index', 'label' => 'Entregables', 'icon' => 'paperclip'],
                     ['route' => 'deliverable-templates.index', 'label' => 'Plantillas de entregables', 'icon' => 'document'],
@@ -48,27 +48,27 @@
             $isCoordination ? [
                 'title' => 'Catálogos',
                 'links' => collect([
-                    ['route' => 'catalogs.components', 'label' => 'Componentes', 'icon' => 'document'],
-                    ['route' => 'catalogs.subcomponents', 'label' => 'Subcomponentes', 'icon' => 'document'],
-                    ['route' => 'catalogs.activities', 'label' => 'Actividades', 'icon' => 'document'],
-                    ['route' => 'catalogs.program-units', 'label' => 'Programas', 'icon' => 'document'],
-                    ['route' => 'catalogs.cross-cutting-commitments', 'label' => 'Compromisos transversales', 'icon' => 'document'],
+                    ['route' => 'catalogs.components', 'label' => 'Componentes', 'icon' => 'list'],
+                    ['route' => 'catalogs.subcomponents', 'label' => 'Subcomponentes', 'icon' => 'list'],
+                    ['route' => 'catalogs.activities', 'label' => 'Actividades', 'icon' => 'list'],
+                    ['route' => 'catalogs.program-units', 'label' => 'Programas', 'icon' => 'list'],
+                    ['route' => 'catalogs.cross-cutting-commitments', 'label' => 'Compromisos transversales', 'icon' => 'list'],
                 ]),
             ] : null,
             $canSeeReports ? [
                 'title' => 'Informes',
                 'links' => collect([
-                    ['route' => 'reports.teacher', 'label' => 'Individual por docente', 'icon' => 'document'],
-                    ['route' => 'reports.activity', 'label' => 'Por actividad', 'icon' => 'document'],
-                    ['route' => 'reports.cross-cutting', 'label' => 'Compromisos transversales', 'icon' => 'document'],
-                    ['route' => 'reports.consolidated', 'label' => 'Consolidado por periodo', 'icon' => 'document'],
+                    ['route' => 'reports.teacher', 'label' => 'Individual por docente', 'icon' => 'chart-bar'],
+                    ['route' => 'reports.activity', 'label' => 'Por actividad', 'icon' => 'chart-bar'],
+                    ['route' => 'reports.cross-cutting', 'label' => 'Compromisos transversales', 'icon' => 'chart-bar'],
+                    ['route' => 'reports.consolidated', 'label' => 'Consolidado por periodo', 'icon' => 'chart-bar'],
                 ]),
             ] : null,
             $isAdmin ? [
                 'title' => 'Administración',
                 'links' => collect([
-                    ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'document'],
-                    ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'document'],
+                    ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'],
+                    ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'shield-check'],
                 ]),
             ] : null,
         ])->filter();
@@ -102,6 +102,7 @@
                                         'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                     ])
                                 >
+                                    <x-icon :name="$link['icon']" class="h-4 w-4 shrink-0" />
                                     {{ $link['label'] }}
                                 </a>
                             @endforeach
@@ -148,11 +149,12 @@
                                     <a
                                         href="{{ route($link['route']) }}"
                                         @class([
-                                            'block rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
+                                            'flex items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
                                             'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
                                             'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                         ])
                                     >
+                                        <x-icon :name="$link['icon']" class="h-4 w-4 shrink-0" />
                                         {{ $link['label'] }}
                                     </a>
                                 @endforeach
