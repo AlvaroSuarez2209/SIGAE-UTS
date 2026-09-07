@@ -18,11 +18,28 @@ class Login extends Component
 
     public bool $remember = false;
 
+    /**
+     * Mensaje genérico de nivel de formulario (no ligado a un campo específico):
+     * credenciales incorrectas, cuenta inactiva, o límite de intentos. Nunca
+     * distingue "correo no existe" de "contraseña incorrecta" — evita
+     * enumeración de usuarios.
+     */
+    public ?string $genericError = null;
+
+    public bool $showForgotPasswordHint = false;
+
     public function login(): void
     {
+        $this->genericError = null;
+        $this->showForgotPasswordHint = false;
+
         $this->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+        ], [
+            'email.required' => 'Ingresa tu correo institucional.',
+            'email.email' => 'Ingresa un correo institucional válido.',
+            'password.required' => 'Ingresa tu contraseña.',
         ]);
 
         $throttleKey = Str::lower($this->email).'|'.request()->ip();
@@ -30,7 +47,8 @@ class Login extends Component
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
 
-            $this->addError('email', "Demasiados intentos. Intenta de nuevo en {$seconds} segundos.");
+            $this->genericError = "Demasiados intentos. Intenta de nuevo en {$seconds} segundos.";
+            $this->showForgotPasswordHint = true;
 
             return;
         }
@@ -40,7 +58,11 @@ class Login extends Component
 
             AuditLog::record('login_failed', null, ['email' => $this->email]);
 
-            $this->addError('email', 'Las credenciales no coinciden con nuestros registros.');
+            // Mismo mensaje sin importar si el correo no existe o la contraseña
+            // es incorrecta — revelar cuál de los dos casos ocurrió permitiría
+            // a un atacante usar el login para descubrir correos registrados.
+            $this->genericError = 'Correo o contraseña incorrectos.';
+            $this->showForgotPasswordHint = RateLimiter::attempts($throttleKey) >= 3;
 
             return;
         }
@@ -50,7 +72,7 @@ class Login extends Component
 
             Auth::logout();
 
-            $this->addError('email', 'Tu cuenta ha sido desactivada. Contacta al administrador del sistema.');
+            $this->genericError = 'Tu cuenta ha sido desactivada. Contacta al administrador del sistema.';
 
             return;
         }

@@ -4,7 +4,9 @@
         Elige una nueva contraseña para tu cuenta.
     </p>
 
-    <form wire:submit="resetPassword" class="space-y-4">
+    <x-auth-alert :error="$genericError" wire-property="genericError" />
+
+    <form wire:submit="resetPassword" class="space-y-4" novalidate>
         <div>
             <label for="email" class="field-label">Correo institucional</label>
             <input
@@ -13,11 +15,11 @@
                 wire:model="email"
                 autocomplete="username"
                 placeholder="nombre@uts.edu.co"
-                class="field-input"
+                class="field-input @error('email') border-status-error @enderror"
+                aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
+                aria-describedby="email-error"
             >
-            @error('email')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
+            <x-field-error field="email" />
         </div>
 
         <div>
@@ -25,16 +27,66 @@
             <input
                 type="password"
                 id="password"
-                wire:model="password"
+                wire:model.live="password"
                 autofocus
                 autocomplete="new-password"
                 placeholder="••••••••"
-                class="field-input"
+                class="field-input @if ($submitAttempted && ! $this->meetsAllRequirements()) border-status-error @endif"
+                aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
+                aria-describedby="password-requirements"
             >
-            <p class="field-help">Mínimo 8 caracteres.</p>
-            @error('password')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
+
+            {{-- Checklist de requisitos: neutro mientras se escribe, verde al
+                 cumplirse, y solo se pone rojo tras un intento de envío fallido. --}}
+            <div id="password-requirements" class="mt-2 rounded-md border border-border-subtle bg-surface-muted p-3">
+                <p class="mb-2 text-xs font-medium text-text-secondary">Tu contraseña debe tener:</p>
+                <ul class="space-y-1">
+                    @foreach ($this->passwordRequirements() as $requirement)
+                        <li @class([
+                            'flex items-center gap-1.5 text-xs',
+                            'text-status-success' => $requirement['met'],
+                            'text-status-error' => ! $requirement['met'] && $submitAttempted,
+                            'text-text-secondary' => ! $requirement['met'] && ! $submitAttempted,
+                        ])>
+                            @if ($requirement['met'])
+                                <x-icon name="check-circle" class="h-3.5 w-3.5 shrink-0" />
+                            @elseif ($submitAttempted)
+                                <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                            @else
+                                <span class="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                                    <span class="h-2 w-2 rounded-full border border-border-subtle"></span>
+                                </span>
+                            @endif
+                            {{ $requirement['label'] }}
+                        </li>
+                    @endforeach
+                </ul>
+
+                @if ($password !== '')
+                    @php $level = $this->passwordStrengthLevel(); @endphp
+                    <div class="mt-3 flex items-center gap-2">
+                        <div class="flex flex-1 gap-1">
+                            @for ($i = 1; $i <= 3; $i++)
+                                <span @class([
+                                    'h-1 flex-1 rounded-full',
+                                    'bg-status-error' => $level === 1 && $i === 1,
+                                    'bg-status-warning' => $level === 2 && $i <= 2,
+                                    'bg-status-success' => $level === 3,
+                                    'bg-border-subtle' => ($level === 1 && $i > 1) || ($level === 2 && $i > 2),
+                                ])></span>
+                            @endfor
+                        </div>
+                        <span class="text-xs font-medium text-text-secondary">{{ $this->passwordStrengthLabel() }}</span>
+                    </div>
+                @endif
+            </div>
+
+            @if ($submitAttempted && ! $this->meetsAllRequirements())
+                <p class="field-error flex items-center gap-1">
+                    <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                    Tu contraseña no cumple con todos los requisitos.
+                </p>
+            @endif
         </div>
 
         <div>
@@ -42,11 +94,19 @@
             <input
                 type="password"
                 id="password_confirmation"
-                wire:model="password_confirmation"
+                wire:model.live.blur="password_confirmation"
                 autocomplete="new-password"
                 placeholder="••••••••"
-                class="field-input"
+                class="field-input @if ($this->confirmationError()) border-status-error @endif"
+                aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
+                aria-describedby="password_confirmation-error"
             >
+            <p id="password_confirmation-error" class="field-error flex min-h-[1.125rem] items-center gap-1" role="alert">
+                @if ($this->confirmationError())
+                    <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                    {{ $this->confirmationError() }}
+                @endif
+            </p>
         </div>
 
         <button

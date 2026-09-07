@@ -18,6 +18,8 @@ class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const VALID_PASSWORD = 'Nueva-Clave123';
+
     public function test_forgot_password_screen_can_be_rendered(): void
     {
         $response = $this->get('/forgot-password');
@@ -74,12 +76,12 @@ class PasswordResetTest extends TestCase
 
         Livewire::test(ResetPassword::class, ['token' => $token])
             ->set('email', $user->email)
-            ->set('password', 'new-password-123')
-            ->set('password_confirmation', 'new-password-123')
+            ->set('password', self::VALID_PASSWORD)
+            ->set('password_confirmation', self::VALID_PASSWORD)
             ->call('resetPassword')
             ->assertRedirect(route('login'));
 
-        $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
+        $this->assertTrue(Hash::check(self::VALID_PASSWORD, $user->fresh()->password));
 
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'password_reset_completed',
@@ -90,23 +92,24 @@ class PasswordResetTest extends TestCase
         // The new password actually works at the real login screen.
         Livewire::test(Login::class)
             ->set('email', $user->email)
-            ->set('password', 'new-password-123')
+            ->set('password', self::VALID_PASSWORD)
             ->call('login')
             ->assertRedirect(route('dashboard'));
     }
 
-    public function test_reset_fails_with_an_invalid_token(): void
+    public function test_reset_fails_with_an_invalid_token_and_shows_a_generic_banner(): void
     {
         $user = User::factory()->create();
 
         Livewire::test(ResetPassword::class, ['token' => 'not-a-real-token'])
             ->set('email', $user->email)
-            ->set('password', 'new-password-123')
-            ->set('password_confirmation', 'new-password-123')
+            ->set('password', self::VALID_PASSWORD)
+            ->set('password_confirmation', self::VALID_PASSWORD)
             ->call('resetPassword')
-            ->assertHasErrors('email');
+            ->assertHasNoErrors()
+            ->assertSet('genericError', fn ($message) => filled($message));
 
-        $this->assertFalse(Hash::check('new-password-123', $user->fresh()->password));
+        $this->assertFalse(Hash::check(self::VALID_PASSWORD, $user->fresh()->password));
     }
 
     public function test_reset_requires_password_confirmation_to_match(): void
@@ -116,9 +119,65 @@ class PasswordResetTest extends TestCase
 
         Livewire::test(ResetPassword::class, ['token' => $token])
             ->set('email', $user->email)
-            ->set('password', 'new-password-123')
-            ->set('password_confirmation', 'does-not-match')
+            ->set('password', self::VALID_PASSWORD)
+            ->set('password_confirmation', 'Does-Not-Match123')
             ->call('resetPassword')
-            ->assertHasErrors('password');
+            ->assertSee('Las contraseñas no coinciden.');
+
+        $this->assertFalse(Hash::check(self::VALID_PASSWORD, $user->fresh()->password));
+    }
+
+    public function test_mismatch_message_is_not_shown_before_confirmation_is_typed(): void
+    {
+        $token = Password::createToken(User::factory()->create());
+
+        Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('password', 'Something123')
+            ->assertDontSee('Las contraseñas no coinciden.');
+    }
+
+    public function test_password_requirements_checklist_updates_live_as_the_user_types(): void
+    {
+        $token = Password::createToken(User::factory()->create());
+
+        $component = Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('password', 'abc');
+
+        $requirements = $component->instance()->passwordRequirements();
+
+        $this->assertFalse($requirements[0]['met']); // 8 caracteres
+        $this->assertFalse($requirements[1]['met']); // mayúscula
+        $this->assertTrue($requirements[2]['met']);  // minúscula
+        $this->assertFalse($requirements[3]['met']); // número o símbolo
+
+        $component->set('password', self::VALID_PASSWORD);
+        $this->assertTrue($component->instance()->meetsAllRequirements());
+    }
+
+    public function test_unmet_requirements_are_neutral_until_a_submit_attempt(): void
+    {
+        $token = Password::createToken(User::factory()->create());
+
+        Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('password', 'abc')
+            ->assertSet('submitAttempted', false)
+            ->assertDontSee('Tu contraseña no cumple con todos los requisitos.');
+    }
+
+    public function test_submitting_a_weak_password_flags_the_checklist_without_a_generic_error(): void
+    {
+        $user = User::factory()->create();
+        $token = Password::createToken($user);
+
+        Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('email', $user->email)
+            ->set('password', 'abc')
+            ->set('password_confirmation', 'abc')
+            ->call('resetPassword')
+            ->assertSet('submitAttempted', true)
+            ->assertSet('genericError', null)
+            ->assertSee('Tu contraseña no cumple con todos los requisitos.');
+
+        $this->assertFalse(Hash::check('abc', $user->fresh()->password));
     }
 }

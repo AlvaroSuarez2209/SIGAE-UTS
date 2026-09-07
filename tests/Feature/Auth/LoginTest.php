@@ -51,7 +51,7 @@ class LoginTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_authentication_fails_with_incorrect_password(): void
+    public function test_wrong_password_shows_the_generic_message_not_a_field_error(): void
     {
         $user = User::factory()->create(['is_active' => true]);
 
@@ -59,12 +59,25 @@ class LoginTest extends TestCase
             ->set('email', $user->email)
             ->set('password', 'wrong-password')
             ->call('login')
-            ->assertHasErrors('email');
+            ->assertHasNoErrors()
+            ->assertSet('genericError', 'Correo o contraseña incorrectos.');
 
         $this->assertGuest();
     }
 
-    public function test_inactive_user_cannot_authenticate(): void
+    public function test_nonexistent_email_shows_the_exact_same_generic_message(): void
+    {
+        Livewire::test(Login::class)
+            ->set('email', 'nadie@sigae.local')
+            ->set('password', 'whatever-123')
+            ->call('login')
+            ->assertHasNoErrors()
+            ->assertSet('genericError', 'Correo o contraseña incorrectos.');
+
+        $this->assertGuest();
+    }
+
+    public function test_inactive_user_gets_a_distinct_account_disabled_message(): void
     {
         $user = User::factory()->create(['is_active' => false]);
 
@@ -72,9 +85,45 @@ class LoginTest extends TestCase
             ->set('email', $user->email)
             ->set('password', 'password')
             ->call('login')
-            ->assertHasErrors('email');
+            ->assertHasNoErrors()
+            ->assertSet('genericError', 'Tu cuenta ha sido desactivada. Contacta al administrador del sistema.');
 
         $this->assertGuest();
+    }
+
+    public function test_empty_fields_show_field_specific_messages_not_a_generic_banner(): void
+    {
+        Livewire::test(Login::class)
+            ->set('email', '')
+            ->set('password', '')
+            ->call('login')
+            ->assertHasErrors(['email' => 'required', 'password' => 'required'])
+            ->assertSet('genericError', null)
+            ->assertSee('Ingresa tu correo institucional')
+            ->assertSee('Ingresa tu contraseña');
+    }
+
+    public function test_only_the_empty_field_is_flagged_when_the_other_is_filled(): void
+    {
+        Livewire::test(Login::class)
+            ->set('email', 'docente@sigae.local')
+            ->set('password', '')
+            ->call('login')
+            ->assertHasErrors('password')
+            ->assertHasNoErrors('email');
+    }
+
+    public function test_forgot_password_hint_appears_after_repeated_failed_attempts(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+
+        $component = Livewire::test(Login::class)
+            ->set('email', $user->email)
+            ->set('password', 'wrong-password');
+
+        $component->call('login')->assertSet('showForgotPasswordHint', false);
+        $component->call('login')->assertSet('showForgotPasswordHint', false);
+        $component->call('login')->assertSet('showForgotPasswordHint', true);
     }
 
     public function test_deactivated_user_is_logged_out_mid_session(): void

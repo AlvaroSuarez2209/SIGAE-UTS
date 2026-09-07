@@ -8,7 +8,16 @@
         </div>
     @endif
 
-    <form wire:submit="login" class="space-y-4">
+    {{-- Alerta genérica: credenciales incorrectas, cuenta inactiva o límite de
+         intentos. Nunca señala un campo específico (ver Login::login()). --}}
+    <x-auth-alert
+        :error="$genericError"
+        wire-property="genericError"
+        :hint="$showForgotPasswordHint ? '¿Olvidaste tu contraseña? Recupérala aquí' : null"
+        :hint-url="route('password.request')"
+    />
+
+    <form wire:submit="login" class="space-y-4" novalidate>
         <div>
             <label for="email" class="field-label">Correo institucional</label>
             <input
@@ -18,11 +27,11 @@
                 autofocus
                 autocomplete="username"
                 placeholder="nombre@uts.edu.co"
-                class="field-input"
+                class="field-input @error('email') border-status-error @enderror"
+                aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
+                aria-describedby="email-error"
             >
-            @error('email')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
+            <x-field-error field="email" />
         </div>
 
         <div>
@@ -33,11 +42,11 @@
                 wire:model="password"
                 autocomplete="current-password"
                 placeholder="••••••••"
-                class="field-input"
+                class="field-input @error('password') border-status-error @enderror"
+                aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
+                aria-describedby="password-error"
             >
-            @error('password')
-                <p class="field-error">{{ $message }}</p>
-            @enderror
+            <x-field-error field="password" />
         </div>
 
         <div class="flex flex-col gap-2 text-[0.8125rem] sm:flex-row sm:items-center sm:justify-between">
