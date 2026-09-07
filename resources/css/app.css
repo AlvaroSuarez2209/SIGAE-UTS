@@ -130,6 +130,24 @@
         display: none !important;
     }
 
+    /* Suprime los íconos nativos de mostrar/ocultar u ojo automático que
+       Edge y Chrome insertan en <input type="password">, para que no
+       compitan visualmente con el botón propio de mostrar/ocultar
+       contraseña. -ms-reveal es un pseudo-elemento: NO se puede desactivar
+       con un atributo style="" en el input, solo con esta regla. */
+    input[type='password']::-ms-reveal,
+    input[type='password']::-ms-clear {
+        display: none;
+    }
+    input::-webkit-credentials-auto-fill-button,
+    input::-webkit-strong-password-auto-fill-button {
+        visibility: hidden;
+        display: none !important;
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+    }
+
     :focus-visible {
         outline: 2px solid var(--color-brand-primary);
         outline-offset: 2px;

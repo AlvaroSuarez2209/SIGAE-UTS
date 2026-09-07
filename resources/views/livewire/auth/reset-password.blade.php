@@ -20,7 +20,6 @@
                     class="field-input pr-10 @if ($submitAttempted && ! $this->meetsAllRequirements()) border-status-error @endif"
                     aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
                     aria-describedby="password-requirements"
-                    style="-ms-reveal: none;"
                 >
                 <button
                     type="button"
@@ -99,7 +98,6 @@
                     class="field-input pr-10 @if ($this->confirmationError()) border-status-error @endif"
                     aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
                     aria-describedby="password_confirmation-error"
-                    style="-ms-reveal: none;"
                 >
                 <button
                     type="button"
