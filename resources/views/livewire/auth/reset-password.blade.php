@@ -1,44 +1,42 @@
 <div class="rounded-xl border border-border-subtle bg-surface p-6 shadow-sm">
     <h1 class="mb-2 text-lg font-medium text-text-primary">Crear nueva contraseña</h1>
     <p class="mb-5 text-sm text-text-secondary">
-        Elige una nueva contraseña para tu cuenta.
+        Restableciendo la contraseña de <span class="font-medium text-text-primary">{{ $email }}</span>.
     </p>
 
     <x-auth-alert :error="$genericError" wire-property="genericError" />
 
     <form wire:submit="resetPassword" class="space-y-4" novalidate>
         <div>
-            <label for="email" class="field-label">Correo institucional</label>
-            <input
-                type="email"
-                id="email"
-                wire:model="email"
-                autocomplete="username"
-                placeholder="nombre@uts.edu.co"
-                class="field-input @error('email') border-status-error @enderror"
-                aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
-                aria-describedby="email-error"
-            >
-            <x-field-error field="email" />
-        </div>
-
-        <div>
             <label for="password" class="field-label">Nueva contraseña</label>
-            <input
-                type="password"
-                id="password"
-                wire:model.live="password"
-                autofocus
-                autocomplete="new-password"
-                placeholder="••••••••"
-                class="field-input @if ($submitAttempted && ! $this->meetsAllRequirements()) border-status-error @endif"
-                aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
-                aria-describedby="password-requirements"
-            >
+            <div class="relative" x-data="{ show: false }">
+                <input
+                    :type="show ? 'text' : 'password'"
+                    id="password"
+                    wire:model.live="password"
+                    autofocus
+                    autocomplete="new-password"
+                    placeholder="••••••••"
+                    class="field-input pr-10 @if ($submitAttempted && ! $this->meetsAllRequirements()) border-status-error @endif"
+                    aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
+                    aria-describedby="password-requirements"
+                    style="-ms-reveal: none;"
+                >
+                <button
+                    type="button"
+                    @click="show = !show"
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-text-secondary hover:text-text-primary focus:outline-none focus-visible:text-brand-primary"
+                    :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    tabindex="-1"
+                >
+                    <x-icon x-show="!show" name="eye" class="h-4 w-4" />
+                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" x-cloak />
+                </button>
+            </div>
 
-            {{-- Checklist de requisitos: neutro mientras se escribe, verde al
-                 cumplirse, y solo se pone rojo tras un intento de envío fallido. --}}
-            <div id="password-requirements" class="mt-2 rounded-md border border-border-subtle bg-surface-muted p-3">
+            {{-- Checklist de requisitos: neutro (pero legible) mientras se escribe,
+                 verde al cumplirse, y solo se pone rojo tras un intento de envío fallido. --}}
+            <div id="password-requirements" class="mt-2 rounded-lg bg-surface-muted p-3">
                 <p class="mb-2 text-xs font-medium text-text-secondary">Tu contraseña debe tener:</p>
                 <ul class="space-y-1">
                     @foreach ($this->passwordRequirements() as $requirement)
@@ -46,7 +44,7 @@
                             'flex items-center gap-1.5 text-xs',
                             'text-status-success' => $requirement['met'],
                             'text-status-error' => ! $requirement['met'] && $submitAttempted,
-                            'text-text-secondary' => ! $requirement['met'] && ! $submitAttempted,
+                            'text-text-primary' => ! $requirement['met'] && ! $submitAttempted,
                         ])>
                             @if ($requirement['met'])
                                 <x-icon name="check-circle" class="h-3.5 w-3.5 shrink-0" />
@@ -54,7 +52,7 @@
                                 <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
                             @else
                                 <span class="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                                    <span class="h-2 w-2 rounded-full border border-border-subtle"></span>
+                                    <span class="h-2 w-2 rounded-full border border-text-secondary"></span>
                                 </span>
                             @endif
                             {{ $requirement['label'] }}
@@ -91,16 +89,29 @@
 
         <div>
             <label for="password_confirmation" class="field-label">Confirmar contraseña</label>
-            <input
-                type="password"
-                id="password_confirmation"
-                wire:model.live.blur="password_confirmation"
-                autocomplete="new-password"
-                placeholder="••••••••"
-                class="field-input @if ($this->confirmationError()) border-status-error @endif"
-                aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
-                aria-describedby="password_confirmation-error"
-            >
+            <div class="relative" x-data="{ show: false }">
+                <input
+                    :type="show ? 'text' : 'password'"
+                    id="password_confirmation"
+                    wire:model.live.blur="password_confirmation"
+                    autocomplete="new-password"
+                    placeholder="••••••••"
+                    class="field-input pr-10 @if ($this->confirmationError()) border-status-error @endif"
+                    aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
+                    aria-describedby="password_confirmation-error"
+                    style="-ms-reveal: none;"
+                >
+                <button
+                    type="button"
+                    @click="show = !show"
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-text-secondary hover:text-text-primary focus:outline-none focus-visible:text-brand-primary"
+                    :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    tabindex="-1"
+                >
+                    <x-icon x-show="!show" name="eye" class="h-4 w-4" />
+                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" x-cloak />
+                </button>
+            </div>
             <p id="password_confirmation-error" class="field-error flex min-h-[1.125rem] items-center gap-1" role="alert">
                 @if ($this->confirmationError())
                     <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />

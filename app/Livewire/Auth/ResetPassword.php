@@ -125,13 +125,11 @@ class ResetPassword extends Component
         $this->genericError = null;
         $this->submitAttempted = true;
 
-        $this->validate([
-            'email' => ['required', 'string', 'email'],
-        ], [
-            'email.required' => 'Ingresa tu correo institucional.',
-            'email.email' => 'Ingresa un correo institucional válido.',
-        ]);
-
+        // El correo llega de forma fija desde el enlace del token (mount()),
+        // nunca lo edita el usuario en esta pantalla — si viniera vacío por un
+        // enlace malformado, Password::reset() abajo lo reporta igual como
+        // un enlace inválido, sin necesidad de validarlo aquí como si fuera
+        // un campo de formulario.
         if (! $this->meetsAllRequirements() || $this->confirmationError() !== null) {
             return;
         }
