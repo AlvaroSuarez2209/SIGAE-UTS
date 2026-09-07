@@ -9,29 +9,16 @@
     <form wire:submit="resetPassword" class="space-y-4" novalidate>
         <div>
             <label for="password" class="field-label">Nueva contraseña</label>
-            <div class="relative" x-data="{ show: false }">
-                <input
-                    :type="show ? 'text' : 'password'"
-                    id="password"
-                    wire:model.live="password"
-                    autofocus
-                    autocomplete="new-password"
-                    placeholder="••••••••"
-                    class="field-input pr-10 @if ($submitAttempted && ! $this->meetsAllRequirements()) border-status-error @endif"
-                    aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
-                    aria-describedby="password-requirements"
-                >
-                <button
-                    type="button"
-                    @click="show = !show"
-                    class="absolute inset-y-0 right-0 flex items-center px-3 text-text-secondary hover:text-text-primary focus:outline-none focus-visible:text-brand-primary"
-                    :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                    tabindex="-1"
-                >
-                    <x-icon x-show="!show" name="eye" class="h-4 w-4" />
-                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" style="display: none;" />
-                </button>
-            </div>
+            <x-password-input
+                id="password"
+                wire:model.live="password"
+                autofocus
+                autocomplete="new-password"
+                placeholder="••••••••"
+                :class="$submitAttempted && ! $this->meetsAllRequirements() ? 'border-status-error' : ''"
+                aria-invalid="{{ $submitAttempted && ! $this->meetsAllRequirements() ? 'true' : 'false' }}"
+                aria-describedby="password-requirements"
+            />
 
             {{-- Checklist de requisitos: neutro (pero legible) mientras se escribe,
                  verde al cumplirse, y solo se pone rojo tras un intento de envío fallido. --}}
@@ -88,28 +75,15 @@
 
         <div>
             <label for="password_confirmation" class="field-label">Confirmar contraseña</label>
-            <div class="relative" x-data="{ show: false }">
-                <input
-                    :type="show ? 'text' : 'password'"
-                    id="password_confirmation"
-                    wire:model.live.blur="password_confirmation"
-                    autocomplete="new-password"
-                    placeholder="••••••••"
-                    class="field-input pr-10 @if ($this->confirmationError()) border-status-error @endif"
-                    aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
-                    aria-describedby="password_confirmation-error"
-                >
-                <button
-                    type="button"
-                    @click="show = !show"
-                    class="absolute inset-y-0 right-0 flex items-center px-3 text-text-secondary hover:text-text-primary focus:outline-none focus-visible:text-brand-primary"
-                    :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                    tabindex="-1"
-                >
-                    <x-icon x-show="!show" name="eye" class="h-4 w-4" />
-                    <x-icon x-show="show" name="eye-off" class="h-4 w-4" style="display: none;" />
-                </button>
-            </div>
+            <x-password-input
+                id="password_confirmation"
+                wire:model.live.blur="password_confirmation"
+                autocomplete="new-password"
+                placeholder="••••••••"
+                :class="$this->confirmationError() ? 'border-status-error' : ''"
+                aria-invalid="{{ $this->confirmationError() ? 'true' : 'false' }}"
+                aria-describedby="password_confirmation-error"
+            />
             <p id="password_confirmation-error" class="field-error flex min-h-[1.125rem] items-center gap-1" role="alert">
                 @if ($this->confirmationError())
                     <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />

@@ -36,16 +36,15 @@
 
         <div>
             <label for="password" class="field-label">Contraseña</label>
-            <input
-                type="password"
+            <x-password-input
                 id="password"
                 wire:model="password"
                 autocomplete="current-password"
                 placeholder="••••••••"
-                class="field-input @error('password') border-status-error @enderror"
+                class="@error('password') border-status-error @enderror"
                 aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}"
                 aria-describedby="password-error"
-            >
+            />
             <x-field-error field="password" />
         </div>
 
