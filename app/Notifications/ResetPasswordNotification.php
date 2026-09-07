@@ -25,10 +25,10 @@ class ResetPasswordNotification extends Notification
 
         return (new MailMessage)
             ->subject('Restablecimiento de contraseña — SIGAE-UTS')
-            ->greeting('Hola, '.$notifiable->name)
-            ->line('Recibimos una solicitud para restablecer la contraseña de tu cuenta en SIGAE-UTS.')
-            ->action('Restablecer contraseña', $url)
-            ->line("Este enlace expira en {$expireMinutes} minutos.")
-            ->line('Si tú no solicitaste este cambio, puedes ignorar este correo — tu contraseña actual seguirá funcionando.');
+            ->view('emails.reset-password', [
+                'userName' => $notifiable->name,
+                'resetUrl' => $url,
+                'expireMinutes' => $expireMinutes,
+            ]);
     }
 }
