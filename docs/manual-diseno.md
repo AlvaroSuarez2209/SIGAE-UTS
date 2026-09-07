@@ -41,6 +41,7 @@ sueltos en las vistas. Esto permite reemplazar la paleta institucional real
 | `brand-primary` | `#1d4e89` | Color de marca principal | Botones primarios, enlaces, encabezado del sidebar, fondo del login |
 | `brand-primary-dark` | `#123252` | Marca, variante oscura | Hover de botones primarios, fondo del panel de login |
 | `brand-primary-subtle` | `#eaf1f8` | Marca, fondo suave | Fondo de enlace activo en el sidebar, badges "primary" |
+| `brand-secondary` | `#0e7a5f` | Marca, segundo tono del logo (verde) | Línea "UTS" y extremo del degradado del botón en el login |
 | `secondary` | `#4b5a6a` | Color secundario (azul grisáceo) | Botón secundario (hover), badges de estado "archivado" |
 | `accent` | `#8a6516` | Acento (ámbar apagado) | Badge de evidencias "exento", distintivo de entregables transversales |
 | `accent-subtle` | `#f6efdf` | Acento, fondo suave | Fondo de los badges de acento |
@@ -156,12 +157,21 @@ sin fricción entre clase y clase.
 
 ## 6. Estado de la identidad visual
 
-Al momento de escribir este manual, el sistema usa un placeholder de texto
-("SIGAE-UTS" en Source Serif 4) en lugar del logo institucional real, tanto
-en el login como en el sidebar. La carpeta `resources/images/logo/` está
-preparada para recibir `logo-full.svg` (login) y `logo-mark.svg` (sidebar);
+Al momento de escribir este manual, el sistema usa un isotipo placeholder
+(cuadrado con degradado `brand-primary` → `brand-secondary`, levemente
+rotado) en lugar del logo institucional real, tanto en el login como en el
+sidebar. La carpeta `public/images/logo/` está preparada para recibir
+`logo-full.svg` (login) y `logo-mark.svg` (sidebar) — deben ir en `public/`,
+no en `resources/`, porque son archivos estáticos que el navegador pide
+directamente por URL y Vite solo procesa `app.css`/`app.js`. El login ya
+detecta automáticamente si `logo-full.svg` existe y lo muestra en su lugar.
 `public/favicon.svg` es un monograma provisional en `brand-primary` que se
 reemplazará por los tamaños generados a partir de
-`public/images/favicon-source.png` cuando UTS entregue el logo oficial. Ver
-`resources/images/logo/README.md` para el detalle de formatos y
+`public/images/logo/favicon-source.png` cuando UTS entregue el logo
+oficial. Ver `public/images/logo/README.md` para el detalle de formatos y
 dimensiones esperadas.
+
+`brand-secondary` (`#0e7a5f`, verde) es, junto con `brand-primary`, una
+aproximación provisional de los dos tonos del logo real; ambos quedan como
+tokens de Tailwind reutilizables en `resources/css/app.css` para que, al
+recibir el logo, solo haga falta ajustar estos dos valores hexadecimales.

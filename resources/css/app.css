@@ -17,6 +17,8 @@
     --color-brand-primary: #1d4e89;
     --color-brand-primary-dark: #123252;
     --color-brand-primary-subtle: #eaf1f8;
+    /* Verde de marca (login) — aproximación provisional del logo real; ver docs/manual-diseno.md */
+    --color-brand-secondary: #0e7a5f;
     --color-secondary: #4b5a6a;
     --color-accent: #8a6516;
     --color-accent-subtle: #f6efdf;

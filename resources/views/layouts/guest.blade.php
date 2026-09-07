@@ -8,16 +8,28 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="flex min-h-screen items-center justify-center bg-brand-primary-dark px-4 font-sans">
-    <div class="w-full max-w-sm">
-        <div class="mb-8 text-center">
-            <h1 class="font-display text-3xl font-semibold text-white">SIGAE-UTS</h1>
-            <p class="mt-2 text-sm text-brand-primary-subtle">
-                Sistema de Gestión de Actividades y Evidencias Docentes
-            </p>
+<body class="flex min-h-screen flex-col items-center justify-center bg-surface-muted px-4 py-10 font-sans">
+    <div class="flex w-full max-w-sm flex-col items-center">
+        {{-- Isotipo: usa el logo real si ya se colocó en public/images/logo/logo-full.svg;
+             mientras tanto, placeholder rotado con las iniciales (ver public/images/logo/README.md) --}}
+        @if (file_exists(public_path('images/logo/logo-full.svg')))
+            <img src="{{ asset('images/logo/logo-full.svg') }}" alt="Logo UTS" class="h-16 w-auto">
+        @else
+            <div class="flex h-16 w-16 -rotate-3 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary text-xl font-semibold text-white shadow-sm">
+                S
+            </div>
+        @endif
+
+        <div class="mt-4 text-center">
+            <p class="text-base font-medium text-text-primary">Ingeniería de Sistemas</p>
+            <p class="text-[0.8125rem] font-medium tracking-wide text-brand-secondary">UTS</p>
         </div>
 
-        {{ $slot }}
+        <div class="mt-6 w-full">
+            {{ $slot }}
+        </div>
+
+        <p class="mt-6 text-xs text-text-secondary">Unidades Tecnológicas de Santander</p>
     </div>
 
     @livewireScripts
