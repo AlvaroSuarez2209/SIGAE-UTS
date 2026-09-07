@@ -12,9 +12,14 @@
 </head>
 <body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased">
     @php
-        // Isotipo pequeño: usa el logo real si ya se colocó en public/images/logo/logo-mark.(svg|png)
-        $logoMarkPath = collect(['images/logo/logo-mark.svg', 'images/logo/logo-mark.png'])
-            ->first(fn ($path) => file_exists(public_path($path)));
+        // Isotipo pequeño: usa una versión propia (crisp) para tamaño de ícono si existe,
+        // el logo-mark original si no, o nada si aún no se ha colocado el logo real.
+        $logoMarkPath = collect([
+            'images/logo/logo-mark-icon.svg',
+            'images/logo/logo-mark-icon.png',
+            'images/logo/logo-mark.svg',
+            'images/logo/logo-mark.png',
+        ])->first(fn ($path) => file_exists(public_path($path)));
 
         $user = auth()->user();
         $isAdmin = $user?->hasRole(\App\Enums\RoleName::Administrator) ?? false;
@@ -92,9 +97,9 @@
                                 <a
                                     href="{{ route($link['route']) }}"
                                     @class([
-                                        'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium',
-                                        'bg-brand-primary-subtle text-brand-primary-dark' => $active,
-                                        'text-text-primary hover:bg-surface-muted' => ! $active,
+                                        'flex items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
+                                        'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
+                                        'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                     ])
                                 >
                                     {{ $link['label'] }}
@@ -139,7 +144,15 @@
                             <p class="px-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">{{ $group['title'] }}</p>
                             <div class="mt-1 space-y-0.5">
                                 @foreach ($group['links'] as $link)
-                                    <a href="{{ route($link['route']) }}" class="block rounded-md px-2 py-1.5 text-sm font-medium text-text-primary hover:bg-surface-muted">
+                                    @php $active = request()->routeIs($link['route'].'*'); @endphp
+                                    <a
+                                        href="{{ route($link['route']) }}"
+                                        @class([
+                                            'block rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
+                                            'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
+                                            'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
+                                        ])
+                                    >
                                         {{ $link['label'] }}
                                     </a>
                                 @endforeach

@@ -7,11 +7,17 @@
             </p>
         </div>
 
-        <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
-            @foreach ($periods as $period)
-                <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
-            @endforeach
-        </select>
+        <div class="flex items-center gap-2">
+            <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
+                @foreach ($periods as $period)
+                    <option value="{{ $period->id }}">{{ $period->name }}</option>
+                @endforeach
+            </select>
+            @php $selectedPeriod = $periods->firstWhere('id', $periodFilter); @endphp
+            @if ($selectedPeriod)
+                <x-status-badge :status="$selectedPeriod->status" />
+            @endif
+        </div>
     </div>
 
     @if ($teacherPanel)
@@ -24,6 +30,7 @@
                         :value="$teacherPanel['counts'][$status->value]"
                         :label="$status->label()"
                         :color="$status->color()"
+                        :icon="$status->icon()"
                     />
                 @endforeach
             </div>
@@ -86,9 +93,14 @@
                             <tr class="table-row">
                                 <td class="table-cell">{{ $row['teacher']->name }}</td>
                                 <td class="table-cell text-text-secondary">{{ $row['activity']->component->name }} — {{ $row['activity']->name }}</td>
-                                <td class="table-cell text-right text-text-secondary">
+                                <td class="table-cell text-right">
                                     @if ($row['compliance']['percentage'] !== null)
-                                        {{ $row['compliance']['percentage'] }}% ({{ $row['compliance']['approved'] }}/{{ $row['compliance']['total'] }})
+                                        <div class="flex items-center justify-end gap-2">
+                                            <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-surface-muted">
+                                                <div class="h-full rounded-full bg-brand-primary" style="width: {{ $row['compliance']['percentage'] }}%"></div>
+                                            </div>
+                                            <span class="text-text-secondary">{{ $row['compliance']['percentage'] }}% ({{ $row['compliance']['approved'] }}/{{ $row['compliance']['total'] }})</span>
+                                        </div>
                                     @else
                                         <span class="text-text-secondary">Sin entregables obligatorios</span>
                                     @endif
@@ -113,6 +125,7 @@
                         :value="$coordinationPanel['counts'][$status->value]"
                         :label="$status->label()"
                         :color="$status->color()"
+                        :icon="$status->icon()"
                     />
                 @endforeach
             </div>
@@ -130,8 +143,13 @@
                         @forelse ($coordinationPanel['teacherRows'] as $row)
                             <tr class="table-row">
                                 <td class="table-cell">{{ $row['teacher']->name }}</td>
-                                <td class="table-cell text-right text-text-secondary">
-                                    {{ $row['compliance']['percentage'] }}% ({{ $row['compliance']['approved'] }}/{{ $row['compliance']['total'] }})
+                                <td class="table-cell text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-surface-muted">
+                                            <div class="h-full rounded-full bg-brand-primary" style="width: {{ $row['compliance']['percentage'] }}%"></div>
+                                        </div>
+                                        <span class="text-text-secondary">{{ $row['compliance']['percentage'] }}% ({{ $row['compliance']['approved'] }}/{{ $row['compliance']['total'] }})</span>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
