@@ -1,30 +1,21 @@
-# Logo institucional — pendiente
+# Logo institucional — entregado
 
-Esta carpeta está preparada para recibir el logo real de UTS. Va dentro de
-`public/` (no de `resources/`) porque es un archivo estático que el navegador
-debe poder pedir directamente por URL — Vite solo procesa `app.css`/`app.js`,
-así que cualquier imagen fuera de esos entry points no sería servible si
-viviera en `resources/`.
+El logo real de UTS / Ingeniería de Sistemas ya fue entregado e integrado:
 
-Mientras tanto, el login usa un isotipo placeholder (cuadrado con degradado
-`brand-primary` → `brand-secondary`, levemente rotado, con una "S") y el
-nombre del programa en texto ("Ingeniería de Sistemas" / "UTS").
-
-Cuando se disponga del logo, colocar aquí:
-
-| Archivo | Uso | Formato / dimensiones esperadas |
+| Archivo | Uso | Dimensiones reales |
 |---|---|---|
-| `logo-full.svg` | Login (protagonista, centrado) | SVG preferido; si es PNG, transparente y ≥512×512 (isotipo cuadrado) o ~800×240 (lockup horizontal) |
-| `logo-mark.svg` | Sidebar / navbar (uso pequeño) | SVG preferido; si es PNG, transparente y ≥128×128 (isotipo) o ≥320×80 (lockup) |
+| `logo-full.png` | Login (protagonista, `layouts/guest.blade.php`) | 1600×480, PNG-RGBA transparente |
+| `logo-mark.png` | Sidebar / navbar / drawer móvil (`layouts/app.blade.php`) | 1600×1600, PNG-RGBA transparente |
+| `favicon-source.png` | Fuente para los favicons generados en `public/` | 1600×1600, PNG-RGBA transparente |
 
-Y en `favicon-source.png` (esta misma carpeta): PNG cuadrado transparente
-≥512×512, a partir del cual se generan los tamaños estándar de favicon
-(reemplazando el `public/favicon.svg` provisional).
+Los favicons ya generados a partir de `favicon-source.png` viven en
+`public/favicon-{16,32,180,192,512}.png` (no en esta carpeta).
 
-El login (`resources/views/layouts/guest.blade.php`) ya detecta
-automáticamente si `public/images/logo/logo-full.svg` existe: si está,
-lo muestra tal cual (sin el contenedor rotado, salvo que encaje bien
-visualmente — ajustar entonces a mano); si no existe, sigue mostrando el
-placeholder actual. Al recibir el archivo real, verificar que el formato y
-las dimensiones coincidan con lo esperado antes de integrarlo definitivamente
-en el sidebar (`layouts/app.blade.php`) y el favicon.
+Ambos layouts (`guest.blade.php` y `app.blade.php`) detectan automáticamente
+estos archivos por `file_exists()`; si algún día se reemplazan por versiones
+`.svg` con el mismo nombre base, se preferirá el SVG automáticamente.
+
+Los tonos `brand-primary` (`#00447e`) y `brand-secondary` (`#0a7a45`) en
+`resources/css/app.css` se extrajeron por muestreo de píxeles de este logo
+real — ver `docs/manual-diseno.md` para el detalle del proceso y las
+decisiones de contraste/diferenciación tomadas.

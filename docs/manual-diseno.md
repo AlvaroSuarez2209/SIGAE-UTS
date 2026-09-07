@@ -38,10 +38,10 @@ sueltos en las vistas. Esto permite reemplazar la paleta institucional real
 
 | Token Tailwind | Hex | Rol | Ejemplo de uso |
 |---|---|---|---|
-| `brand-primary` | `#1d4e89` | Color de marca principal | Botones primarios, enlaces, encabezado del sidebar, fondo del login |
-| `brand-primary-dark` | `#123252` | Marca, variante oscura | Hover de botones primarios, fondo del panel de login |
-| `brand-primary-subtle` | `#eaf1f8` | Marca, fondo suave | Fondo de enlace activo en el sidebar, badges "primary" |
-| `brand-secondary` | `#0e7a5f` | Marca, segundo tono del logo (verde) | Línea "UTS" y extremo del degradado del botón en el login |
+| `brand-primary` | `#00447e` | Color de marca principal (azul del logo real) | Botones primarios, enlaces, encabezado del sidebar |
+| `brand-primary-dark` | `#002a4e` | Marca, variante oscura | Hover de botones primarios |
+| `brand-primary-subtle` | `#ebf0f5` | Marca, fondo suave | Fondo de enlace activo en el sidebar, badges "primary" |
+| `brand-secondary` | `#0a7a45` | Marca, segundo tono del logo (verde) | Línea "UTS" y extremo del degradado del botón en el login |
 | `secondary` | `#4b5a6a` | Color secundario (azul grisáceo) | Botón secundario (hover), badges de estado "archivado" |
 | `accent` | `#8a6516` | Acento (ámbar apagado) | Badge de evidencias "exento", distintivo de entregables transversales |
 | `accent-subtle` | `#f6efdf` | Acento, fondo suave | Fondo de los badges de acento |
@@ -65,20 +65,20 @@ mínimo de 4.5:1 para texto normal y 3:1 para texto grande, cumpliendo AA.
 
 ## 3. Tipografía
 
-Dos familias, ambas de Google Fonts (licencia SIL Open Font License, según
-RNF-018), optimizadas para interfaz y lectura de datos:
-
-- **Inter** — familia principal de toda la interfaz (formularios, tablas,
-  navegación, botones).
-- **Source Serif 4** — únicamente para el título "SIGAE-UTS" en la pantalla
-  de login y el encabezado del sidebar, como único acento tipográfico que
-  distingue la identidad institucional del resto de la interfaz funcional.
+Una sola familia — **Inter**, de Google Fonts (licencia SIL Open Font
+License, según RNF-018) — optimizada para interfaz y lectura de datos, usada
+en toda la aplicación (formularios, tablas, navegación, botones). El acento
+tipográfico "institucional" que antes llevaba una segunda familia serif ya
+no hace falta: el logo real de UTS/Ingeniería de Sistemas es ahora quien
+cumple ese papel en el login y el sidebar, así que se retiró Source Serif 4
+para no cargar una fuente sin uso real.
 
 | Uso | Tamaño (rem / px) | Peso | Interlineado | Ejemplo |
 |---|---|---|---|---|
 | Título de página (h1) | 1.5rem / 24px | 600 (semibold) | 1.3 | "Componentes", "Mis entregables" |
 | Subtítulo de sección (h2) | 1.125rem / 18px | 600 (semibold) | 1.3 | "Panel docente", "Histórico de revisiones" |
-| Título de login/marca | 1.875rem / 30px | 600 (semibold, Source Serif 4) | 1.2 | "SIGAE-UTS" en login |
+| Título de tarjeta (login) | 1.125rem / 18px | 500 (medium) | 1.3 | "Iniciar sesión" |
+| Nombre de programa (login) | 1rem / 16px | 500 (medium) | 1.4 | "Ingeniería de Sistemas" |
 | Cuerpo / tablas | 0.875rem / 14px | 400 (regular) | 1.5 | Celdas de tabla, texto de tarjetas |
 | Etiquetas de formulario | 0.875rem / 14px | 500 (medium) | 1.4 | `<label>` de todos los campos |
 | Campos de formulario (input) | 1rem / 16px | 400 (regular) | 1.5 | `<input>`, `<select>`, `<textarea>` — 16px evita el auto-zoom de iOS |
@@ -130,48 +130,64 @@ de forma consistente en los 10 módulos funcionales:
 
 ## 5. Por qué esta paleta y tipografía
 
-La paleta se construyó alrededor de un azul institucional (`#1d4e89`) de
-saturación media-baja porque es el registro cromático que los usuarios
-colombianos asocian con instituciones educativas y entidades públicas
-serias, sin caer en el azul corporativo genérico de plantillas SaaS. Los
-colores de estado (verde, ámbar, rojo) se eligieron con la misma saturación
-contenida que el azul de marca, de modo que ningún estado "grite" más que
+El azul de marca (`#00447e`) y el verde de marca (`#0a7a45`) no se inventaron:
+se extrajeron por muestreo de píxeles del logo real de UTS/Ingeniería de
+Sistemas, para que la interfaz se sienta una extensión del mismo sistema
+visual, no una paleta genérica "azul corporativo" elegida sin relación con
+la marca. El verde se oscureció respecto al tono más frecuente del logo
+(`#00a859`) porque a esa luminosidad no cumplía el contraste AA mínimo como
+texto o como fondo de botón con texto blanco; se buscó el punto más claro
+posible sobre esa restricción, sin desviarse del matiz real. Los colores de
+estado (verde de "aprobado", ámbar, rojo) se mantienen con una saturación
+contenida similar a la de marca, de modo que ningún estado "grite" más que
 otro — una evidencia vencida se nota por su ícono y su texto, no por ser el
 color más agresivo de la pantalla. Los grises son fríos (con un ligero
 matiz azulado) en vez de neutros puros, para que toda la interfaz —
 superficies, bordes, texto secundario— se sienta parte de la misma familia
 cromática que el azul de marca.
 
+Vale la pena dejar constancia de una tensión que surgió al hacer esta
+extracción: el verde real del logo, una vez oscurecido lo suficiente para
+ser accesible, cae en un matiz casi idéntico al que el sistema ya usaba para
+el estado "Aprobado" (`#1e7a4c`). Se decidió mantener el verde fiel al logo
+en vez de forzarlo hacia un matiz más distintivo, porque ambos colores viven
+en contextos visualmente distintos — uno es un gesto de marca en el login
+(degradado de botón, una etiqueta de texto), el otro siempre aparece como
+badge con ícono y palabra ("Aprobado") en el resto de la aplicación — así
+que el riesgo real de que alguien confunda una cosa con la otra es bajo.
+
 Inter se eligió porque es una tipografía diseñada específicamente para
 interfaces de pantalla y datos tabulares: sus cifras tabulares y su
 legibilidad a 14px la hacen apropiada para las tablas de seguimiento que
-un líder o coordinador revisa docenas de veces por sesión. Source Serif 4
-se reserva exclusivamente para el nombre del sistema en el login y el
-sidebar — una serif seria y editorial, no decorativa — como el único gesto
-tipográfico "institucional" en un sistema que, por lo demás, es
-deliberadamente funcional. Esta separación (una tipografía para identidad,
-otra para trabajo) refuerza la seriedad de la marca sin sacrificar la
-velocidad de lectura en el uso diario, que es, en última instancia, el
-criterio que más importa para un sistema que un docente debe poder usar
-sin fricción entre clase y clase.
+un líder o coordinador revisa docenas de veces por sesión. Con el logo real
+ya integrado, ya no hace falta una segunda tipografía "de identidad" — el
+logo mismo lleva el peso de la marca en el login y el sidebar, y el resto
+de la interfaz puede permanecer enteramente funcional en una sola familia,
+sin la carga (literal, de descarga; y de mantenimiento) de una fuente
+adicional cuyo único uso era un título que ahora es una imagen.
 
 ## 6. Estado de la identidad visual
 
-Al momento de escribir este manual, el sistema usa un isotipo placeholder
-(cuadrado con degradado `brand-primary` → `brand-secondary`, levemente
-rotado) en lugar del logo institucional real, tanto en el login como en el
-sidebar. La carpeta `public/images/logo/` está preparada para recibir
-`logo-full.svg` (login) y `logo-mark.svg` (sidebar) — deben ir en `public/`,
-no en `resources/`, porque son archivos estáticos que el navegador pide
-directamente por URL y Vite solo procesa `app.css`/`app.js`. El login ya
-detecta automáticamente si `logo-full.svg` existe y lo muestra en su lugar.
-`public/favicon.svg` es un monograma provisional en `brand-primary` que se
-reemplazará por los tamaños generados a partir de
-`public/images/logo/favicon-source.png` cuando UTS entregue el logo
-oficial. Ver `public/images/logo/README.md` para el detalle de formatos y
-dimensiones esperadas.
+El logo institucional real (isotipo hexagonal azul/verde + wordmark
+"SIGAE-UTS") ya está integrado:
 
-`brand-secondary` (`#0e7a5f`, verde) es, junto con `brand-primary`, una
-aproximación provisional de los dos tonos del logo real; ambos quedan como
-tokens de Tailwind reutilizables en `resources/css/app.css` para que, al
-recibir el logo, solo haga falta ajustar estos dos valores hexadecimales.
+- **Login** (`layouts/guest.blade.php`): usa `public/images/logo/logo-full.png`
+  (1600×480, protagonista, sin contenedor ni rotación — el lockup horizontal
+  ya trae su propio wordmark y bajada de texto, así que envolverlo en una
+  forma no aportaba nada).
+- **Sidebar / drawer móvil / barra superior móvil** (`layouts/app.blade.php`):
+  usan `public/images/logo/logo-mark.png` (1600×1600, solo el isotipo)
+  junto al texto "SIGAE-UTS", a tamaño de ícono (28–32px).
+- **Favicon**: generado en 5 tamaños (`public/favicon-{16,32,180,192,512}.png`)
+  a partir de `public/images/logo/favicon-source.png`.
+
+Ambos layouts detectan los archivos por `file_exists()` y prefieren `.svg`
+sobre `.png` si algún día se entrega una versión vectorial con el mismo
+nombre — no haría falta tocar las vistas otra vez.
+
+Los tokens `brand-primary` (`#00447e`) y `brand-secondary` (`#0a7a45`) en
+`resources/css/app.css` ya no son una aproximación: se extrajeron por
+muestreo de píxeles de este logo (ver sección 5 para el detalle del ajuste
+de contraste sobre el verde). El placeholder tipográfico anterior
+("SIGAE-UTS" en Source Serif 4) se retiró junto con esa fuente, ya
+innecesaria.

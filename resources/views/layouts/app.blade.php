@@ -4,12 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SIGAE-UTS</title>
-    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon-180.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
 <body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased">
     @php
+        // Isotipo pequeño: usa el logo real si ya se colocó en public/images/logo/logo-mark.(svg|png)
+        $logoMarkPath = collect(['images/logo/logo-mark.svg', 'images/logo/logo-mark.png'])
+            ->first(fn ($path) => file_exists(public_path($path)));
+
         $user = auth()->user();
         $isAdmin = $user?->hasRole(\App\Enums\RoleName::Administrator) ?? false;
         $isCoordination = $user?->hasAnyRole(['administrator', 'coordination']) ?? false;
@@ -68,7 +74,12 @@
         <!-- Sidebar (escritorio) -->
         <aside class="hidden w-64 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
             <div class="flex h-16 items-center gap-2 border-b border-border-subtle px-5">
-                <a href="{{ route('dashboard') }}" class="text-base font-semibold text-brand-primary">SIGAE-UTS</a>
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+                    @if ($logoMarkPath)
+                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
+                    @endif
+                    SIGAE-UTS
+                </a>
             </div>
 
             <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5">
@@ -112,7 +123,12 @@
             <div class="fixed inset-0 bg-text-primary/40" @click="mobileOpen = false"></div>
             <aside class="fixed inset-y-0 left-0 flex w-72 flex-col bg-surface shadow-xl">
                 <div class="flex h-16 items-center justify-between border-b border-border-subtle px-5">
-                    <span class="text-base font-semibold text-brand-primary">SIGAE-UTS</span>
+                    <span class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+                        @if ($logoMarkPath)
+                            <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
+                        @endif
+                        SIGAE-UTS
+                    </span>
                     <button type="button" @click="mobileOpen = false" aria-label="Cerrar menú">
                         <x-icon name="x" class="h-5 w-5 text-text-secondary" />
                     </button>
@@ -149,7 +165,12 @@
                 <button type="button" @click="mobileOpen = true" aria-label="Abrir menú">
                     <x-icon name="menu" class="h-6 w-6 text-text-secondary" />
                 </button>
-                <span class="text-base font-semibold text-brand-primary">SIGAE-UTS</span>
+                <span class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+                    @if ($logoMarkPath)
+                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-7 w-7">
+                    @endif
+                    SIGAE-UTS
+                </span>
             </header>
 
             <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
