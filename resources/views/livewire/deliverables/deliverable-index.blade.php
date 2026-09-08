@@ -1,6 +1,6 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-text-primary">Entregables</h1>
+        <h1 class="page-title">Entregables</h1>
         <a href="{{ route('deliverables.create') }}" class="btn-primary">
             Nuevo entregable
         </a>

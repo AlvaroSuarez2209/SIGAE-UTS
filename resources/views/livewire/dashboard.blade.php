@@ -1,7 +1,7 @@
 <div class="space-y-8">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-semibold text-text-primary">Bienvenido, {{ auth()->user()->name }}</h1>
+            <h1 class="page-title">Bienvenido, {{ auth()->user()->name }}</h1>
             <p class="text-sm text-text-secondary">
                 Roles: {{ auth()->user()->roles->pluck('label')->join(', ') ?: 'Sin roles asignados' }}
             </p>
@@ -22,9 +22,9 @@
 
     @if ($teacherPanel)
         <section>
-            <h2 class="mb-3 text-lg font-semibold text-text-primary">Panel docente</h2>
+            <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel docente</h2>
 
-            <div class="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
+            <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-7">
                 @foreach (\App\Enums\EvidenceStatus::cases() as $status)
                     <x-kpi-card
                         :value="$teacherPanel['counts'][$status->value]"
@@ -36,7 +36,7 @@
             </div>
 
             @if ($teacherPanel['compliance']['percentage'] !== null)
-                <div class="card mb-4 p-4">
+                <div class="card mb-6 p-5">
                     <p class="text-sm text-text-secondary">
                         Avance sobre entregables obligatorios:
                         <span class="font-semibold text-text-primary">{{ $teacherPanel['compliance']['percentage'] }}%</span>
@@ -46,7 +46,7 @@
             @endif
 
             <div class="table-shell">
-                <div class="border-b border-border-subtle px-4 py-2.5 text-sm font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <tbody class="divide-y divide-border-subtle">
                         @forelse ($teacherPanel['upcoming'] as $evidence)
@@ -68,9 +68,9 @@
 
     @if ($leaderPanel)
         <section>
-            <h2 class="mb-3 text-lg font-semibold text-text-primary">Panel líder</h2>
+            <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel líder</h2>
 
-            <div class="card mb-4 p-4">
+            <div class="card mb-6 p-5">
                 <p class="text-sm text-text-secondary">
                     <span class="font-semibold text-text-primary">{{ $leaderPanel['pendingReviewCount'] }}</span>
                     evidencia(s) pendiente(s) de revisión en tu ámbito.
@@ -79,7 +79,7 @@
             </div>
 
             <div class="table-shell">
-                <div class="border-b border-border-subtle px-4 py-2.5 text-sm font-semibold text-text-primary">Cumplimiento por actividad</div>
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Cumplimiento por actividad</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <thead>
                         <tr>
@@ -117,9 +117,9 @@
 
     @if ($coordinationPanel)
         <section>
-            <h2 class="mb-3 text-lg font-semibold text-text-primary">Panel de coordinación</h2>
+            <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel de coordinación</h2>
 
-            <div class="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
+            <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-7">
                 @foreach (\App\Enums\EvidenceStatus::cases() as $status)
                     <x-kpi-card
                         :value="$coordinationPanel['counts'][$status->value]"
@@ -131,7 +131,7 @@
             </div>
 
             <div class="table-shell">
-                <div class="border-b border-border-subtle px-4 py-2.5 text-sm font-semibold text-text-primary">Consolidado por docente</div>
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Consolidado por docente</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <thead>
                         <tr>
@@ -159,8 +159,8 @@
                 </table>
             </div>
 
-            <div class="table-shell mt-4">
-                <div class="border-b border-border-subtle px-4 py-2.5 text-sm font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
+            <div class="table-shell mt-6">
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <thead>
                         <tr>

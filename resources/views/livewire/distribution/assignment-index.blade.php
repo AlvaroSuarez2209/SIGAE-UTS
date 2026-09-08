@@ -1,6 +1,6 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-text-primary">Distribución docente</h1>
+        <h1 class="page-title">Distribución docente</h1>
         <a href="{{ route('distribution.create') }}" class="btn-primary">
             Nueva asignación
         </a>

@@ -1,5 +1,5 @@
 <div class="max-w-xl">
-    <h1 class="mb-6 text-2xl font-semibold text-text-primary">
+    <h1 class="mb-6 page-title">
         {{ $leadership ? 'Editar liderazgo' : 'Nuevo liderazgo' }}
     </h1>
 

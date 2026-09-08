@@ -1,5 +1,5 @@
 <div>
-    <h1 class="mb-6 text-2xl font-semibold text-text-primary">Consolidado por periodo</h1>
+    <h1 class="mb-6 page-title">Consolidado por periodo</h1>
 
     <div class="mb-6 flex flex-wrap items-end gap-4">
         <div>

@@ -1,5 +1,5 @@
 <div>
-    <h1 class="mb-6 text-2xl font-semibold text-text-primary">Bitácora de auditoría</h1>
+    <h1 class="mb-6 page-title">Bitácora de auditoría</h1>
     <p class="mb-4 text-sm text-text-secondary">
         Registro de solo lectura de accesos, cargas, envíos, revisiones, aprobaciones, devoluciones y cambios
         administrativos. Ningún usuario, incluido el Administrador, puede editar o borrar estos registros desde la

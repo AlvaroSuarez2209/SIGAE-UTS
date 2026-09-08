@@ -1,6 +1,6 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-text-primary">Plantillas de entregables</h1>
+        <h1 class="page-title">Plantillas de entregables</h1>
         <a href="{{ route('deliverable-templates.create') }}" class="btn-primary">
             Nueva plantilla
         </a>

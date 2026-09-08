@@ -1,5 +1,5 @@
 <div>
-    <h1 class="mb-6 text-2xl font-semibold text-text-primary">Informe por actividad</h1>
+    <h1 class="mb-6 page-title">Informe por actividad</h1>
 
     <div class="mb-6 flex flex-wrap items-end gap-4">
         <div>

@@ -1,5 +1,5 @@
 <div>
-    <h1 class="mb-6 text-2xl font-semibold text-text-primary">Bandeja de revisión</h1>
+    <h1 class="mb-6 page-title">Bandeja de revisión</h1>
 
     <div class="mb-4">
         <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">

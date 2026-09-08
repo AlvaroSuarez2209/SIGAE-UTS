@@ -75,16 +75,31 @@ para no cargar una fuente sin uso real.
 
 | Uso | Tamaño (rem / px) | Peso | Interlineado | Ejemplo |
 |---|---|---|---|---|
-| Título de página (h1) | 1.5rem / 24px | 600 (semibold) | 1.3 | "Componentes", "Mis entregables" |
-| Subtítulo de sección (h2) | 1.125rem / 18px | 600 (semibold) | 1.3 | "Panel docente", "Histórico de revisiones" |
+| Título de página (`.page-title`, h1) | 1.875rem / 30px | 600 (semibold) | 1.3 | "Componentes", "Mis entregables" |
+| Subtítulo de sección (h2) | 1.25rem / 20px | 600 (semibold) | 1.3 | "Panel docente", "Panel de coordinación" |
 | Título de tarjeta (login) | 1.125rem / 18px | 500 (medium) | 1.3 | "Iniciar sesión" |
 | Nombre del sistema (login) | 1.5rem–1.875rem / 24–30px, responsivo | 600 (semibold) | 1.3 | "SIGAE-UTS" bajo el isotipo |
 | Bajada del sistema (login) | 0.875rem–1rem / 14–16px, responsivo | 500 (medium) | 1.4 | "Sistema de Información para la Gestión de Actividades y Evidencias Docentes" |
-| Cuerpo / tablas | 0.875rem / 14px | 400 (regular) | 1.5 | Celdas de tabla, texto de tarjetas |
-| Etiquetas de formulario | 0.875rem / 14px | 500 (medium) | 1.4 | `<label>` de todos los campos |
+| Número de tarjeta KPI | 1.875rem / 30px | 700 (bold) | 1.2 | "6" en la tarjeta "Pendiente" |
+| Cuerpo / tablas (`.table-cell`) | 1rem / 16px | 400 (regular) | 1.5 | Celdas de tabla, texto de tarjetas |
+| Etiquetas de formulario (`.field-label`) | 1rem / 16px | 500 (medium) | 1.4 | `<label>` de todos los campos |
 | Campos de formulario (input) | 1rem / 16px | 400 (regular) | 1.5 | `<input>`, `<select>`, `<textarea>` — 16px evita el auto-zoom de iOS |
-| Ayuda / error de campo | 0.8125rem / 13px | 400 (regular) | 1.3 | Texto bajo un input (`field-help`, `field-error`) |
-| Encabezado de tabla | 0.75rem / 12px | 600 (semibold), mayúsculas | 1.2 | `<th>` de todas las tablas |
+| Ítem de menú del sidebar | 1rem / 16px | 500 (medium) | 1.4 | "Mis entregables", "Periodos" |
+| Ayuda / error de campo | 0.875rem / 14px | 400 (regular) | 1.3 | Texto bajo un input (`field-help`, `field-error`) |
+| Encabezado de tabla | 0.75rem / 12px | 600 (semibold), mayúsculas | 1.2 | `<th>` de todas las tablas — deliberadamente más pequeño, es un rótulo de categoría, no contenido |
+| Grupo de navegación / badge | 0.75rem / 12px | 600 (semibold), mayúsculas en grupos | 1.2 | "SEGUIMIENTO" en el sidebar, chips de estado |
+
+**Nota sobre la escala (revisión posterior a la primera versión del sistema
+de diseño):** la primera pasada de este documento fijaba el cuerpo de la
+aplicación en 14px y los títulos de página en 24px — técnicamente cumplía
+AA, pero con una sensación de interfaz más comprimida de lo esperado para
+un sistema institucional. Se subió un escalón completo: 14→16px de cuerpo,
+24→30px de título de página, iconografía de 16px→20-24px según el
+contexto, y padding interno de tarjetas/filas de tabla aumentado
+proporcionalmente. El cambio se hizo en `.page-title`, `.table-cell`,
+`.field-label` y las demás clases de `resources/css/app.css`, y en
+`<x-kpi-card>` — nunca archivo por archivo — para que se propagara
+automáticamente a las ~30 pantallas que ya reutilizaban esas clases.
 | Badge / etiqueta pequeña | 0.75rem / 12px | 600 (semibold) | 1 | Badges de estado |
 
 ## 4. Componentes reutilizables

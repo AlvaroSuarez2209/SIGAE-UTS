@@ -77,32 +77,32 @@
     @auth
     <div x-data="{ mobileOpen: false }" class="flex min-h-screen">
         <!-- Sidebar (escritorio) -->
-        <aside class="hidden w-64 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
-            <div class="flex h-16 items-center gap-2 border-b border-border-subtle px-5">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+        <aside class="hidden w-72 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
+            <div class="flex h-20 items-center gap-3 border-b border-border-subtle px-6">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-3 text-lg font-semibold text-brand-primary">
                     @if ($logoMarkPath)
-                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
+                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-9 w-9">
                     @endif
                     SIGAE-UTS
                 </a>
             </div>
 
-            <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+            <nav class="flex-1 space-y-8 overflow-y-auto px-4 py-6">
                 @foreach ($navGroups as $group)
                     <div>
                         <p class="px-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">{{ $group['title'] }}</p>
-                        <div class="mt-1 space-y-0.5">
+                        <div class="mt-2 space-y-1">
                             @foreach ($group['links'] as $link)
                                 @php $active = request()->routeIs($link['route'].'*'); @endphp
                                 <a
                                     href="{{ route($link['route']) }}"
                                     @class([
-                                        'flex items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
+                                        'flex items-center gap-3 rounded-md border-l-2 px-3 py-2.5 text-base font-medium',
                                         'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
                                         'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                     ])
                                 >
-                                    <x-icon :name="$link['icon']" class="h-4 w-4 shrink-0" />
+                                    <x-icon :name="$link['icon']" class="h-5 w-5 shrink-0" />
                                     {{ $link['label'] }}
                                 </a>
                             @endforeach
@@ -111,13 +111,13 @@
                 @endforeach
             </nav>
 
-            <div class="border-t border-border-subtle p-4">
-                <p class="truncate text-sm font-medium text-text-primary">{{ $user->name }}</p>
-                <p class="mb-2 truncate text-xs text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
+            <div class="border-t border-border-subtle p-5">
+                <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
+                <p class="mb-3 truncate text-sm text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="flex items-center gap-1.5 text-sm font-medium text-status-error hover:underline">
-                        <x-icon name="logout" class="h-4 w-4" />
+                    <button type="submit" class="flex items-center gap-2 text-base font-medium text-status-error hover:underline">
+                        <x-icon name="logout" class="h-5 w-5" />
                         Cerrar sesión
                     </button>
                 </form>
@@ -128,33 +128,33 @@
         <div x-show="mobileOpen" x-cloak class="fixed inset-0 z-40 md:hidden">
             <div class="fixed inset-0 bg-text-primary/40" @click="mobileOpen = false"></div>
             <aside class="fixed inset-y-0 left-0 flex w-72 flex-col bg-surface shadow-xl">
-                <div class="flex h-16 items-center justify-between border-b border-border-subtle px-5">
-                    <span class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+                <div class="flex h-20 items-center justify-between border-b border-border-subtle px-6">
+                    <span class="flex items-center gap-3 text-lg font-semibold text-brand-primary">
                         @if ($logoMarkPath)
-                            <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
+                            <img src="{{ asset($logoMarkPath) }}" alt="" class="h-9 w-9">
                         @endif
                         SIGAE-UTS
                     </span>
                     <button type="button" @click="mobileOpen = false" aria-label="Cerrar menú">
-                        <x-icon name="x" class="h-5 w-5 text-text-secondary" />
+                        <x-icon name="x" class="h-6 w-6 text-text-secondary" />
                     </button>
                 </div>
-                <nav class="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+                <nav class="flex-1 space-y-8 overflow-y-auto px-4 py-6">
                     @foreach ($navGroups as $group)
                         <div>
                             <p class="px-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">{{ $group['title'] }}</p>
-                            <div class="mt-1 space-y-0.5">
+                            <div class="mt-2 space-y-1">
                                 @foreach ($group['links'] as $link)
                                     @php $active = request()->routeIs($link['route'].'*'); @endphp
                                     <a
                                         href="{{ route($link['route']) }}"
                                         @class([
-                                            'flex items-center gap-2 rounded-md border-l-2 px-2 py-1.5 text-sm font-medium',
+                                            'flex items-center gap-3 rounded-md border-l-2 px-3 py-2.5 text-base font-medium',
                                             'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
                                             'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                         ])
                                     >
-                                        <x-icon :name="$link['icon']" class="h-4 w-4 shrink-0" />
+                                        <x-icon :name="$link['icon']" class="h-5 w-5 shrink-0" />
                                         {{ $link['label'] }}
                                     </a>
                                 @endforeach
@@ -162,12 +162,12 @@
                         </div>
                     @endforeach
                 </nav>
-                <div class="border-t border-border-subtle p-4">
-                    <p class="truncate text-sm font-medium text-text-primary">{{ $user->name }}</p>
+                <div class="border-t border-border-subtle p-5">
+                    <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
                     <form method="POST" action="{{ route('logout') }}" class="mt-2">
                         @csrf
-                        <button type="submit" class="flex items-center gap-1.5 text-sm font-medium text-status-error hover:underline">
-                            <x-icon name="logout" class="h-4 w-4" />
+                        <button type="submit" class="flex items-center gap-2 text-base font-medium text-status-error hover:underline">
+                            <x-icon name="logout" class="h-5 w-5" />
                             Cerrar sesión
                         </button>
                     </form>
@@ -176,19 +176,19 @@
         </div>
 
         <div class="flex min-w-0 flex-1 flex-col">
-            <header class="flex h-16 items-center gap-4 border-b border-border-subtle bg-surface px-4 md:hidden">
+            <header class="flex h-18 items-center gap-4 border-b border-border-subtle bg-surface px-5 md:hidden">
                 <button type="button" @click="mobileOpen = true" aria-label="Abrir menú">
-                    <x-icon name="menu" class="h-6 w-6 text-text-secondary" />
+                    <x-icon name="menu" class="h-7 w-7 text-text-secondary" />
                 </button>
-                <span class="flex items-center gap-2 text-base font-semibold text-brand-primary">
+                <span class="flex items-center gap-2 text-lg font-semibold text-brand-primary">
                     @if ($logoMarkPath)
-                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-7 w-7">
+                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
                     @endif
                     SIGAE-UTS
                 </span>
             </header>
 
-            <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <main class="flex-1 px-6 py-8 sm:px-8 lg:px-10">
                 {{ $slot }}
             </main>
         </div>

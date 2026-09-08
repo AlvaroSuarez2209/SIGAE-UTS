@@ -14,10 +14,10 @@
     $tone = $tones[$color] ?? $tones['neutral'];
 @endphp
 
-<div {{ $attributes->merge(['class' => "card card-accent {$tone['border']} {$tone['bg']} p-4 text-center"]) }}>
+<div {{ $attributes->merge(['class' => "card card-accent {$tone['border']} {$tone['bg']} p-6 text-center"]) }}>
     @if ($icon)
-        <x-icon :name="$icon" class="{{ $tone['icon'] }} mx-auto mb-1 h-4 w-4" />
+        <x-icon :name="$icon" class="{{ $tone['icon'] }} mx-auto mb-2 h-6 w-6" />
     @endif
-    <p class="text-2xl font-bold text-text-primary">{{ $value }}</p>
-    <p class="text-xs text-text-secondary">{{ $label }}</p>
+    <p class="text-3xl font-bold text-text-primary">{{ $value }}</p>
+    <p class="text-sm text-text-secondary">{{ $label }}</p>
 </div>

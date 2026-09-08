@@ -1,6 +1,6 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-text-primary">Usuarios</h1>
+        <h1 class="page-title">Usuarios</h1>
         <a href="{{ route('admin.users.create') }}" class="btn-primary">
             Nuevo usuario
         </a>

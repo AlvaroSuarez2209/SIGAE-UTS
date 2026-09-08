@@ -3,7 +3,7 @@
 
     <div class="mb-6 flex items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-semibold text-text-primary">{{ $deliverable->name }}</h1>
+            <h1 class="page-title">{{ $deliverable->name }}</h1>
             <p class="text-sm text-text-secondary">{{ $evidence->user->name }}</p>
         </div>
         <x-status-badge :status="$evidence->status" />

@@ -1,6 +1,6 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-text-primary">Actividades</h1>
+        <h1 class="page-title">Actividades</h1>
         <button type="button" wire:click="openCreate" class="btn-primary">
             Nueva
         </button>

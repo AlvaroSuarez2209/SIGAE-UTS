@@ -2,7 +2,7 @@
     @php $deliverable = $evidence->deliverable; @endphp
 
     <div class="mb-6 flex items-center justify-between gap-4">
-        <h1 class="text-2xl font-semibold text-text-primary">{{ $deliverable->name }}</h1>
+        <h1 class="page-title">{{ $deliverable->name }}</h1>
         <x-status-badge :status="$evidence->status" />
     </div>
 
