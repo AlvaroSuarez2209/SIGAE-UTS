@@ -30,12 +30,52 @@
                             <button type="button" wire:click="openEdit({{ $period->id }})" class="btn-text">Editar</button>
 
                             @if ($period->status->value === 'planning')
-                                <button type="button" wire:click="activate({{ $period->id }})" wire:confirm="¿Activar este periodo?" class="btn-text ml-3 text-status-success">Activar</button>
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-status-success"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Activar periodo académico',
+                                        body: '¿Activar el periodo <strong>{{ e($period->name) }}</strong>? Los docentes podrán empezar a cargar evidencias para este periodo.',
+                                        confirmLabel: 'Activar periodo',
+                                        variant: 'success',
+                                        action: () => $wire.activate({{ $period->id }}),
+                                    })"
+                                >Activar</button>
                             @elseif ($period->status->value === 'active')
-                                <button type="button" wire:click="close({{ $period->id }})" wire:confirm="¿Cerrar este periodo? Bloqueará cargas y modificaciones ordinarias." class="btn-text ml-3 text-status-warning">Cerrar</button>
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-status-warning"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Cerrar periodo académico',
+                                        body: '¿Cerrar el periodo <strong>{{ e($period->name) }}</strong>? Esta acción bloqueará las cargas y modificaciones ordinarias para este periodo.',
+                                        confirmLabel: 'Cerrar periodo',
+                                        variant: 'warning',
+                                        action: () => $wire.close({{ $period->id }}),
+                                    })"
+                                >Cerrar</button>
                             @elseif ($period->status->value === 'closed')
-                                <button type="button" wire:click="archive({{ $period->id }})" wire:confirm="¿Archivar este periodo?" class="btn-text ml-3 text-secondary">Archivar</button>
-                                <button type="button" wire:click="reopen({{ $period->id }})" wire:confirm="¿Reabrir este periodo? Es una excepción que quedará registrada." class="btn-text ml-3 text-text-secondary">Reabrir</button>
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Archivar periodo académico',
+                                        body: '¿Archivar el periodo <strong>{{ e($period->name) }}</strong>? Pasará a un estado de solo lectura.',
+                                        confirmLabel: 'Archivar periodo',
+                                        variant: 'secondary',
+                                        action: () => $wire.archive({{ $period->id }}),
+                                    })"
+                                >Archivar</button>
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Reabrir periodo académico',
+                                        body: '¿Reabrir el periodo <strong>{{ e($period->name) }}</strong>? Es una excepción que quedará registrada.',
+                                        confirmLabel: 'Reabrir periodo',
+                                        variant: 'warning',
+                                        action: () => $wire.reopen({{ $period->id }}),
+                                    })"
+                                >Reabrir</button>
                             @endif
                         </td>
                     </tr>

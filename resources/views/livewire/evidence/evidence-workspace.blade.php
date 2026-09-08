@@ -74,7 +74,17 @@
                                     {{ $file->original_name }}
                                 </a>
                                 @if ($evidence->status->isEditable())
-                                    <button type="button" wire:click="removeFile({{ $file->id }})" wire:confirm="¿Eliminar este archivo?" class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline">
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Eliminar archivo',
+                                            body: '¿Eliminar el archivo <strong>{{ e($file->original_name) }}</strong>? Esta acción no se puede deshacer.',
+                                            confirmLabel: 'Eliminar archivo',
+                                            variant: 'danger',
+                                            action: () => $wire.removeFile({{ $file->id }}),
+                                        })"
+                                    >
                                         <x-icon name="trash" class="h-4 w-4" />
                                         Quitar
                                     </button>
@@ -130,7 +140,17 @@
                                     {{ $link->label ?: $link->url }}
                                 </a>
                                 @if ($evidence->status->isEditable())
-                                    <button type="button" wire:click="removeLink({{ $link->id }})" wire:confirm="¿Eliminar este enlace?" class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline">
+                                    <button
+                                        type="button"
+                                        class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Eliminar enlace',
+                                            body: '¿Eliminar el enlace <strong>{{ e($link->label ?: $link->url) }}</strong>? Esta acción no se puede deshacer.',
+                                            confirmLabel: 'Eliminar enlace',
+                                            variant: 'danger',
+                                            action: () => $wire.removeLink({{ $link->id }}),
+                                        })"
+                                    >
                                         <x-icon name="trash" class="h-4 w-4" />
                                         Quitar
                                     </button>
@@ -156,7 +176,17 @@
                 <button type="button" wire:click="saveDraft" class="btn-secondary">
                     Guardar borrador
                 </button>
-                <button type="button" wire:click="submit" wire:confirm="¿Confirmas el envío? Una vez enviado no podrás editar esta evidencia directamente." class="btn-primary">
+                <button
+                    type="button"
+                    class="btn-primary"
+                    @click="$dispatch('confirm-modal', {
+                        title: 'Enviar evidencia',
+                        body: '¿Confirmas el envío? Una vez enviado no podrás editar esta evidencia directamente.',
+                        confirmLabel: 'Enviar evidencia',
+                        variant: 'primary',
+                        action: () => $wire.submit(),
+                    })"
+                >
                     Enviar evidencia
                 </button>
                 <a href="{{ route('my-deliverables.index') }}" class="btn-text">Volver</a>

@@ -73,11 +73,31 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
-                <button type="button" wire:click="approve" wire:confirm="¿Aprobar esta evidencia?" class="btn-success">
+                <button
+                    type="button"
+                    class="btn-success"
+                    @click="$dispatch('confirm-modal', {
+                        title: 'Aprobar evidencia',
+                        body: '¿Aprobar esta evidencia? El docente verá el estado actualizado de inmediato.',
+                        confirmLabel: 'Aprobar',
+                        variant: 'success',
+                        action: () => $wire.approve(),
+                    })"
+                >
                     <x-icon name="check-circle" class="h-4 w-4" />
                     Aprobar
                 </button>
-                <button type="button" wire:click="returnForAdjustment" wire:confirm="¿Devolver esta evidencia para ajustes?" class="btn-warning">
+                <button
+                    type="button"
+                    class="btn-warning"
+                    @click="$dispatch('confirm-modal', {
+                        title: 'Devolver evidencia',
+                        body: '¿Devolver esta evidencia para ajustes? El docente podrá editarla y volver a enviarla.',
+                        confirmLabel: 'Devolver',
+                        variant: 'warning',
+                        action: () => $wire.returnForAdjustment(),
+                    })"
+                >
                     <x-icon name="alert-triangle" class="h-4 w-4" />
                     Devolver
                 </button>
@@ -88,7 +108,17 @@
         @can('reopen', $evidence)
             @if ($evidence->status->value === 'approved')
                 <div class="mb-4">
-                    <button type="button" wire:click="reopen" wire:confirm="¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada." class="btn-secondary">
+                    <button
+                        type="button"
+                        class="btn-secondary"
+                        @click="$dispatch('confirm-modal', {
+                            title: 'Reabrir evidencia aprobada',
+                            body: '¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada.',
+                            confirmLabel: 'Reabrir',
+                            variant: 'warning',
+                            action: () => $wire.reopen(),
+                        })"
+                    >
                         Reabrir (permiso especial)
                     </button>
                 </div>

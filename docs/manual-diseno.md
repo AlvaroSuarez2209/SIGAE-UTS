@@ -130,7 +130,13 @@ de forma consistente en los 10 módulos funcionales:
 - **Clases de botón** (`.btn-primary`, `.btn-secondary`, `.btn-danger`,
   `.btn-success`, `.btn-warning`, `.btn-text`) — un único vocabulario visual
   de acciones en todo el sistema, en vez de utilidades de Tailwind repetidas
-  y potencialmente inconsistentes en cada vista.
+  y potencialmente inconsistentes en cada vista. Regla del degradado
+  azul→verde: se reserva exclusivamente para momentos de marca (login,
+  correo de recuperación de contraseña); `.btn-primary` en el resto de la
+  aplicación (crear, guardar, y cualquier acción cotidiana) es siempre el
+  azul de marca sólido, para que el degradado siga funcionando como una
+  señal reconocible de "esto es la marca hablando", no como decoración
+  repetida en cada botón.
 - **Clases de formulario** (`.field-label`, `.field-input`, `.field-help`,
   `.field-error`, `.field-checkbox`, `.field-radio`) — validación en línea
   siempre visible bajo el campo correspondiente, nunca solo en un resumen
@@ -143,6 +149,23 @@ de forma consistente en los 10 módulos funcionales:
   colapsable a un panel lateral en móvil mediante Alpine
   (`x-data="{ mobileOpen: false }"`), en vez de menús desplegables
   horizontales.
+- **`<x-confirm-modal>`** — modal de confirmación reutilizable (una sola
+  instancia global, incluida en `layouts/app.blade.php`) que reemplaza el
+  `confirm()` nativo del navegador en toda la aplicación (cerrar/activar/
+  archivar/reabrir periodos, desactivar usuarios, eliminar archivos y
+  enlaces de evidencia, aprobar/devolver/reabrir evidencia, finalizar un
+  liderazgo). Cualquier botón lo dispara con
+  `@click="$dispatch('confirm-modal', { title, body, confirmLabel, variant, action: () => $wire.metodo() })"`.
+  Usa el mismo patrón visual que los modales de formulario existentes
+  (overlay oscuro, tarjeta blanca centrada, sombra), el foco inicial va al
+  botón "Cancelar" (no al de confirmar, para que un `Enter` accidental
+  nunca ejecute la acción), y se cierra con `Escape` o clic fuera — ambos
+  equivalentes a cancelar. Es accesible (`role="dialog"`,
+  `aria-modal="true"`, `aria-labelledby` apuntando al título). El color del
+  botón de confirmación (`variant`) comunica el impacto real de la acción:
+  ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),
+  rojo solo para eliminaciones permanentes, verde para acciones que
+  habilitan/aprueban.
 
 ## 5. Por qué esta paleta y tipografía
 

@@ -199,6 +199,8 @@
         </main>
     @endauth
 
+    <x-confirm-modal />
+
     @livewireScripts
 </body>
 </html>

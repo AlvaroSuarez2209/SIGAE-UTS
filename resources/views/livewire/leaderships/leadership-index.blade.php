@@ -47,7 +47,17 @@
                         <td class="table-cell text-right whitespace-nowrap">
                             <a href="{{ route('leaderships.edit', $leadership) }}" class="btn-text">Editar</a>
                             @unless ($leadership->ends_at)
-                                <button type="button" wire:click="endNow({{ $leadership->id }})" wire:confirm="¿Finalizar este liderazgo hoy?" class="btn-text ml-3 text-text-secondary">
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Finalizar liderazgo',
+                                        body: '¿Finalizar este liderazgo hoy? Se registrará la fecha actual como fecha de fin.',
+                                        confirmLabel: 'Finalizar',
+                                        variant: 'warning',
+                                        action: () => $wire.endNow({{ $leadership->id }}),
+                                    })"
+                                >
                                     Finalizar
                                 </button>
                             @endunless

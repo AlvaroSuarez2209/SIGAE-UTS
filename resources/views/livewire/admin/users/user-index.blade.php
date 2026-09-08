@@ -50,9 +50,14 @@
                             @if (! auth()->user()->is($user))
                                 <button
                                     type="button"
-                                    wire:click="toggleActive({{ $user->id }})"
-                                    wire:confirm="¿Confirmas cambiar el estado de este usuario?"
-                                    class="btn-text ml-3 text-text-secondary"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: '{{ $user->is_active ? 'Desactivar usuario' : 'Activar usuario' }}',
+                                        body: '¿{{ $user->is_active ? 'Desactivar' : 'Activar' }} a <strong>{{ e($user->name) }}</strong>? {{ $user->is_active ? 'No podrá iniciar sesión mientras esté desactivado.' : 'Podrá volver a iniciar sesión de inmediato.' }}',
+                                        confirmLabel: '{{ $user->is_active ? 'Desactivar' : 'Activar' }}',
+                                        variant: '{{ $user->is_active ? 'danger' : 'success' }}',
+                                        action: () => $wire.toggleActive({{ $user->id }}),
+                                    })"
                                 >
                                     {{ $user->is_active ? 'Desactivar' : 'Activar' }}
                                 </button>
