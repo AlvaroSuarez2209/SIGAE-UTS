@@ -158,6 +158,58 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="table-shell mt-4">
+                <div class="border-b border-border-subtle px-4 py-2.5 text-sm font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
+                <table class="min-w-full divide-y divide-border-subtle">
+                    <thead>
+                        <tr>
+                            <th class="table-header-cell">Entregable</th>
+                            <th class="table-header-cell">Ámbito</th>
+                            <th class="table-header-cell">Fecha límite</th>
+                            <th class="table-header-cell text-right">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border-subtle">
+                        @forelse ($coordinationPanel['upcoming'] as $row)
+                            @php $deliverable = $row['deliverable']; @endphp
+                            <tr class="table-row">
+                                <td class="table-cell">{{ $deliverable->name }}</td>
+                                <td class="table-cell text-text-secondary">
+                                    @if ($deliverable->isCrossCutting())
+                                        <span class="badge bg-accent-subtle text-accent">
+                                            <x-icon name="link" class="h-3.5 w-3.5" />
+                                            Transversal
+                                        </span>
+                                    @else
+                                        {{ $deliverable->activity->component->name }} — {{ $deliverable->activity->name }}
+                                    @endif
+                                </td>
+                                <td class="table-cell text-text-secondary">{{ $deliverable->due_at->format('d/m/Y H:i') }}</td>
+                                <td class="table-cell text-right">
+                                    @if ($row['pending'] === 0)
+                                        <span class="badge bg-status-success-subtle text-status-success">
+                                            <x-icon name="check-circle" class="h-3.5 w-3.5" />
+                                            Todo enviado
+                                        </span>
+                                    @else
+                                        <span class="badge bg-status-warning-subtle text-status-warning">
+                                            <x-icon name="alert-triangle" class="h-3.5 w-3.5" />
+                                            {{ $row['pending'] }} de {{ $row['total'] }} pendientes
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4">
+                                    <x-empty-state icon="check-circle" title="No hay vencimientos en los próximos 14 días" description="Todo lo asignado para este periodo está fuera de esa ventana o ya se completó." />
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </section>
     @endif
 

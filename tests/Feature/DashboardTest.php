@@ -150,6 +150,38 @@ class DashboardTest extends TestCase
         Livewire::actingAs($teacher)->test(Dashboard::class)->assertViewHas('coordinationPanel', null);
     }
 
+    public function test_coordination_panel_upcoming_deadlines_count_pending_recipients_across_all_teachers(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        $teacherA = $this->userWithRole(RoleName::Teacher);
+        $teacherB = $this->userWithRole(RoleName::Teacher);
+
+        $dueSoon = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'due_at' => now()->addDays(5),
+        ]);
+        $dueLater = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'due_at' => now()->addDays(30),
+        ]);
+
+        Evidence::factory()->create(['user_id' => $teacherA->id, 'deliverable_id' => $dueSoon->id, 'status' => EvidenceStatus::Approved]);
+        Evidence::factory()->create(['user_id' => $teacherB->id, 'deliverable_id' => $dueSoon->id, 'status' => EvidenceStatus::Pending]);
+        Evidence::factory()->create(['user_id' => $teacherA->id, 'deliverable_id' => $dueLater->id, 'status' => EvidenceStatus::Pending]);
+
+        Livewire::actingAs($admin)->test(Dashboard::class)
+            ->assertViewHas('coordinationPanel', function ($panel) use ($dueSoon) {
+                $upcoming = $panel['upcoming'];
+
+                return $upcoming->count() === 1
+                    && $upcoming->first()['deliverable']->id === $dueSoon->id
+                    && $upcoming->first()['total'] === 2
+                    && $upcoming->first()['pending'] === 1;
+            });
+    }
+
     public function test_switching_the_period_filter_updates_all_panels(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);

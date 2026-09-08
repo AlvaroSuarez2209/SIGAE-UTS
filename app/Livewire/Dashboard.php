@@ -136,7 +136,20 @@ class Dashboard extends Component
             ->filter(fn ($row) => $row['compliance']['total'] > 0)
             ->values();
 
-        return compact('counts', 'teacherRows');
+        $upcoming = Deliverable::where('academic_period_id', $this->periodFilter)
+            ->whereBetween('due_at', [now(), now()->addDays(14)])
+            ->with(['activity.component', 'crossCuttingCommitment', 'evidences'])
+            ->orderBy('due_at')
+            ->get()
+            ->map(fn (Deliverable $deliverable) => [
+                'deliverable' => $deliverable,
+                'total' => $deliverable->evidences->count(),
+                'pending' => $deliverable->evidences
+                    ->whereNotIn('status', [EvidenceStatus::Approved, EvidenceStatus::Exempt])
+                    ->count(),
+            ]);
+
+        return compact('counts', 'teacherRows', 'upcoming');
     }
 
     public function render()
