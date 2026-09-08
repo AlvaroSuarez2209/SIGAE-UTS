@@ -7,12 +7,11 @@
     </div>
 
     <div class="mb-4 flex flex-wrap gap-4">
-        <input
-            type="text"
+        <x-search-input
             wire:model.live.debounce.300ms="search"
             placeholder="Buscar por nombre o correo..."
-            class="field-input mt-0 w-full max-w-xs"
-        >
+            class="w-full max-w-xs"
+        />
 
         <select wire:model.live="roleFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los roles</option>

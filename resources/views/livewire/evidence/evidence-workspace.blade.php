@@ -1,4 +1,4 @@
-<div class="max-w-2xl">
+<div class="mx-auto max-w-2xl">
     @php $deliverable = $evidence->deliverable; @endphp
 
     <div class="mb-6 flex items-center justify-between gap-4">

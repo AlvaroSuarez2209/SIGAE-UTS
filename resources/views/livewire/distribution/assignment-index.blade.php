@@ -7,12 +7,11 @@
     </div>
 
     <div class="mb-4 flex flex-wrap gap-4">
-        <input
-            type="text"
+        <x-search-input
             wire:model.live.debounce.300ms="search"
             placeholder="Buscar docente..."
-            class="field-input mt-0 w-full max-w-xs"
-        >
+            class="w-full max-w-xs"
+        />
 
         <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los periodos</option>

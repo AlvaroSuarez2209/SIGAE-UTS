@@ -1,4 +1,4 @@
-<div class="max-w-xl">
+<div class="mx-auto max-w-xl">
     <h1 class="mb-6 page-title">
         {{ $assignment ? 'Editar asignación' : 'Nueva asignación' }}
     </h1>

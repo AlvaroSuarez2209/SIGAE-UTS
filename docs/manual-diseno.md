@@ -166,6 +166,57 @@ de forma consistente en los 10 módulos funcionales:
   ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),
   rojo solo para eliminaciones permanentes, verde para acciones que
   habilitan/aprueban.
+- **`<x-search-input>`** — campo de texto con ícono de lupa fijo a la
+  izquierda (`<x-icon name="search">`), para que un campo de filtrado se
+  reconozca como tal sin depender solo del placeholder. Reenvía cualquier
+  atributo (`wire:model[.mod]`, `placeholder`, `class`, etc.) al `<input>`
+  real, igual que `<x-password-input>`. Se usa en todo campo de búsqueda de
+  una lista (Distribución docente, Usuarios, y cualquier módulo futuro con
+  un filtro de texto).
+
+### Regla: modal vs. página completa para formularios CRUD
+
+Para que esta decisión no se tome caso por caso en cada módulo nuevo:
+
+- **4 campos o menos → modal** sobre la propia vista de listado (patrón de
+  "Periodos académicos": overlay oscuro, tarjeta centrada, cierre con
+  Cancelar). Mantiene al usuario en contexto para una edición rápida.
+- **5 campos o más → página completa** con su propia ruta (patrón de
+  "Distribución docente": "Nueva asignación"/"Editar asignación"). Un modal
+  con seis o más campos obliga a hacer scroll dentro de una caja pequeña y
+  se siente apretado; una página completa da espacio para agrupar campos,
+  mostrar ayudas contextuales (`.field-help`) y, si aplica, un aviso de
+  bloqueo como el de periodo cerrado en `assignment-form.blade.php`.
+
+Esta regla ya se cumplía sin haber sido escrita (Periodos usa modal con 2
+campos; Distribución usa página completa con 6). Aplica al construir
+Líderes, Entregables, Plantillas de entregables y cualquier módulo futuro:
+cuenta los campos del formulario antes de decidir el patrón.
+
+### Tablas: alineación numérica y paginación
+
+- Toda columna cuyo contenido sea un número que tenga sentido comparar en
+  vertical (horas, porcentajes, conteos) se alinea a la **derecha** tanto en
+  `<th>` como en `<td>` (`text-right` sobre `.table-header-cell`/
+  `.table-cell`, que por defecto alinean a la izquierda). El resto de
+  columnas — texto, fechas, badges — se mantiene alineado a la izquierda.
+- Toda tabla de listado cuyo volumen de datos crece con el uso real de la
+  institución (docentes, periodos, entregables) usa `WithPagination` de
+  Livewire y `->paginate(n)` desde el primer día, aunque con datos de
+  prueba no se note ningún cambio visual — evita tener que retrabajar la
+  vista de listado más adelante. Ya implementado en Distribución docente,
+  Entregables, Usuarios y Líderes; Periodos académicos es la única lista
+  que se deja sin paginar a propósito, porque el número de periodos de una
+  institución nunca crece más allá de unas pocas decenas.
+
+### Formularios de página completa: ancho centrado
+
+Todo formulario de página completa (los que siguen la regla de "5 campos o
+más" arriba, más vistas de detalle de una sola columna como la revisión de
+evidencia) usa un contenedor `mx-auto max-w-xl` o `mx-auto max-w-2xl` según
+la cantidad de campos, en vez de solo `max-w-*` sin centrar — así la tarjeta
+no queda pegada al margen izquierdo dejando un vacío a la derecha en
+monitores anchos.
 
 ## 5. Por qué esta paleta y tipografía
 
