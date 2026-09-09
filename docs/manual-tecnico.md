@@ -195,7 +195,69 @@ nombre original se conserva aparte para mostrarlo al usuario. Las
 descargas pasan siempre por `EvidenceFileDownloadController`, que
 verifica permisos en cada solicitud vía `EvidenceFilePolicy`.
 
-### 5.5 Estructura de carpetas relevantes
+### 5.5 Zona horaria
+
+**Toda la aplicación corre en una sola zona horaria: `America/Bogota`
+(UTC-5, sin horario de verano).** No se guarda en UTC para convertir
+después en la vista — se decidió así, y no al revés, por dos razones
+concretas de este proyecto:
+
+1. **Las columnas de fecha/hora del esquema son `timestamp`/`dateTime`
+   sin zona horaria** (`$table->timestamps()`, `dateTime('due_at')`,
+   etc. en `database/migrations/**`). PostgreSQL no les aplica ninguna
+   conversión de zona horaria al leer ni al escribir, sin importar la
+   zona horaria de la sesión — guardan literalmente el valor de reloj de
+   pared que reciben. Adoptar "guardar en UTC, mostrar en Bogotá"
+   correctamente habría requerido convertir cada una de esas columnas a
+   `timestamptz` (~12 tablas) para que Postgres sí hiciera la conversión,
+   más mantener sincronizadas la zona horaria de la app y la de la sesión
+   de base de datos en direcciones opuestas — mucho más superficie de
+   error para un sistema de una sola institución.
+2. **SIGAE-UTS es, por alcance, de una sola zona horaria**: todos los
+   docentes, líderes, coordinación y administración de UTS operan desde
+   Colombia. No hay (ni está previsto) un usuario en otro huso horario
+   cuya hora local difiera de la institucional.
+
+Con eso resuelto, la corrección es una sola línea:
+`config('app.timezone')` en `config/app.php` es `'America/Bogota'` (antes
+`'UTC'`, el valor por defecto de Laravel). Laravel aplica esto vía
+`date_default_timezone_set()` muy temprano en el arranque de cada
+petición, así que **todo** `now()` / `Carbon::now()` / `today()` de la
+aplicación —fechas de auditoría (`Auditable`), vigencia de liderazgo
+(`starts_at`/`ends_at`), envío y revisión de evidencias
+(`submitted_at`, `decided_at`), y las comparaciones de "próximos
+vencimientos" del dashboard (`due_at->between(now(), ...)`) — queda
+corregido desde un único punto, sin parches por archivo. Como las
+columnas son sin zona horaria, lo que se escribe y lo que se lee de
+vuelta es exactamente la misma hora de pared en Bogotá: no hay
+conversión posible que se desalinee entre sí.
+
+Por defensa en profundidad, `config/database.php` también fija la zona
+horaria de la *sesión* de PostgreSQL en `America/Bogota` (opción
+`timezone` de la conexión `pgsql`, que Laravel traduce a
+`SET TIME ZONE`). Esto no afecta a las columnas propias de la
+aplicación (son sin zona horaria, como se explicó arriba), pero sí
+importa para cualquier valor que la propia base de datos genere -en vez
+de PHP- por su cuenta (por ejemplo, el `useCurrent()` de
+`failed_jobs.failed_at`, una tabla interna del framework).
+
+**Nota para datos anteriores a este cambio:** los registros creados
+mientras la app corría en UTC (auditoría, fechas de liderazgo, etc.)
+quedaron guardados con la hora de reloj UTC de ese momento, 5 horas
+adelantada respecto a Bogotá — este fix corrige el comportamiento hacia
+adelante, no reescribe el histórico ya guardado.
+
+**Si el sistema alguna vez necesita usuarios en otra zona horaria**, la
+ruta de migración es: (1) convertir las columnas de fecha/hora
+relevantes de `timestamp`/`dateTime` a `timestamptz`, (2) fijar
+`config('app.timezone')` de vuelta a `'UTC'` (y la zona horaria de la
+sesión de Postgres también a `'UTC'`, para que el `timestamptz` guarde
+siempre en UTC internamente), y (3) convertir a la zona horaria de cada
+usuario únicamente en la capa de presentación, con
+`Carbon::setTimezone($usuario->timezone)` justo antes de mostrar la
+fecha.
+
+### 5.6 Estructura de carpetas relevantes
 
 ```
 app/

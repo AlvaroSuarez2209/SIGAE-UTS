@@ -63,9 +63,18 @@ return [
     | will be used by the PHP date and date-time functions. The timezone
     | is set to "UTC" by default as it is suitable for most use cases.
     |
+    | SIGAE-UTS se despliega para una sola institución (UTS), con todos los
+    | usuarios en Colombia, y las columnas de fecha/hora del esquema son
+    | `timestamp`/`dateTime` sin zona horaria (PostgreSQL no les aplica
+    | ninguna conversión). Por eso se fija la app entera en America/Bogota
+    | en vez de guardar en UTC y convertir solo en la vista — ver la
+    | sección "Zona horaria" del manual técnico para la justificación
+    | completa y la ruta de migración si el sistema alguna vez necesita
+    | soportar usuarios en otras zonas horarias.
+    |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'America/Bogota',
 
     /*
     |--------------------------------------------------------------------------

@@ -95,6 +95,14 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            // Alinea la sesión de PostgreSQL con la zona horaria de la app
+            // (ver config/app.php). Es un respaldo, no la causa principal
+            // del fix: las columnas de fecha/hora del esquema son
+            // `timestamp`/`dateTime` sin zona horaria, así que Postgres no
+            // les aplica ninguna conversión — pero esto sí importa para
+            // cualquier valor generado por la propia base de datos (p. ej.
+            // el `useCurrent()` de failed_jobs.failed_at).
+            'timezone' => env('DB_TIMEZONE', 'America/Bogota'),
         ],
 
         'sqlsrv' => [
