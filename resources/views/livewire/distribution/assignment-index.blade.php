@@ -6,6 +6,10 @@
         </a>
     </div>
 
+    <p class="section-subtitle">
+        Las horas asignadas son solo información de dedicación docente: no determinan ni generan automáticamente la cantidad de entregables.
+    </p>
+
     <div class="mb-4 flex flex-wrap gap-4">
         <x-search-input
             wire:model.live.debounce.300ms="search"

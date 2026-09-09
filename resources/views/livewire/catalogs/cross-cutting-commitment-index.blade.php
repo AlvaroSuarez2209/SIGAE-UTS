@@ -6,6 +6,10 @@
         </button>
     </div>
 
+    <p class="section-subtitle">
+        Clasificaciones disponibles para agrupar compromisos transversales. Aquí se administran las categorías, no los compromisos en sí.
+    </p>
+
     <div class="table-shell">
         <table class="min-w-full divide-y divide-border-subtle">
             <thead>
@@ -24,9 +28,23 @@
                         </td>
                         <td class="table-cell text-right">
                             <button type="button" wire:click="openEdit({{ $commitment->id }})" class="btn-text">Editar</button>
-                            <button type="button" wire:click="toggleActive({{ $commitment->id }})" class="btn-text ml-3 text-text-secondary">
-                                {{ $commitment->is_active ? 'Desactivar' : 'Activar' }}
-                            </button>
+                            @if ($commitment->is_active)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Desactivar compromiso',
+                                        body: '¿Desactivar el compromiso <strong>{{ e($commitment->name) }}</strong>? Ya no estará disponible para crear nuevos entregables transversales a partir de él, pero los entregables ya creados no se ven afectados.',
+                                        confirmLabel: 'Desactivar',
+                                        variant: 'warning',
+                                        action: () => $wire.toggleActive({{ $commitment->id }}),
+                                    })"
+                                >Desactivar</button>
+                            @else
+                                <button type="button" wire:click="toggleActive({{ $commitment->id }})" class="btn-text ml-4 text-text-secondary">
+                                    Activar
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty

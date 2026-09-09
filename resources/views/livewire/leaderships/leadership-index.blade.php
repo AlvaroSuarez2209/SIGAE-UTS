@@ -6,6 +6,10 @@
         </a>
     </div>
 
+    <p class="section-subtitle">
+        Un líder puede tener autoridad sobre todo un programa o solo sobre actividades específicas, con fecha de inicio y fin definidas.
+    </p>
+
     <div class="mb-4 flex flex-wrap gap-4">
         <x-search-input
             wire:model.live.debounce.300ms="search"

@@ -6,6 +6,10 @@
         </button>
     </div>
 
+    <p class="section-subtitle">
+        Subdivisiones de un componente, por ejemplo Procesos OACA, Procesos ODA o Comités.
+    </p>
+
     <div class="table-shell">
         <table class="min-w-full divide-y divide-border-subtle">
             <thead>
@@ -26,9 +30,23 @@
                         </td>
                         <td class="table-cell text-right">
                             <button type="button" wire:click="openEdit({{ $subcomponent->id }})" class="btn-text">Editar</button>
-                            <button type="button" wire:click="toggleActive({{ $subcomponent->id }})" class="btn-text ml-3 text-text-secondary">
-                                {{ $subcomponent->is_active ? 'Desactivar' : 'Activar' }}
-                            </button>
+                            @if ($subcomponent->is_active)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Desactivar subcomponente',
+                                        body: '¿Desactivar el subcomponente <strong>{{ e($subcomponent->name) }}</strong>? Ya no estará disponible para asociarlo a nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
+                                        confirmLabel: 'Desactivar',
+                                        variant: 'warning',
+                                        action: () => $wire.toggleActive({{ $subcomponent->id }}),
+                                    })"
+                                >Desactivar</button>
+                            @else
+                                <button type="button" wire:click="toggleActive({{ $subcomponent->id }})" class="btn-text ml-4 text-text-secondary">
+                                    Activar
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty

@@ -6,7 +6,7 @@
         </a>
     </div>
 
-    <p class="mb-4 text-sm text-text-secondary">
+    <p class="section-subtitle">
         Una plantilla es una configuración reutilizable (reglas, tipos de evidencia, criterios) que puedes usar como punto
         de partida al crear varios entregables concretos con fechas distintas.
     </p>
@@ -33,9 +33,23 @@
                         </td>
                         <td class="table-cell text-right">
                             <a href="{{ route('deliverable-templates.edit', $template) }}" class="btn-text">Editar</a>
-                            <button type="button" wire:click="toggleActive({{ $template->id }})" class="btn-text ml-3 text-text-secondary">
-                                {{ $template->is_active ? 'Desactivar' : 'Activar' }}
-                            </button>
+                            @if ($template->is_active)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Desactivar plantilla',
+                                        body: '¿Desactivar la plantilla <strong>{{ e($template->name) }}</strong>? Ya no estará disponible para crear nuevos entregables a partir de ella, pero los entregables ya creados no se ven afectados.',
+                                        confirmLabel: 'Desactivar',
+                                        variant: 'warning',
+                                        action: () => $wire.toggleActive({{ $template->id }}),
+                                    })"
+                                >Desactivar</button>
+                            @else
+                                <button type="button" wire:click="toggleActive({{ $template->id }})" class="btn-text ml-4 text-text-secondary">
+                                    Activar
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty

@@ -24,9 +24,23 @@
                         </td>
                         <td class="table-cell text-right">
                             <button type="button" wire:click="openEdit({{ $componentRow->id }})" class="btn-text">Editar</button>
-                            <button type="button" wire:click="toggleActive({{ $componentRow->id }})" class="btn-text ml-3 text-text-secondary">
-                                {{ $componentRow->is_active ? 'Desactivar' : 'Activar' }}
-                            </button>
+                            @if ($componentRow->is_active)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Desactivar componente',
+                                        body: '¿Desactivar el componente <strong>{{ e($componentRow->name) }}</strong>? Ya no estará disponible para crear nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
+                                        confirmLabel: 'Desactivar',
+                                        variant: 'warning',
+                                        action: () => $wire.toggleActive({{ $componentRow->id }}),
+                                    })"
+                                >Desactivar</button>
+                            @else
+                                <button type="button" wire:click="toggleActive({{ $componentRow->id }})" class="btn-text ml-4 text-text-secondary">
+                                    Activar
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty

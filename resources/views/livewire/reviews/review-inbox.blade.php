@@ -1,6 +1,10 @@
 <div>
     <h1 class="mb-6 page-title">Bandeja de revisión</h1>
 
+    <p class="section-subtitle">
+        Evidencias pendientes de aprobación dentro de tu ámbito de revisión.
+    </p>
+
     <div class="mb-4">
         <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los periodos</option>

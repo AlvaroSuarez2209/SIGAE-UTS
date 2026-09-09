@@ -42,12 +42,24 @@
     --color-border-subtle: #d8dee4;
     --color-text-primary: #1a2530;
     --color-text-secondary: #5b6b7a;
+    /* Un punto intermedio entre text-primary y text-secondary, solo para
+       el subtítulo introductorio de una sección (.section-subtitle) — más
+       oscuro que el texto de ayuda de formulario para que se lea como
+       contenido, no como metadato. */
+    --color-text-tertiary: #46535f;
 }
 
 @layer components {
     /* Encabezados compartidos (escala aumentada — ver docs/manual-diseno.md) */
     .page-title {
         @apply text-3xl font-semibold text-text-primary;
+    }
+    /* Subtítulo introductorio de una sección/listado, para conceptos que no
+       son autoexplicativos por su solo título (ej. "¿qué es una plantilla?",
+       "¿qué hace este listado?"). No usar en secciones cuyo nombre ya se
+       explica solo — ver docs/manual-diseno.md. */
+    .section-subtitle {
+        @apply mb-6 text-base text-text-tertiary;
     }
 
     /* Botones */

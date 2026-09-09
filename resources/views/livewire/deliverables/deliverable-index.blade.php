@@ -6,6 +6,10 @@
         </a>
     </div>
 
+    <p class="section-subtitle">
+        Un entregable puede estar ligado a una actividad de la distribución o ser un compromiso transversal, sin depender de ninguna actividad.
+    </p>
+
     <div class="mb-4">
         <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los periodos</option>

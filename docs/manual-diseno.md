@@ -188,6 +188,16 @@ de forma consistente en los 10 módulos funcionales:
   ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),
   rojo solo para eliminaciones permanentes, verde para acciones que
   habilitan/aprueban.
+
+  **Regla para pares Activar/Desactivar** (catálogos, plantillas,
+  usuarios): solo **"Desactivar" pide confirmación** (variante ámbar,
+  cuerpo explicando qué deja de estar disponible y qué NO se ve afectado
+  retroactivamente). **"Activar" se ejecuta directo**, sin modal, porque
+  vuelve el registro a un estado seguro y conocido, no oculta ni bloquea
+  nada, y es trivialmente reversible con un segundo clic — pedir
+  confirmación ahí solo añadiría fricción sin ganar seguridad real.
+  Aplica a Componentes, Subcomponentes, Actividades, Programas,
+  Compromisos transversales, Plantillas de entregables y Usuarios.
 - **Formato de fecha de solo lectura — `$fecha->toReadable()`** — regla
   única para toda fecha mostrada fuera de un input de formulario (tablas,
   tarjetas, informes, badges): día + mes abreviado en texto + año, y solo
@@ -207,6 +217,17 @@ de forma consistente en los 10 módulos funcionales:
   real, igual que `<x-password-input>`. Se usa en todo campo de búsqueda de
   una lista (Distribución docente, Usuarios, y cualquier módulo futuro con
   un filtro de texto).
+- **`.section-subtitle`** — párrafo introductorio (16px,
+  `text-tertiary` — un gris intermedio entre `text-primary` y
+  `text-secondary`, definido a propósito para que se lea como contenido y
+  no como metadato) entre el `<h1>` de una sección y su tabla/formulario.
+  Se usa **solo** cuando el nombre de la sección no basta para entender
+  qué es o cómo se comporta (ej. "¿qué es una plantilla?", "¿de dónde
+  salen las horas de Distribución?", "¿por qué Auditoría no se puede
+  editar?"). No se agrega a secciones autoexplicativas por su título
+  (Periodos, Componentes, Actividades, Programas, Usuarios, Mis
+  entregables, informes) — agregar un subtítulo a todo diluiría la señal
+  de las secciones que sí lo necesitan.
 
 ### Regla: modal vs. página completa para formularios CRUD
 

@@ -28,9 +28,23 @@
                         </td>
                         <td class="table-cell text-right">
                             <button type="button" wire:click="openEdit({{ $activity->id }})" class="btn-text">Editar</button>
-                            <button type="button" wire:click="toggleActive({{ $activity->id }})" class="btn-text ml-3 text-text-secondary">
-                                {{ $activity->is_active ? 'Desactivar' : 'Activar' }}
-                            </button>
+                            @if ($activity->is_active)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-text-secondary"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Desactivar actividad',
+                                        body: '¿Desactivar la actividad <strong>{{ e($activity->name) }}</strong>? Ya no estará disponible para nuevas asignaciones o entregables, pero las asignaciones y entregables ya creados no se ven afectados.',
+                                        confirmLabel: 'Desactivar',
+                                        variant: 'warning',
+                                        action: () => $wire.toggleActive({{ $activity->id }}),
+                                    })"
+                                >Desactivar</button>
+                            @else
+                                <button type="button" wire:click="toggleActive({{ $activity->id }})" class="btn-text ml-4 text-text-secondary">
+                                    Activar
+                                </button>
+                            @endif
                         </td>
                     </tr>
                 @empty
