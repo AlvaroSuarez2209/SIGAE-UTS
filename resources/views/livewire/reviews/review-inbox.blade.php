@@ -28,7 +28,7 @@
                         <td class="table-cell text-text-secondary">{{ $evidence->deliverable->name }}</td>
                         <td class="table-cell text-text-secondary">
                             @if ($evidence->deliverable->isCrossCutting())
-                                <span class="badge bg-accent-subtle text-accent">
+                                <span class="badge bg-category-subtle text-category">
                                     <x-icon name="link" class="h-3.5 w-3.5" />
                                     Transversal
                                 </span>
@@ -36,7 +36,7 @@
                                 {{ $evidence->deliverable->activity->component->name }} — {{ $evidence->deliverable->activity->name }}
                             @endif
                         </td>
-                        <td class="table-cell text-text-secondary">{{ $evidence->currentVersion->submitted_at->format('d/m/Y H:i') }}</td>
+                        <td class="table-cell text-text-secondary">{{ $evidence->currentVersion->submitted_at->toReadable() }}</td>
                         <td class="table-cell text-right">
                             <a href="{{ route('reviews.show', $evidence) }}" class="btn-text">Revisar</a>
                         </td>

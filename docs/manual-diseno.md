@@ -43,8 +43,10 @@ sueltos en las vistas. Esto permite reemplazar la paleta institucional real
 | `brand-primary-subtle` | `#ebf0f5` | Marca, fondo suave | Fondo de enlace activo en el sidebar, badges "primary" |
 | `brand-secondary` | `#0a7a45` | Marca, segundo tono del logo (verde) | Línea "UTS" y extremo del degradado del botón en el login |
 | `secondary` | `#4b5a6a` | Color secundario (azul grisáceo) | Botón secundario (hover), badges de estado "archivado" |
-| `accent` | `#8a6516` | Acento (ámbar apagado) | Badge de evidencias "exento", distintivo de entregables transversales |
+| `accent` | `#8a6516` | Acento (ámbar apagado) | Badge de evidencias "exento" |
 | `accent-subtle` | `#f6efdf` | Acento, fondo suave | Fondo de los badges de acento |
+| `category` | `#5b4b8a` | Clasificación neutra (no es un estado) | Badge "Transversal" en Entregables/Dashboard/Revisión |
+| `category-subtle` | `#efeaf7` | Clasificación, fondo suave | Fondo del badge "Transversal" |
 | `status-success` | `#1e7a4c` | Éxito / aprobado | Badge "Aprobado", botón "Aprobar" en revisión |
 | `status-success-subtle` | `#e8f5ee` | Éxito, fondo suave | Fondo de mensajes de confirmación |
 | `status-warning` | `#9a5b12` | Advertencia | Badge "Requiere ajustes" / "Cerrado", botón "Devolver" |
@@ -62,6 +64,15 @@ sobre `surface`, texto de badges sobre sus fondos "subtle", texto blanco
 sobre `brand-primary`/`status-success`/`status-warning`/`status-error`) se
 verificaron con la fórmula de luminancia relativa de WCAG 2.x y cumplen un
 mínimo de 4.5:1 para texto normal y 3:1 para texto grande, cumpliendo AA.
+
+**`category` es intencionalmente distinto de `accent`**, aunque ambos parten
+de la misma familia de neutros apagados: el badge "Transversal" clasifica
+un entregable (no advierte nada), mientras que `accent` sigue reservado
+para "exento" y cualquier acento futuro cercano a la familia
+ámbar/advertencia. Antes de este token, "Transversal" reutilizaba `accent`
+y quedaba visualmente casi idéntico a `status-warning` — dos badges de
+significado muy distinto (uno descriptivo, otro de alerta) con el mismo
+tono, que diluía el ámbar como señal de atención real.
 
 ## 3. Tipografía
 
@@ -141,6 +152,17 @@ de forma consistente en los 10 módulos funcionales:
   `.field-error`, `.field-checkbox`, `.field-radio`) — validación en línea
   siempre visible bajo el campo correspondiente, nunca solo en un resumen
   aparte.
+- **`.form-section` / `.form-section-title`** — agrupa visualmente un
+  formulario largo (5+ campos) en secciones con subtítulo (16px,
+  semibold) y un separador sutil (`border-t` + espaciado) entre ellas, sin
+  tocar el orden ni el comportamiento de los campos. La primera sección de
+  un formulario no lleva separador (ya está al inicio de la tarjeta); cada
+  sección siguiente usa `.form-section` en su contenedor. Ejemplo de
+  referencia: `deliverable-form.blade.php` (Vinculación, Información
+  general, Programación, Configuración de evidencia, Evaluación,
+  Destinatarios). Aplica a cualquier formulario de página completa que
+  crezca más allá de lo que se escanea de un vistazo — ver también la
+  regla modal-vs-página-completa más abajo.
 - **Clases de tabla** (`.table-shell`, `.table-header-cell`, `.table-cell`,
   `.table-row`) — tablas de seguimiento responsivas con scroll horizontal
   propio en pantallas angostas.
@@ -166,6 +188,18 @@ de forma consistente en los 10 módulos funcionales:
   ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),
   rojo solo para eliminaciones permanentes, verde para acciones que
   habilitan/aprueban.
+- **Formato de fecha de solo lectura — `$fecha->toReadable()`** — regla
+  única para toda fecha mostrada fuera de un input de formulario (tablas,
+  tarjetas, informes, badges): día + mes abreviado en texto + año, y solo
+  agrega la hora si no es medianoche — `"20 ene 2026"`,
+  `"20 abr 2026, 5:00 p. m."`. Los inputs de formulario (datepicker) siguen
+  usando `dd/mm/aaaa`, sin cambios — la distinción es "¿el usuario está
+  escribiendo/editando la fecha, o solo leyéndola?". El método vive como
+  un macro de Carbon (`App\Providers\AppServiceProvider`, ver
+  `docs/manual-tecnico.md`), nunca formateado a mano por vista, para que
+  no se repita la inconsistencia que motivó esta regla (Periodos y
+  Distribución mostraban `dd/mm/aaaa` en tablas mientras Entregables
+  estaba por introducir mes-en-texto solo ahí).
 - **`<x-search-input>`** — campo de texto con ícono de lupa fijo a la
   izquierda (`<x-icon name="search">`), para que un campo de filtrado se
   reconozca como tal sin depender solo del placeholder. Reenvía cualquier

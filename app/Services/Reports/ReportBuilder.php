@@ -47,9 +47,9 @@ class ReportBuilder
             $e->deliverable->name,
             self::scopeLabel($e->deliverable),
             $e->deliverable->is_mandatory ? 'Sí' : 'No',
-            $e->deliverable->due_at->format('d/m/Y H:i'),
+            $e->deliverable->due_at->toReadable(),
             $e->status->label(),
-            $e->currentVersion?->submitted_at?->format('d/m/Y H:i') ?? '—',
+            $e->currentVersion?->submitted_at?->toReadable() ?? '—',
         ])->all();
 
         $compliance = ComplianceCalculator::forUser($teacher, $evidences->pluck('deliverable')->unique('id'));
@@ -107,7 +107,7 @@ class ReportBuilder
             return [
                 $d->name,
                 $d->is_mandatory ? 'Sí' : 'No',
-                $d->due_at->format('d/m/Y H:i'),
+                $d->due_at->toReadable(),
                 $evidences->count(),
                 $evidences->where('status', EvidenceStatus::Submitted)->count(),
                 $evidences->where('status', EvidenceStatus::Approved)->count(),
@@ -150,7 +150,7 @@ class ReportBuilder
             return [
                 $d->crossCuttingCommitment->name,
                 $d->name,
-                $d->due_at->format('d/m/Y H:i'),
+                $d->due_at->toReadable(),
                 $evidences->count(),
                 $evidences->where('status', EvidenceStatus::Submitted)->count(),
                 $evidences->where('status', EvidenceStatus::Approved)->count(),
@@ -165,7 +165,7 @@ class ReportBuilder
                 $e->deliverable->name,
                 $e->user->name,
                 $e->status->label(),
-                $e->currentVersion?->submitted_at?->format('d/m/Y H:i') ?? '—',
+                $e->currentVersion?->submitted_at?->toReadable() ?? '—',
             ])->all();
 
         return [

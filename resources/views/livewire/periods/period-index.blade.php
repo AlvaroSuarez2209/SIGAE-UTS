@@ -21,7 +21,7 @@
                     <tr wire:key="period-{{ $period->id }}" class="table-row">
                         <td class="table-cell">{{ $period->name }}</td>
                         <td class="table-cell text-text-secondary">
-                            {{ $period->start_date->format('d/m/Y') }} – {{ $period->end_date->format('d/m/Y') }}
+                            {{ $period->start_date->toReadable() }} – {{ $period->end_date->toReadable() }}
                         </td>
                         <td class="table-cell">
                             <x-status-badge :status="$period->status" />

@@ -257,7 +257,49 @@ usuario únicamente en la capa de presentación, con
 `Carbon::setTimezone($usuario->timezone)` justo antes de mostrar la
 fecha.
 
-### 5.6 Estructura de carpetas relevantes
+### 5.6 Formato de fechas de solo lectura
+
+Regla única para toda la aplicación: cualquier fecha mostrada en modo de
+solo lectura (tabla, tarjeta, badge, informe) usa
+**`$fecha->toReadable()`** — nunca `->format('d/m/Y...')` a mano en una
+vista. Devuelve día + mes abreviado en español + año, y agrega la hora
+solo si no es medianoche:
+
+```php
+$period->start_date->toReadable();      // "20 ene 2026"
+$deliverable->due_at->toReadable();     // "20 abr 2026, 5:00 p. m." (si la hora no es 00:00)
+```
+
+Los inputs de formulario (datepicker, `dd/mm/aaaa`) no usan esto — siguen
+su propio formato de edición, sin cambios.
+
+**Implementación**: un macro de Carbon registrado una sola vez en
+`App\Providers\AppServiceProvider::boot()` (método privado
+`registerReadableDateMacro()`), sobre `\Carbon\Carbon` y
+`\Carbon\CarbonImmutable`, así que cualquier fecha casteada por Eloquent
+(`'date'`/`'datetime'`) en cualquier modelo obtiene el método
+automáticamente, sin tocar cada modelo. Por dentro usa
+`isoFormat('D MMM YYYY')` con locale `es` explícito (independiente de
+`config('app.locale')`) y le quita el punto que CLDU pone tras el mes
+abreviado ("ene." → "ene"), para calzar exactamente con el formato
+acordado.
+
+**Por qué un macro y no un Accessor por modelo**: un Accessor viviría
+repetido en cada modelo con fechas (`AcademicPeriod`, `Leadership`,
+`Deliverable`, `EvidenceVersion`, `Review`, `AuditLog`, ...) y un
+desarrollador nuevo tendría que acordarse de añadirlo en cada modelo
+futuro. El macro se registra una vez y queda disponible en toda fecha de
+la aplicación —incluidas las que no vienen de un modelo, como
+`now()->toReadable()` en el pie del PDF de informes— sin que nadie tenga
+que recordarlo.
+
+**Al añadir una fecha de solo lectura a una vista nueva**: usa
+`->toReadable()` directamente; no la reintroduzcas con `->format(...)`.
+Si hace falta un formato genuinamente distinto para un caso puntual (poco
+común), decídelo explícitamente en esa vista en vez de generalizar el
+macro con parámetros no usados en ningún otro lugar.
+
+### 5.7 Estructura de carpetas relevantes
 
 ```
 app/

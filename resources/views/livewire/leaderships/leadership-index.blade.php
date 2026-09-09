@@ -46,9 +46,9 @@
                             @endif
                         </td>
                         <td class="table-cell text-text-secondary">
-                            {{ $leadership->starts_at->format('d/m/Y') }}
+                            {{ $leadership->starts_at->toReadable() }}
                             –
-                            {{ $leadership->ends_at?->format('d/m/Y') ?? 'vigente' }}
+                            {{ $leadership->ends_at?->toReadable() ?? 'vigente' }}
                         </td>
                         <td class="table-cell text-right whitespace-nowrap">
                             <a href="{{ route('leaderships.edit', $leadership) }}" class="btn-text">Editar</a>

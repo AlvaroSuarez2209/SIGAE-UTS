@@ -36,7 +36,7 @@
                             <tr wire:key="evidence-{{ $evidence->id }}" class="table-row">
                                 <td class="table-cell">{{ $evidence->deliverable->name }}</td>
                                 <td class="table-cell text-text-secondary">{{ $evidence->deliverable->is_mandatory ? 'Sí' : 'No' }}</td>
-                                <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->format('d/m/Y H:i') }}</td>
+                                <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->toReadable() }}</td>
                                 <td class="table-cell">
                                     <x-status-badge :status="$evidence->status" />
                                 </td>

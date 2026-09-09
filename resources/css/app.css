@@ -21,6 +21,12 @@
     --color-secondary: #4b5a6a;
     --color-accent: #8a6516;
     --color-accent-subtle: #f6efdf;
+    /* Clasificación neutra (no es un estado ni una advertencia) — distinto
+       a propósito de success/warning/error y de accent (ámbar), para que
+       una etiqueta puramente descriptiva como "Transversal" nunca compita
+       visualmente con una señal de atención real. */
+    --color-category: #5b4b8a;
+    --color-category-subtle: #efeaf7;
 
     /* Estados (compartidos por evidencias, revisiones y periodos) */
     --color-status-success: #1e7a4c;
@@ -77,6 +83,16 @@
     /* Formularios */
     .field-label {
         @apply block text-base font-medium text-text-primary;
+    }
+    /* Subtítulo de grupo dentro de un formulario largo (ej. "Información
+       general", "Programación" en deliverable-form). Se combina con
+       .form-section (border-t + espaciado) en todas las secciones menos
+       la primera — ver docs/manual-diseno.md. */
+    .form-section-title {
+        @apply text-base font-semibold text-text-primary;
+    }
+    .form-section {
+        @apply mt-6 space-y-4 border-t border-border-subtle pt-6;
     }
     .field-help {
         @apply mt-1 text-sm leading-tight text-text-secondary;

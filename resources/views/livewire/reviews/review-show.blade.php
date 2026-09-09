@@ -20,8 +20,8 @@
         @if ($deliverable->completion_criteria)
             <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
         @endif
-        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
-        <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->format('d/m/Y H:i') ?? '—' }}</p>
+        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
+        <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->toReadable() ?? '—' }}</p>
     </div>
 
     <div class="card mb-6 space-y-4 p-6">
@@ -134,7 +134,7 @@
                 @foreach ($evidence->reviews as $review)
                     <li class="card p-3 text-sm">
                         <x-status-badge :status="$review->decision" class="mb-1" />
-                        <p class="text-text-secondary">por {{ $review->reviewer->name }} — {{ $review->decided_at->format('d/m/Y H:i') }}</p>
+                        <p class="text-text-secondary">por {{ $review->reviewer->name }} — {{ $review->decided_at->toReadable() }}</p>
                         @foreach ($review->observations as $observation)
                             <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach

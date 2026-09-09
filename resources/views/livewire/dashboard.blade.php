@@ -52,7 +52,7 @@
                         @forelse ($teacherPanel['upcoming'] as $evidence)
                             <tr class="table-row">
                                 <td class="table-cell">{{ $evidence->deliverable->name }}</td>
-                                <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->format('d/m/Y H:i') }}</td>
+                                <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->toReadable() }}</td>
                                 <td class="table-cell text-right">
                                     <a href="{{ route('my-deliverables.show', $evidence) }}" class="btn-text">Ver</a>
                                 </td>
@@ -177,7 +177,7 @@
                                 <td class="table-cell">{{ $deliverable->name }}</td>
                                 <td class="table-cell text-text-secondary">
                                     @if ($deliverable->isCrossCutting())
-                                        <span class="badge bg-accent-subtle text-accent">
+                                        <span class="badge bg-category-subtle text-category">
                                             <x-icon name="link" class="h-3.5 w-3.5" />
                                             Transversal
                                         </span>
@@ -185,7 +185,7 @@
                                         {{ $deliverable->activity->component->name }} — {{ $deliverable->activity->name }}
                                     @endif
                                 </td>
-                                <td class="table-cell text-text-secondary">{{ $deliverable->due_at->format('d/m/Y H:i') }}</td>
+                                <td class="table-cell text-text-secondary">{{ $deliverable->due_at->toReadable() }}</td>
                                 <td class="table-cell text-right">
                                     @if ($row['pending'] === 0)
                                         <span class="badge bg-status-success-subtle text-status-success">

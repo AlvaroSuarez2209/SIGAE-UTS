@@ -53,7 +53,7 @@
             <tbody class="divide-y divide-border-subtle">
                 @forelse ($logs as $log)
                     <tr wire:key="log-{{ $log->id }}" class="table-row">
-                        <td class="table-cell text-text-secondary">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
+                        <td class="table-cell text-text-secondary">{{ $log->created_at->toReadable() }}</td>
                         <td class="table-cell">{{ $log->user->name ?? 'Sistema' }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->action }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->auditableLabel() }}</td>

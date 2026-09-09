@@ -16,9 +16,9 @@
         @if ($deliverable->completion_criteria)
             <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
         @endif
-        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->format('d/m/Y H:i') }}</p>
+        <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
         @if ($deliverable->closes_at)
-            <p><span class="font-medium text-text-primary">Cierre:</span> {{ $deliverable->closes_at->format('d/m/Y H:i') }}</p>
+            <p><span class="font-medium text-text-primary">Cierre:</span> {{ $deliverable->closes_at->toReadable() }}</p>
         @endif
     </div>
 
@@ -203,7 +203,7 @@
                 @foreach ($evidence->reviews as $review)
                     <li class="card p-3 text-sm">
                         <x-status-badge :status="$review->decision" class="mb-1" />
-                        <p class="text-text-secondary">{{ $review->decided_at->format('d/m/Y H:i') }}</p>
+                        <p class="text-text-secondary">{{ $review->decided_at->toReadable() }}</p>
                         @foreach ($review->observations as $observation)
                             <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach
@@ -220,7 +220,7 @@
                 @foreach ($evidence->versions as $version)
                     <li>
                         Versión {{ $version->version_number }} —
-                        {{ $version->submitted_at ? 'enviada el '.$version->submitted_at->format('d/m/Y H:i') : 'en edición' }}
+                        {{ $version->submitted_at ? 'enviada el '.$version->submitted_at->toReadable() : 'en edición' }}
                     </li>
                 @endforeach
             </ul>

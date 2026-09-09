@@ -18,7 +18,7 @@
 <body>
     <hr class="brand-rule">
     <h1>{{ $title }}</h1>
-    <p style="font-size: 10px; color: #5b6b7a;">SIGAE-UTS — Sistema de Gestión de Actividades y Evidencias Docentes — generado el {{ now()->format('d/m/Y H:i') }}</p>
+    <p style="font-size: 10px; color: #5b6b7a;">SIGAE-UTS — Sistema de Gestión de Actividades y Evidencias Docentes — generado el {{ now()->toReadable() }}</p>
 
     @if ($summary ?? null)
         <div class="summary">

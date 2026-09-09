@@ -23,7 +23,7 @@
                     <th class="table-header-cell">Ámbito</th>
                     <th class="table-header-cell">Obligatorio</th>
                     <th class="table-header-cell">Fecha límite</th>
-                    <th class="table-header-cell">Destinatarios</th>
+                    <th class="table-header-cell text-right">Destinatarios</th>
                     <th class="table-header-cell text-right">Acciones</th>
                 </tr>
             </thead>
@@ -33,7 +33,7 @@
                         <td class="table-cell">{{ $deliverable->name }}</td>
                         <td class="table-cell text-text-secondary">
                             @if ($deliverable->isCrossCutting())
-                                <span class="badge bg-accent-subtle text-accent">
+                                <span class="badge bg-category-subtle text-category">
                                     <x-icon name="link" class="h-3.5 w-3.5" />
                                     Transversal
                                 </span>
@@ -43,8 +43,8 @@
                             @endif
                         </td>
                         <td class="table-cell text-text-secondary">{{ $deliverable->is_mandatory ? 'Sí' : 'No' }}</td>
-                        <td class="table-cell text-text-secondary">{{ $deliverable->due_at->format('d/m/Y H:i') }}</td>
-                        <td class="table-cell text-text-secondary">{{ $deliverable->recipients->count() }}</td>
+                        <td class="table-cell text-text-secondary">{{ $deliverable->due_at->toReadable() }}</td>
+                        <td class="table-cell text-right text-text-secondary">{{ $deliverable->recipients->count() }}</td>
                         <td class="table-cell text-right">
                             <a href="{{ route('deliverables.edit', $deliverable) }}" class="btn-text">Editar</a>
                         </td>
