@@ -13,11 +13,18 @@ class LeadershipIndex extends Component
 {
     use WithPagination;
 
+    public string $search = '';
+
     public ?int $periodFilter = null;
 
     public function mount(): void
     {
         $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+    }
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
     }
 
     public function updatingPeriodFilter(): void
@@ -36,6 +43,9 @@ class LeadershipIndex extends Component
     {
         $leaderships = Leadership::query()
             ->with(['user', 'activity.component', 'programUnit', 'academicPeriod'])
+            ->when($this->search, fn ($query) => $query
+                ->whereHas('user', fn ($q) => $q->where('name', 'ilike', "%{$this->search}%"))
+            )
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('starts_at')
             ->paginate(15);

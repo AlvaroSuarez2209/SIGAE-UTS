@@ -6,7 +6,13 @@
         </a>
     </div>
 
-    <div class="mb-4">
+    <div class="mb-4 flex flex-wrap gap-4">
+        <x-search-input
+            wire:model.live.debounce.300ms="search"
+            placeholder="Buscar líder..."
+            class="w-full max-w-xs"
+        />
+
         <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
             <option value="">Todos los periodos</option>
             @foreach ($periods as $period)
