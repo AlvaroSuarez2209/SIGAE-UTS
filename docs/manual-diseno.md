@@ -241,6 +241,23 @@ de forma consistente en los 10 módulos funcionales:
   real, igual que `<x-password-input>`. Se usa en todo campo de búsqueda de
   una lista (Distribución docente, Usuarios, y cualquier módulo futuro con
   un filtro de texto).
+- **`<x-evidence-file-row>` / `<x-evidence-link-row>`** — la fila de un
+  archivo o enlace adjunto a una evidencia: ícono (clip o enlace, para
+  diferenciarlos) + nombre + tamaño (solo archivos) a la izquierda,
+  "Descargar"/"Abrir" a la derecha, y "Quitar" opcional (`:removable`)
+  cuando el estado de la evidencia permite edición. Antes, "Mis
+  entregables" mostraba el archivo como un enlace de texto suelto sin
+  borde mientras que "Revisión" ya usaba la fila con borde — un mismo
+  tipo de contenido con dos tratamientos visuales distintos según quién
+  lo mira. Ahora ambas vistas usan el mismo componente; cualquier ajuste
+  futuro al tratamiento de un archivo/enlace adjunto se hace una sola vez.
+- **Sección "Instrucciones"** en el detalle de una evidencia (`review-show`
+  y `evidence-workspace`) — Descripción, Instrucciones y Criterio de
+  cumplimiento del entregable (los tres opcionales al crearlo), cada uno
+  con su propio label, en una tarjeta antes de la de "Fecha límite". Un
+  campo vacío simplemente no aparece — nunca una línea con el label y
+  nada después. Antes solo se mostraba en "Mis entregables" (parcial: sin
+  título de sección) y no aparecía en absoluto en "Revisión".
 - **`.section-subtitle`** — párrafo introductorio (16px,
   `text-tertiary` — un gris intermedio entre `text-primary` y
   `text-secondary`, definido a propósito para que se lea como contenido y

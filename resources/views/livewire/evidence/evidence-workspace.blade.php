@@ -6,16 +6,22 @@
         <x-status-badge :status="$evidence->status" />
     </div>
 
+    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+        <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
+            <h2 class="form-section-title mb-2">Instrucciones</h2>
+            @if ($deliverable->description)
+                <p><span class="font-medium text-text-primary">Descripción:</span> {{ $deliverable->description }}</p>
+            @endif
+            @if ($deliverable->instructions)
+                <p><span class="font-medium text-text-primary">Instrucciones:</span> {{ $deliverable->instructions }}</p>
+            @endif
+            @if ($deliverable->completion_criteria)
+                <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
+            @endif
+        </div>
+    @endif
+
     <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
-        @if ($deliverable->description)
-            <p>{{ $deliverable->description }}</p>
-        @endif
-        @if ($deliverable->instructions)
-            <p><span class="font-medium text-text-primary">Instrucciones:</span> {{ $deliverable->instructions }}</p>
-        @endif
-        @if ($deliverable->completion_criteria)
-            <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
-        @endif
         <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
         @if ($deliverable->closes_at)
             <p><span class="font-medium text-text-primary">Cierre:</span> {{ $deliverable->closes_at->toReadable() }}</p>
@@ -53,77 +59,54 @@
         @endif
 
         @if (in_array('file', $allowed) || in_array('multiple_files', $allowed))
+            @php $fileCount = $evidence->currentVersion?->files->count() ?? 0; @endphp
             <div>
                 <label class="field-label">
                     Archivos
-                    <span class="field-help inline">
-                        (máx. {{ $deliverable->max_files }}, {{ $deliverable->max_file_size_mb }}MB c/u
-                        @if ($deliverable->allowed_file_types)
-                            , formatos: {{ collect($deliverable->allowed_file_types)->map(fn ($e) => ".$e")->join(', ') }}
-                        @endif
-                        )
-                    </span>
+                    <span class="field-help inline">{{ $deliverable->fileConstraintsLabel }}</span>
                 </label>
 
-                @if ($evidence->currentVersion && $evidence->currentVersion->files->isNotEmpty())
+                @if ($fileCount > 0)
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->files as $file)
-                            <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2 text-base">
-                                <a href="{{ route('evidence-files.download', $file) }}" class="flex min-w-0 items-center gap-1.5 text-brand-primary hover:underline">
-                                    <x-icon name="paperclip" class="h-4 w-4 shrink-0" />
-                                    <span class="truncate">{{ $file->original_name }}</span>
-                                </a>
-                                <div class="flex shrink-0 items-center gap-3">
-                                    <span class="text-sm text-text-secondary">{{ $file->readable_size }}</span>
-                                    @if ($evidence->status->isEditable())
-                                        <button
-                                            type="button"
-                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
-                                            @click="$dispatch('confirm-modal', {
-                                                title: 'Eliminar archivo',
-                                                body: '¿Eliminar el archivo <strong>{{ e($file->original_name) }}</strong>? Esta acción no se puede deshacer.',
-                                                confirmLabel: 'Eliminar archivo',
-                                                variant: 'danger',
-                                                action: () => $wire.removeFile({{ $file->id }}),
-                                            })"
-                                        >
-                                            <x-icon name="trash" class="h-4 w-4" />
-                                            Quitar
-                                        </button>
-                                    @endif
-                                </div>
-                            </li>
+                            <x-evidence-file-row :file="$file" :removable="$evidence->status->isEditable()" />
                         @endforeach
                     </ul>
                 @endif
 
                 @if ($evidence->status->isEditable())
-                    <div
-                        x-data="{ isDragging: false, uploading: false, progress: 0 }"
-                        x-on:livewire-upload-start="uploading = true"
-                        x-on:livewire-upload-finish="uploading = false; progress = 0"
-                        x-on:livewire-upload-error="uploading = false"
-                        x-on:livewire-upload-progress="progress = $event.detail.progress"
-                        @dragover.prevent="isDragging = true"
-                        @dragleave.prevent="isDragging = false"
-                        @drop.prevent="isDragging = false; $refs.newFilesInput.files = $event.dataTransfer.files; $refs.newFilesInput.dispatchEvent(new Event('change'))"
-                        :class="isDragging ? 'border-brand-primary bg-brand-primary-subtle' : 'border-border-subtle'"
-                        class="mt-2 rounded-md border-2 border-dashed p-6 text-center transition-colors"
-                    >
-                        <input type="file" x-ref="newFilesInput" wire:model="newFiles" multiple id="newFiles" class="sr-only">
-                        <label for="newFiles" class="flex cursor-pointer flex-col items-center gap-1.5">
-                            <x-icon name="paperclip" class="h-6 w-6 text-text-secondary" />
-                            <span class="text-sm text-text-secondary">
-                                Arrastra los archivos aquí o <span class="font-medium text-brand-primary">haz clic para seleccionar</span>
-                            </span>
-                        </label>
+                    @if ($fileCount < $deliverable->max_files)
+                        <div
+                            x-data="{ isDragging: false, uploading: false, progress: 0 }"
+                            x-on:livewire-upload-start="uploading = true"
+                            x-on:livewire-upload-finish="uploading = false; progress = 0"
+                            x-on:livewire-upload-error="uploading = false"
+                            x-on:livewire-upload-progress="progress = $event.detail.progress"
+                            @dragover.prevent="isDragging = true"
+                            @dragleave.prevent="isDragging = false"
+                            @drop.prevent="isDragging = false; $refs.newFilesInput.files = $event.dataTransfer.files; $refs.newFilesInput.dispatchEvent(new Event('change'))"
+                            :class="isDragging ? 'border-brand-primary bg-brand-primary-subtle' : 'border-border-subtle'"
+                            class="mt-2 rounded-md border-2 border-dashed p-6 text-center transition-colors"
+                        >
+                            <input type="file" x-ref="newFilesInput" wire:model="newFiles" multiple id="newFiles" class="sr-only">
+                            <label for="newFiles" class="flex cursor-pointer flex-col items-center gap-1.5">
+                                <x-icon name="paperclip" class="h-6 w-6 text-text-secondary" />
+                                <span class="text-sm text-text-secondary">
+                                    Arrastra los archivos aquí o <span class="font-medium text-brand-primary">haz clic para seleccionar</span>
+                                </span>
+                            </label>
 
-                        <div x-show="uploading" x-cloak class="mx-auto mt-3 max-w-xs">
-                            <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                                <div class="h-full bg-brand-primary transition-all" :style="`width: ${progress}%`"></div>
+                            <div x-show="uploading" x-cloak class="mx-auto mt-3 max-w-xs">
+                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+                                    <div class="h-full bg-brand-primary transition-all" :style="`width: ${progress}%`"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @else
+                        <p class="field-help">
+                            Ya alcanzaste el máximo de {{ $deliverable->max_files }} archivo(s) permitido(s). Quita el actual para poder subir uno nuevo.
+                        </p>
+                    @endif
                     @error('newFiles') <p class="field-error">{{ $message }}</p> @enderror
                     @error('newFiles.*') <p class="field-error">{{ $message }}</p> @enderror
                 @endif
@@ -137,31 +120,7 @@
                 @if ($evidence->currentVersion && $evidence->currentVersion->links->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->links as $link)
-                            <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2 text-base">
-                                <div class="flex min-w-0 items-center gap-2">
-                                    <x-icon name="link" class="h-4 w-4 shrink-0 text-text-secondary" />
-                                    <span class="truncate">{{ $link->label ?: $link->url }}</span>
-                                </div>
-                                <div class="flex shrink-0 items-center gap-3">
-                                    <a href="{{ $link->url }}" target="_blank" rel="noopener" class="btn-text">Abrir</a>
-                                    @if ($evidence->status->isEditable())
-                                        <button
-                                            type="button"
-                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
-                                            @click="$dispatch('confirm-modal', {
-                                                title: 'Eliminar enlace',
-                                                body: '¿Eliminar el enlace <strong>{{ e($link->label ?: $link->url) }}</strong>? Esta acción no se puede deshacer.',
-                                                confirmLabel: 'Eliminar enlace',
-                                                variant: 'danger',
-                                                action: () => $wire.removeLink({{ $link->id }}),
-                                            })"
-                                        >
-                                            <x-icon name="trash" class="h-4 w-4" />
-                                            Quitar
-                                        </button>
-                                    @endif
-                                </div>
-                            </li>
+                            <x-evidence-link-row :link="$link" :removable="$evidence->status->isEditable()" />
                         @endforeach
                     </ul>
                 @endif

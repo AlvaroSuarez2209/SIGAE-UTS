@@ -7,6 +7,7 @@ use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -84,6 +85,28 @@ class Deliverable extends Model
     public function isCrossCutting(): bool
     {
         return $this->activity_id === null;
+    }
+
+    /**
+     * "(máx. 1, 10MB c/u, formatos: .pdf)" — único punto de formato para
+     * el resumen de restricciones de archivo, para no repetir a mano la
+     * concatenación (y su espaciado) en cada vista que lo muestre.
+     */
+    protected function fileConstraintsLabel(): Attribute
+    {
+        return Attribute::get(function () {
+            $parts = [
+                "máx. {$this->max_files}",
+                "{$this->max_file_size_mb}MB c/u",
+            ];
+
+            if (! empty($this->allowed_file_types)) {
+                $extensions = collect($this->allowed_file_types)->map(fn ($extension) => ".{$extension}")->join(', ');
+                $parts[] = "formatos: {$extensions}";
+            }
+
+            return '('.implode(', ', $parts).')';
+        });
     }
 
     /**

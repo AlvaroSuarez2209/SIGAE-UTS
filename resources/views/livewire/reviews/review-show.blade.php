@@ -16,10 +16,22 @@
         </div>
     @endif
 
+    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+        <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
+            <h2 class="form-section-title mb-2">Instrucciones</h2>
+            @if ($deliverable->description)
+                <p><span class="font-medium text-text-primary">Descripción:</span> {{ $deliverable->description }}</p>
+            @endif
+            @if ($deliverable->instructions)
+                <p><span class="font-medium text-text-primary">Instrucciones:</span> {{ $deliverable->instructions }}</p>
+            @endif
+            @if ($deliverable->completion_criteria)
+                <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
+            @endif
+        </div>
+    @endif
+
     <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
-        @if ($deliverable->completion_criteria)
-            <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
-        @endif
         <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
         <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->toReadable() ?? '—' }}</p>
     </div>
@@ -34,14 +46,7 @@
         @if ($version->files->isNotEmpty())
             <ul class="space-y-2">
                 @foreach ($version->files as $file)
-                    <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
-                        <div class="flex min-w-0 items-center gap-2">
-                            <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
-                            <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
-                            <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
-                        </div>
-                        <a href="{{ route('evidence-files.download', $file) }}" class="btn-text shrink-0">Descargar</a>
-                    </li>
+                    <x-evidence-file-row :file="$file" />
                 @endforeach
             </ul>
         @endif
@@ -49,13 +54,7 @@
         @if ($version->links->isNotEmpty())
             <ul class="space-y-2">
                 @foreach ($version->links as $link)
-                    <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
-                        <div class="flex min-w-0 items-center gap-2">
-                            <x-icon name="link" class="h-4 w-4 shrink-0 text-text-secondary" />
-                            <span class="truncate text-base text-text-primary">{{ $link->label ?: $link->url }}</span>
-                        </div>
-                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="btn-text shrink-0">Abrir</a>
-                    </li>
+                    <x-evidence-link-row :link="$link" />
                 @endforeach
             </ul>
         @endif
