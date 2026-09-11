@@ -21,7 +21,14 @@
         <div class="mb-6">
             <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">{{ $group }}</h2>
             <div class="table-shell">
-                <table class="min-w-full divide-y divide-border-subtle">
+                <table class="w-full table-fixed divide-y divide-border-subtle">
+                    <colgroup>
+                        <col class="w-[40%]">
+                        <col class="w-[12%]">
+                        <col class="w-[16%]">
+                        <col class="w-[16%]">
+                        <col class="w-[16%]">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th class="table-header-cell">Entregable</th>
@@ -34,7 +41,7 @@
                     <tbody class="divide-y divide-border-subtle">
                         @foreach ($evidences as $evidence)
                             <tr wire:key="evidence-{{ $evidence->id }}" class="table-row">
-                                <td class="table-cell">{{ $evidence->deliverable->name }}</td>
+                                <td class="table-cell truncate" title="{{ $evidence->deliverable->name }}">{{ $evidence->deliverable->name }}</td>
                                 <td class="table-cell text-text-secondary">{{ $evidence->deliverable->is_mandatory ? 'Sí' : 'No' }}</td>
                                 <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->toReadable() }}</td>
                                 <td class="table-cell">
