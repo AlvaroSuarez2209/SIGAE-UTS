@@ -48,7 +48,11 @@
                         </td>
                         <td class="table-cell text-text-secondary">{{ $deliverable->is_mandatory ? 'Sí' : 'No' }}</td>
                         <td class="table-cell text-text-secondary">{{ $deliverable->due_at->toReadable() }}</td>
-                        <td class="table-cell text-right text-text-secondary">{{ $deliverable->recipients->count() }}</td>
+                        <td class="table-cell text-right">
+                            <a href="{{ route('deliverables.recipients', $deliverable) }}" class="btn-text text-text-secondary">
+                                {{ $deliverable->recipients->count() }}
+                            </a>
+                        </td>
                         <td class="table-cell text-right">
                             <a href="{{ route('deliverables.edit', $deliverable) }}" class="btn-text">Editar</a>
                         </td>

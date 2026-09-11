@@ -11,6 +11,7 @@ use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\DeliverableTemplate;
+use App\Models\Evidence;
 use App\Models\Role;
 use App\Models\TeacherAssignment;
 use App\Models\User;
@@ -334,5 +335,28 @@ class DeliverableTest extends TestCase
             ->assertHasErrors('academic_period_id');
 
         $this->assertNotEquals('Nombre cambiado', $deliverable->fresh()->name);
+    }
+
+    public function test_administrator_can_view_the_recipients_list(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->create();
+        Evidence::factory()->create(['deliverable_id' => $deliverable->id, 'user_id' => $teacher->id]);
+
+        $this->actingAs($admin)
+            ->get(route('deliverables.recipients', $deliverable))
+            ->assertOk()
+            ->assertSee($teacher->name);
+    }
+
+    public function test_teacher_cannot_view_the_recipients_list(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->create();
+
+        $this->actingAs($teacher)
+            ->get(route('deliverables.recipients', $deliverable))
+            ->assertForbidden();
     }
 }

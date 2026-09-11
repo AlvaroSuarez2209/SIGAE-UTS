@@ -210,6 +210,18 @@ de forma consistente en los 10 módulos funcionales:
   confirmación ahí solo añadiría fricción sin ganar seguridad real.
   Aplica a Componentes, Subcomponentes, Actividades, Programas,
   Compromisos transversales, Plantillas de entregables y Usuarios.
+
+  **"Marcar como exento" (evidencia) sí exige confirmación con
+  justificación obligatoria**, a diferencia del par Activar/Desactivar de
+  arriba: no es un simple booleano reversible con un clic, saca al
+  docente de su obligación de un entregable y afecta su % de avance —
+  variante ámbar, igual que "Cerrar periodo". "Quitar exención" (su
+  inverso) sí lleva confirmación pero sin exigir justificación, porque
+  deshacer una excepción hacia el estado por defecto es de menor riesgo
+  que aplicarla. Restringido a Administrador/Coordinación — un Líder no
+  lo tiene: ver docs/manual-tecnico.md §5.7 para la justificación
+  completa de por qué esta acción es administrativa y no de revisión de
+  pares.
 - **Formato de fecha de solo lectura — `$fecha->toReadable()`** — regla
   única para toda fecha mostrada fuera de un input de formulario (tablas,
   tarjetas, informes, badges): día + mes abreviado en texto + año, y solo

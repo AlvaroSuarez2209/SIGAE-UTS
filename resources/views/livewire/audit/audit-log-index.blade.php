@@ -60,7 +60,7 @@
                         <td class="table-cell text-text-secondary">{{ $log->ip_address ?? '—' }}</td>
                         <td class="table-cell text-xs text-text-secondary">
                             @if ($log->metadata)
-                                <code>{{ json_encode($log->metadata) }}</code>
+                                <code>{{ json_encode($log->metadata, JSON_UNESCAPED_UNICODE) }}</code>
                             @endif
                         </td>
                     </tr>

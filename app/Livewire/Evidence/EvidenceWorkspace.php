@@ -27,6 +27,8 @@ class EvidenceWorkspace extends Component
 
     public string $submissionError = '';
 
+    public string $exemptionJustification = '';
+
     public function mount(Evidence $evidence): void
     {
         Gate::authorize('view', $evidence);
@@ -203,6 +205,33 @@ class EvidenceWorkspace extends Component
         $this->evidence->refresh();
 
         session()->flash('status', 'Evidencia enviada correctamente.');
+    }
+
+    public function markExempt(): void
+    {
+        Gate::authorize('markExempt', $this->evidence);
+
+        $this->validate([
+            'exemptionJustification' => ['required', 'string', 'max:2000'],
+        ], [
+            'exemptionJustification.required' => 'La exención exige una justificación explicando por qué el docente queda eximido.',
+        ]);
+
+        $this->evidence->markExempt($this->exemptionJustification);
+        $this->exemptionJustification = '';
+        $this->evidence->refresh();
+
+        session()->flash('status', 'Evidencia marcada como exenta.');
+    }
+
+    public function removeExemption(): void
+    {
+        Gate::authorize('removeExemption', $this->evidence);
+
+        $this->evidence->removeExemption();
+        $this->evidence->refresh();
+
+        session()->flash('status', 'Exención retirada; la evidencia vuelve a estar pendiente.');
     }
 
     public function render()

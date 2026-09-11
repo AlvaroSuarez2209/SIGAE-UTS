@@ -91,6 +91,41 @@ class Evidence extends Model
         $this->update(['status' => EvidenceStatus::Submitted]);
     }
 
+    /**
+     * Excepción administrativa: el docente deja de estar obligado a este
+     * entregable (no cuenta en su % de avance, ver ComplianceCalculator) y
+     * no puede editarla/enviarla mientras la exención esté activa. Exige
+     * justificación y queda registrada en la bitácora de auditoría además
+     * del registro automático de "updated" que ya produce Auditable — este
+     * segundo registro es intencional: captura el "por qué", que el diff
+     * genérico de campos no puede expresar.
+     */
+    public function markExempt(string $justification): void
+    {
+        $previousStatus = $this->status;
+
+        $this->update(['status' => EvidenceStatus::Exempt]);
+
+        AuditLog::record('evidence_marked_exempt', $this, [
+            'justification' => $justification,
+            'previous_status' => $previousStatus->value,
+        ]);
+    }
+
+    /**
+     * Deshace una exención — nunca se edita el estado directamente, solo a
+     * través de esta acción explícita, para que quede su propio rastro de
+     * auditoría. La evidencia vuelve a "pendiente": si la fecha límite ya
+     * pasó, el próximo `evidences:mark-overdue` la marcará vencida de
+     * nuevo, que es el comportamiento correcto.
+     */
+    public function removeExemption(): void
+    {
+        $this->update(['status' => EvidenceStatus::Pending]);
+
+        AuditLog::record('evidence_exemption_removed', $this);
+    }
+
     public function reviews(): HasManyThrough
     {
         return $this->hasManyThrough(Review::class, EvidenceVersion::class, 'evidence_id', 'evidence_version_id')

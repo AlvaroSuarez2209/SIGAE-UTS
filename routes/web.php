@@ -17,6 +17,7 @@ use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Livewire\Dashboard;
 use App\Livewire\Deliverables\DeliverableForm;
 use App\Livewire\Deliverables\DeliverableIndex;
+use App\Livewire\Deliverables\DeliverableRecipients;
 use App\Livewire\Deliverables\TemplateForm;
 use App\Livewire\Deliverables\TemplateIndex;
 use App\Livewire\Distribution\AssignmentForm;
@@ -101,6 +102,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/', DeliverableIndex::class)->name('index');
             Route::get('/create', DeliverableForm::class)->name('create');
             Route::get('/{deliverable}/edit', DeliverableForm::class)->name('edit');
+            Route::get('/{deliverable}/recipients', DeliverableRecipients::class)->name('recipients');
         });
     });
 

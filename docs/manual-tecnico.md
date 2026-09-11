@@ -305,7 +305,85 @@ Mismo principio para el tamaño de un archivo: `EvidenceFile::readable_size`
 que liste archivos adjuntos (bandeja de revisión, "Mis entregables") usa
 `$file->readable_size`, nunca una conversión de bytes hecha a mano.
 
-### 5.7 Estructura de carpetas relevantes
+### 5.7 Vencimiento automático y exención de evidencias
+
+Los estados `Vencido` y `Exento` de `EvidenceStatus` tienen cada uno un
+flujo real y auditado — nunca se editan a mano fuera de estos dos puntos:
+
+**Vencimiento automático** (`App\Console\Commands\MarkOverdueEvidences`,
+comando `evidences:mark-overdue`):
+
+- Selecciona toda evidencia en estado `Pendiente` o `Borrador` cuyo
+  entregable ya pasó su `due_at`, y la transiciona a `Vencido`. No toca
+  `Enviado`, `Requiere ajustes`, `Aprobado` ni `Exento` — esos estados ya
+  significan que el docente actuó o que la evidencia ya no aplica.
+- La comparación `due_at < now()` es válida sin ninguna conversión de
+  zona horaria porque toda la app corre en una sola zona
+  (`America/Bogota`, ver 5.5) y `due_at` se guarda como esa misma hora de
+  pared.
+- **Registrado en el scheduler de Laravel** (`routes/console.php`,
+  `Schedule::command('evidences:mark-overdue')->dailyAt('01:00')`), pero
+  el scheduler de Laravel **no hace nada por sí solo**: el servidor
+  (producción o el Laragon local, si se quiere que corra de verdad todos
+  los días) necesita el cron del sistema operativo apuntando a
+  `schedule:run` cada minuto:
+
+  ```
+  * * * * * cd /ruta/al/proyecto && php artisan schedule:run >> /dev/null 2>&1
+  ```
+
+  Sin esa línea de cron configurada, el comando existe y puede ejecutarse
+  a mano (`php artisan evidences:mark-overdue`), pero nunca se dispara
+  solo. En Windows/Laragon no hay cron nativo — para probarlo en local
+  simplemente se ejecuta el comando a mano cuando haga falta; para que
+  corra de verdad a diario en un despliegue real (Linux), es
+  responsabilidad de quien despliegue configurar esa línea de cron o su
+  equivalente (Supervisor, una tarea programada de Windows, etc.).
+- Auditoría: cada transición llama a `AuditLog::record('evidence_marked_overdue', ...)`
+  explícitamente. Como el comando corre en consola, `Auditable` (el trait
+  que audita automáticamente cada `update()`) se autodesactiva —
+  `auditingDisabled()` es `true` fuera de pruebas cuando
+  `app()->runningInConsole()` — así que esta es la ÚNICA entrada que
+  queda, con `user_id = null` (se ve como **"Sistema"** en la bitácora,
+  gracias a `$log->user->name ?? 'Sistema'` que ya existía para
+  `login_failed`): dejar `user_id` en null es exactamente lo que
+  distingue "lo hizo el scheduler" de "lo hizo una persona".
+
+**Exención manual** (`Evidence::markExempt()` / `Evidence::removeExemption()`,
+expuestas en `EvidenceWorkspace` y la vista `evidence-workspace.blade.php`):
+
+- Restringida a Administrador y Coordinación
+  (`EvidencePolicy::markExempt`/`removeExemption`) — **deliberadamente
+  sin Líder**. Aprobar/devolver es una decisión de revisión de contenido
+  dentro de un ámbito de liderazgo; eximir es una decisión administrativa
+  institucional (licencia, reasignación, etc.) que no depende de qué
+  actividad lidera alguien. Es más restrictivo que "Aprobar/Devolver"
+  pero menos que "Reabrir" (solo Administrador) — un punto intermedio
+  consciente, documentado también en `docs/manual-diseno.md`.
+- No se puede eximir una evidencia `Aprobada` (el resultado ya es
+  definitivo) ni una ya `Exenta` (para eso está `removeExemption`).
+- Exige una justificación (`exemptionJustification`, obligatoria) y pasa
+  por `<x-confirm-modal>` antes de aplicarse — mismo patrón que "Cerrar
+  periodo" o "Finalizar liderazgo".
+- Auditoría: además de la entrada automática de `Auditable` (que registra
+  el cambio de `status` pero no el porqué), `Evidence::markExempt()`
+  añade explícitamente `AuditLog::record('evidence_marked_exempt', ...)`
+  con la justificación y el estado anterior — dos entradas para una sola
+  acción es intencional, no una duplicación accidental: una es el diff
+  automático de campo, la otra es el evento de negocio con su motivo.
+  `removeExemption()` añade `evidence_exemption_removed`. Quitar una
+  exención nunca es "editar el campo status" — siempre pasa por este
+  método, así queda su propio rastro.
+- **Alcanzable desde "Entregables"**: la columna "Destinatarios" ahora
+  enlaza a una vista nueva (`DeliverableRecipients`,
+  `/deliverables/{deliverable}/recipients`) que lista cada destinatario
+  con su estado y un enlace "Ver evidencia" hacia
+  `evidence-workspace.blade.php` — la única forma de que Administración/
+  Coordinación llegue a una evidencia que nunca pasó por la bandeja de
+  revisión (pendiente, borrador, vencida), ya que `reviews.index` solo
+  lista evidencia `Enviada`.
+
+### 5.8 Estructura de carpetas relevantes
 
 ```
 app/

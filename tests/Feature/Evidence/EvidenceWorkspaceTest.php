@@ -2,13 +2,20 @@
 
 namespace Tests\Feature\Evidence;
 
+use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\RoleName;
 use App\Livewire\Evidence\EvidenceWorkspace;
+use App\Models\AcademicPeriod;
+use App\Models\Activity;
+use App\Models\AuditLog;
 use App\Models\Deliverable;
 use App\Models\Evidence;
+use App\Models\Leadership;
+use App\Models\ProgramUnit;
 use App\Models\Role;
+use App\Models\TeacherAssignment;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -211,6 +218,150 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('description', 'intento no autorizado')
             ->call('saveDraft')
+            ->assertForbidden();
+    }
+
+    public function test_administrator_can_mark_evidence_as_exempt_with_justification(): void
+    {
+        $evidence = $this->evidenceFor();
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Docente en licencia de maternidad durante todo el periodo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->status);
+
+        $log = AuditLog::where('action', 'evidence_marked_exempt')->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertEquals($admin->id, $log->user_id);
+        $this->assertEquals($evidence->id, $log->auditable_id);
+        $this->assertStringContainsString('licencia de maternidad', $log->metadata['justification']);
+        $this->assertEquals('pending', $log->metadata['previous_status']);
+    }
+
+    public function test_coordination_can_also_mark_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        Livewire::actingAs($coordination)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Reasignación administrativa aprobada por decanatura.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->fresh()->status);
+    }
+
+    public function test_marking_exempt_without_justification_fails(): void
+    {
+        $evidence = $this->evidenceFor();
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', '')
+            ->call('markExempt')
+            ->assertHasErrors('exemptionJustification');
+
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
+    }
+
+    public function test_teacher_cannot_mark_their_own_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Intento no autorizado')
+            ->call('markExempt')
+            ->assertForbidden();
+    }
+
+    public function test_leader_cannot_mark_evidence_as_exempt(): void
+    {
+        // El líder debe poder VER la evidencia (está dentro de su ámbito de
+        // liderazgo) para que la denegación observada sea específicamente
+        // la de markExempt, no un rechazo más temprano de la política view.
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => Deliverable::factory()->create([
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ])->id,
+        ]);
+
+        Livewire::actingAs($leader)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertOk()
+            ->set('exemptionJustification', 'Intento no autorizado')
+            ->call('markExempt')
+            ->assertForbidden();
+    }
+
+    public function test_cannot_mark_an_already_approved_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Intento no válido')
+            ->call('markExempt')
+            ->assertForbidden();
+    }
+
+    public function test_administrator_can_remove_an_exemption(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Exempt]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeExemption')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
+        $this->assertTrue(AuditLog::where('action', 'evidence_exemption_removed')->where('auditable_id', $evidence->id)->exists());
+    }
+
+    public function test_cannot_remove_exemption_from_an_evidence_that_is_not_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeExemption')
             ->assertForbidden();
     }
 }

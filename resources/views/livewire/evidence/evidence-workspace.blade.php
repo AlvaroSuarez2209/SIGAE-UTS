@@ -202,6 +202,58 @@
         @endif
     </div>
 
+    @can('markExempt', $evidence)
+        <div class="card mt-6 space-y-4 p-6">
+            <h2 class="form-section-title">Exención (Administración/Coordinación)</h2>
+            <p class="text-base text-text-secondary">
+                Eximir a este docente de este entregable: deja de estar obligado a enviarlo y ya no cuenta en su % de avance.
+            </p>
+            <div>
+                <label class="field-label">
+                    Justificación <span class="font-normal text-text-secondary">(obligatoria)</span>
+                </label>
+                <textarea wire:model="exemptionJustification" rows="3" class="field-input"></textarea>
+                @error('exemptionJustification') <p class="field-error">{{ $message }}</p> @enderror
+            </div>
+            <button
+                type="button"
+                class="btn-warning"
+                @click="$dispatch('confirm-modal', {
+                    title: 'Marcar evidencia como exenta',
+                    body: '¿Marcar esta evidencia como exenta? El docente ya no tendrá que enviarla y dejará de contar en su porcentaje de avance. Esta acción quedará registrada en la auditoría.',
+                    confirmLabel: 'Marcar como exento',
+                    variant: 'warning',
+                    action: () => $wire.markExempt(),
+                })"
+            >
+                <x-icon name="shield-check" class="h-4 w-4" />
+                Marcar como exento
+            </button>
+        </div>
+    @endcan
+
+    @can('removeExemption', $evidence)
+        <div class="card mt-6 space-y-4 p-6">
+            <h2 class="form-section-title">Exención activa</h2>
+            <p class="text-base text-text-secondary">
+                Esta evidencia está marcada como exenta. El docente no puede editarla ni enviarla mientras la exención esté activa.
+            </p>
+            <button
+                type="button"
+                class="btn-secondary"
+                @click="$dispatch('confirm-modal', {
+                    title: 'Quitar exención',
+                    body: '¿Quitar la exención de esta evidencia? Volverá al estado Pendiente y, si la fecha límite ya pasó, podrá marcarse Vencida nuevamente.',
+                    confirmLabel: 'Quitar exención',
+                    variant: 'warning',
+                    action: () => $wire.removeExemption(),
+                })"
+            >
+                Quitar exención
+            </button>
+        </div>
+    @endcan
+
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">
             <h2 class="form-section-title mb-2">Revisiones del líder</h2>
