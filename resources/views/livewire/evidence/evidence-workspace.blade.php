@@ -137,27 +137,30 @@
                 @if ($evidence->currentVersion && $evidence->currentVersion->links->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->links as $link)
-                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-base">
-                                <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-brand-primary hover:underline">
-                                    <x-icon name="link" class="h-4 w-4 shrink-0" />
-                                    {{ $link->label ?: $link->url }}
-                                </a>
-                                @if ($evidence->status->isEditable())
-                                    <button
-                                        type="button"
-                                        class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
-                                        @click="$dispatch('confirm-modal', {
-                                            title: 'Eliminar enlace',
-                                            body: '¿Eliminar el enlace <strong>{{ e($link->label ?: $link->url) }}</strong>? Esta acción no se puede deshacer.',
-                                            confirmLabel: 'Eliminar enlace',
-                                            variant: 'danger',
-                                            action: () => $wire.removeLink({{ $link->id }}),
-                                        })"
-                                    >
-                                        <x-icon name="trash" class="h-4 w-4" />
-                                        Quitar
-                                    </button>
-                                @endif
+                            <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2 text-base">
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <x-icon name="link" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                    <span class="truncate">{{ $link->label ?: $link->url }}</span>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-3">
+                                    <a href="{{ $link->url }}" target="_blank" rel="noopener" class="btn-text">Abrir</a>
+                                    @if ($evidence->status->isEditable())
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Eliminar enlace',
+                                                body: '¿Eliminar el enlace <strong>{{ e($link->label ?: $link->url) }}</strong>? Esta acción no se puede deshacer.',
+                                                confirmLabel: 'Eliminar enlace',
+                                                variant: 'danger',
+                                                action: () => $wire.removeLink({{ $link->id }}),
+                                            })"
+                                        >
+                                            <x-icon name="trash" class="h-4 w-4" />
+                                            Quitar
+                                        </button>
+                                    @endif
+                                </div>
                             </li>
                         @endforeach
                     </ul>

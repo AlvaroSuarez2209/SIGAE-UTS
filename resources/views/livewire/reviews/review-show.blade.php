@@ -47,13 +47,14 @@
         @endif
 
         @if ($version->links->isNotEmpty())
-            <ul class="space-y-1">
+            <ul class="space-y-2">
                 @foreach ($version->links as $link)
-                    <li>
-                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-base text-brand-primary hover:underline">
-                            <x-icon name="link" class="h-4 w-4 shrink-0" />
-                            {{ $link->label ?: $link->url }}
-                        </a>
+                    <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <x-icon name="link" class="h-4 w-4 shrink-0 text-text-secondary" />
+                            <span class="truncate text-base text-text-primary">{{ $link->label ?: $link->url }}</span>
+                        </div>
+                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="btn-text shrink-0">Abrir</a>
                     </li>
                 @endforeach
             </ul>
