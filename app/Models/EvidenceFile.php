@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,5 +29,31 @@ class EvidenceFile extends Model
     public function disk()
     {
         return Storage::disk('local');
+    }
+
+    /**
+     * Tamaño legible ("245 KB", "1.2 MB") — único punto de formato para no
+     * repetir la conversión de bytes en cada vista que liste archivos.
+     */
+    protected function readableSize(): Attribute
+    {
+        return Attribute::get(function () {
+            $bytes = $this->size_bytes;
+
+            if ($bytes < 1024) {
+                return "{$bytes} B";
+            }
+
+            $units = ['KB', 'MB', 'GB'];
+            $value = $bytes / 1024;
+
+            foreach ($units as $unit) {
+                if ($value < 1024 || $unit === end($units)) {
+                    return round($value, 1).' '.$unit;
+                }
+
+                $value /= 1024;
+            }
+        });
     }
 }

@@ -299,6 +299,12 @@ Si hace falta un formato genuinamente distinto para un caso puntual (poco
 común), decídelo explícitamente en esa vista en vez de generalizar el
 macro con parámetros no usados en ningún otro lugar.
 
+Mismo principio para el tamaño de un archivo: `EvidenceFile::readable_size`
+(accessor `Attribute` en `app/Models/EvidenceFile.php`) convierte
+`size_bytes` a `"245 KB"`/`"1.2 MB"` en un único punto — cualquier vista
+que liste archivos adjuntos (bandeja de revisión, "Mis entregables") usa
+`$file->readable_size`, nunca una conversión de bytes hecha a mano.
+
 ### 5.7 Estructura de carpetas relevantes
 
 ```

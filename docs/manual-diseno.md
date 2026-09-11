@@ -113,6 +113,18 @@ proporcionalmente. El cambio se hizo en `.page-title`, `.table-cell`,
 automáticamente a las ~30 pantallas que ya reutilizaban esas clases.
 | Badge / etiqueta pequeña | 0.75rem / 12px | 600 (semibold) | 1 | Badges de estado |
 
+**Nota — dos vistas se quedaron atrás en esa migración:** el detalle de
+revisión (`review-show.blade.php`) y el detalle de "Mis entregables"
+(`evidence-workspace.blade.php`) usaban `text-sm`/`text-xs uppercase` con
+valores fijos en vez de las clases compartidas, así que no recibieron el
+salto 14→16px cuando se aplicó al resto de la app. Corregido moviéndolas a
+`.form-section-title` (para "Evidencia enviada", "Histórico de
+revisiones", "Revisiones del líder", "Historial de versiones") y
+`text-base` (para el texto de contenido). Al añadir cualquier vista nueva,
+usar siempre las clases compartidas (`.form-section-title`, `.table-cell`,
+`text-base` para cuerpo) en vez de utilidades de tamaño sueltas, para que
+un futuro ajuste de escala se siga propagando solo.
+
 ## 4. Componentes reutilizables
 
 Construidos como componentes Blade (`resources/views/components/`) y clases

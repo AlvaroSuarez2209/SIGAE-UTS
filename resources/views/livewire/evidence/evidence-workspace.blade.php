@@ -6,7 +6,7 @@
         <x-status-badge :status="$evidence->status" />
     </div>
 
-    <div class="card mb-6 space-y-2 p-4 text-sm text-text-secondary">
+    <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
         @if ($deliverable->description)
             <p>{{ $deliverable->description }}</p>
         @endif
@@ -68,27 +68,30 @@
                 @if ($evidence->currentVersion && $evidence->currentVersion->files->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->files as $file)
-                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-sm">
-                                <a href="{{ route('evidence-files.download', $file) }}" class="flex items-center gap-1.5 text-brand-primary hover:underline">
+                            <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2 text-base">
+                                <a href="{{ route('evidence-files.download', $file) }}" class="flex min-w-0 items-center gap-1.5 text-brand-primary hover:underline">
                                     <x-icon name="paperclip" class="h-4 w-4 shrink-0" />
-                                    {{ $file->original_name }}
+                                    <span class="truncate">{{ $file->original_name }}</span>
                                 </a>
-                                @if ($evidence->status->isEditable())
-                                    <button
-                                        type="button"
-                                        class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
-                                        @click="$dispatch('confirm-modal', {
-                                            title: 'Eliminar archivo',
-                                            body: '¿Eliminar el archivo <strong>{{ e($file->original_name) }}</strong>? Esta acción no se puede deshacer.',
-                                            confirmLabel: 'Eliminar archivo',
-                                            variant: 'danger',
-                                            action: () => $wire.removeFile({{ $file->id }}),
-                                        })"
-                                    >
-                                        <x-icon name="trash" class="h-4 w-4" />
-                                        Quitar
-                                    </button>
-                                @endif
+                                <div class="flex shrink-0 items-center gap-3">
+                                    <span class="text-sm text-text-secondary">{{ $file->readable_size }}</span>
+                                    @if ($evidence->status->isEditable())
+                                        <button
+                                            type="button"
+                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Eliminar archivo',
+                                                body: '¿Eliminar el archivo <strong>{{ e($file->original_name) }}</strong>? Esta acción no se puede deshacer.',
+                                                confirmLabel: 'Eliminar archivo',
+                                                variant: 'danger',
+                                                action: () => $wire.removeFile({{ $file->id }}),
+                                            })"
+                                        >
+                                            <x-icon name="trash" class="h-4 w-4" />
+                                            Quitar
+                                        </button>
+                                    @endif
+                                </div>
                             </li>
                         @endforeach
                     </ul>
@@ -134,7 +137,7 @@
                 @if ($evidence->currentVersion && $evidence->currentVersion->links->isNotEmpty())
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->links as $link)
-                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-sm">
+                            <li class="flex items-center justify-between rounded-md border border-border-subtle px-3 py-2 text-base">
                                 <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-brand-primary hover:underline">
                                     <x-icon name="link" class="h-4 w-4 shrink-0" />
                                     {{ $link->label ?: $link->url }}
@@ -198,10 +201,10 @@
 
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">
-            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Revisiones del líder</h2>
+            <h2 class="form-section-title mb-2">Revisiones del líder</h2>
             <ul class="space-y-3">
                 @foreach ($evidence->reviews as $review)
-                    <li class="card p-3 text-sm">
+                    <li class="card p-3 text-base">
                         <x-status-badge :status="$review->decision" class="mb-1" />
                         <p class="text-text-secondary">{{ $review->decided_at->toReadable() }}</p>
                         @foreach ($review->observations as $observation)
@@ -215,8 +218,8 @@
 
     @if ($evidence->versions->count() > 1)
         <div class="mt-6">
-            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Historial de versiones</h2>
-            <ul class="space-y-1 text-sm text-text-secondary">
+            <h2 class="form-section-title mb-2">Historial de versiones</h2>
+            <ul class="space-y-1 text-base text-text-secondary">
                 @foreach ($evidence->versions as $version)
                     <li>
                         Versión {{ $version->version_number }} —

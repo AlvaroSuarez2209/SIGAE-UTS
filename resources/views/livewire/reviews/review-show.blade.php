@@ -16,7 +16,7 @@
         </div>
     @endif
 
-    <div class="card mb-6 space-y-2 p-4 text-sm text-text-secondary">
+    <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
         @if ($deliverable->completion_criteria)
             <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
         @endif
@@ -25,20 +25,22 @@
     </div>
 
     <div class="card mb-6 space-y-4 p-6">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-text-secondary">Evidencia enviada (versión {{ $version->version_number }})</h2>
+        <h2 class="form-section-title">Evidencia enviada (versión {{ $version->version_number }})</h2>
 
         @if ($version->description)
-            <p class="whitespace-pre-line text-sm text-text-primary">{{ $version->description }}</p>
+            <p class="whitespace-pre-line text-base text-text-primary">{{ $version->description }}</p>
         @endif
 
         @if ($version->files->isNotEmpty())
-            <ul class="space-y-1">
+            <ul class="space-y-2">
                 @foreach ($version->files as $file)
-                    <li>
-                        <a href="{{ route('evidence-files.download', $file) }}" class="flex items-center gap-1.5 text-sm text-brand-primary hover:underline">
-                            <x-icon name="paperclip" class="h-4 w-4 shrink-0" />
-                            {{ $file->original_name }}
-                        </a>
+                    <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                            <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
+                            <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
+                        </div>
+                        <a href="{{ route('evidence-files.download', $file) }}" class="btn-text shrink-0">Descargar</a>
                     </li>
                 @endforeach
             </ul>
@@ -48,7 +50,7 @@
             <ul class="space-y-1">
                 @foreach ($version->links as $link)
                     <li>
-                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-sm text-brand-primary hover:underline">
+                        <a href="{{ $link->url }}" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-base text-brand-primary hover:underline">
                             <x-icon name="link" class="h-4 w-4 shrink-0" />
                             {{ $link->label ?: $link->url }}
                         </a>
@@ -129,10 +131,10 @@
 
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">
-            <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">Histórico de revisiones</h2>
+            <h2 class="form-section-title mb-2">Histórico de revisiones</h2>
             <ul class="space-y-3">
                 @foreach ($evidence->reviews as $review)
-                    <li class="card p-3 text-sm">
+                    <li class="card p-3 text-base">
                         <x-status-badge :status="$review->decision" class="mb-1" />
                         <p class="text-text-secondary">por {{ $review->reviewer->name }} — {{ $review->decided_at->toReadable() }}</p>
                         @foreach ($review->observations as $observation)
