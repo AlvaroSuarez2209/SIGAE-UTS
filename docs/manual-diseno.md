@@ -398,3 +398,13 @@ muestreo de píxeles de este logo (ver sección 5 para el detalle del ajuste
 de contraste sobre el verde). El placeholder tipográfico anterior
 ("SIGAE-UTS" en Source Serif 4) se retiró junto con esa fuente, ya
 innecesaria.
+
+- **Informes exportables (PDF/Excel)**: también aplican esta identidad —
+  letterhead con el mismo logo, colores de marca, colores de estado
+  coherentes con `<x-status-badge>` y jerarquía tipográfica equivalente
+  a la de la web. Al no poder usar Inter (DomPDF necesita archivos
+  `.ttf` locales que este proyecto no distribuye) ni leer los tokens
+  `@theme` de Tailwind (ni DomPDF ni PhpSpreadsheet entienden CSS), esa
+  paleta y esa sustitución tipográfica (Helvetica) están duplicadas a
+  propósito en `App\Services\Reports\ReportTheme` — detalle técnico
+  completo en `manual-tecnico.md` §5.10.

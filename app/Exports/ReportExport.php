@@ -8,14 +8,20 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class ReportExport implements Export, WithMultipleSheets
 {
     /**
-     * @param  array{title: string, sections: array<int, array{title: string, headings: array, rows: array}>}  $report
+     * @param  array{title: string, sections: array<int, array{title: string, headings: array, rows: array}>, summary?: array{label: string, value: string, detail: string}}  $report
      */
     public function __construct(private readonly array $report) {}
 
     public function sheets(): array
     {
         return array_map(
-            fn (array $section) => new ReportSectionSheet($section['title'], $section['headings'], $section['rows']),
+            fn (array $section) => new ReportSectionSheet(
+                $this->report['title'],
+                $section['title'],
+                $section['headings'],
+                $section['rows'],
+                $this->report['summary'] ?? null,
+            ),
             $this->report['sections']
         );
     }

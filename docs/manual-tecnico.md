@@ -460,6 +460,67 @@ tests/
   Unit/                   Pruebas aisladas de servicios (ComplianceCalculator, ReportBuilder)
 ```
 
+### 5.10 Identidad visual de los informes exportables (PDF y Excel)
+
+Los 4 informes (Individual por docente, Por actividad, Compromisos
+transversales, Consolidado por periodo) comparten un único punto de
+formato: `App\Services\Reports\ReportTheme`. Ni DomPDF ni PhpSpreadsheet
+pueden leer los tokens `@theme` de Tailwind (`resources/css/app.css`),
+así que esta clase **duplica a propósito** los colores de marca y el
+mapeo tono→color de `<x-status-badge>` en hexadecimal — si la paleta de
+la app cambia, hay que actualizarla también aquí (ver §2 de
+`manual-diseno.md`).
+
+- **PDF** (`resources/views/reports/pdf/report.blade.php`): letterhead
+  con logo + nombre institucional, barra `brand-primary`, título del
+  informe, caja de resumen con barra de progreso para el "% de avance"
+  cuando el informe la trae, secciones en bandas de color, tablas con
+  encabezado `brand-primary`, zebra striping, alineación numérica y
+  "píldoras" de color para la columna "Estado". Fuente: **Helvetica**
+  (no Inter) — es una de las 14 fuentes estándar del PDF, no requiere
+  embeber archivos `.ttf` (que este proyecto no distribuye localmente:
+  Inter se carga solo vía Google Fonts en el navegador), y su trazo
+  humanista sin gracias es la sustituta más cercana disponible.
+- **Excel**: `ReportExport`/`ReportSectionSheet` (`app/Exports/`)
+  delegan TODO el formato a `ReportTheme::styleExcelSheet()` vía un
+  evento `AfterSheet` — encabezado institucional (título + sección +
+  resumen, con `insertNewRowBefore` para no pisar los datos), header de
+  columnas en `brand-primary`, `AutoFilter`, `freezePane`, bordes,
+  zebra striping y el mismo color de "Estado" que el PDF/la web. Un
+  informe nuevo que use `ReportSectionSheet` hereda este formato sin
+  repetir lógica.
+- **Detección de columnas genérica, no por nombre/posición**:
+  `ReportTheme::isNumericColumnValue()` (para alinear a la derecha) y
+  `ReportTheme::statusColumnIndex()` (para colorear "Estado") funcionan
+  sobre el valor/encabezado de cada celda, no sobre índices fijos —
+  siguen funcionando si un informe futuro agrega columnas sin tocar
+  esta clase. `ReportBuilder` sigue entregando `$rows` como arrays de
+  valores planos (p. ej. el estado ya viene como el string
+  `"Aprobado"`, no el enum); el color se busca por esa etiqueta.
+- **Números de página en el PDF — por qué NO es CSS puro:** DomPDF no
+  implementa un contador `pages` especial ligado al total de páginas;
+  su soporte de `content: counter(...)` es genérico y solo conoce
+  contadores que la propia hoja de estilos declara con
+  `counter-reset`/`counter-increment`, así que `counter(pages)` siempre
+  resuelve a `0` (comprobado por inspección visual del PDF generado).
+  La alternativa clásica de DomPDF (`<script type="text/php">` con
+  `$PAGE_COUNT`) tampoco aplica aquí: esta app deshabilita
+  `enable_php` a propósito y no se activa solo para esto. La solución
+  usada es la API nativa de canvas: `ReportTheme::stampPageNumbers()`
+  llama a `$pdf->render()` y luego `Canvas::page_script()` para dibujar
+  "Página X de Y" directamente sobre cada página ya renderizada — no
+  depende de `enable_php` porque no es PHP embebido en el documento,
+  sino una llamada directa a la API de dompdf, invocada desde
+  `ReportExportController::pdf()` antes de `$pdf->download()`.
+- **Bug preexistente encontrado y corregido de paso:** Maatwebsite
+  escribe las filas de datos con `PhpSpreadsheet\Worksheet::fromArray()`
+  usando comparación `!=` contra `null` por defecto, y en PHP
+  `0 != null` es `false` — así que cualquier valor entero `0` de un
+  informe (p. ej. "Aprobados: 0") se perdía silenciosamente y la celda
+  quedaba vacía en el Excel, sin relación con el rediseño en sí.
+  Corregido implementando `Maatwebsite\Excel\Concerns\WithStrictNullComparison`
+  en `ReportSectionSheet`.
+
 ## 6. Comandos útiles
 
 ```bash

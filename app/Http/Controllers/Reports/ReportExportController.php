@@ -9,6 +9,7 @@ use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
 use App\Models\User;
 use App\Services\Reports\ReportBuilder;
+use App\Services\Reports\ReportTheme;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -93,6 +94,10 @@ class ReportExportController extends Controller
     private function pdf(array $report)
     {
         $pdf = Pdf::loadView('reports.pdf.report', $report);
+
+        // Numeración de páginas vía canvas nativo de DomPDF, no CSS — ver
+        // ReportTheme::stampPageNumbers() para el motivo.
+        ReportTheme::stampPageNumbers($pdf);
 
         return $pdf->download($this->fileName($report['title'], 'pdf'));
     }
