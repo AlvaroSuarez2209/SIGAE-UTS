@@ -59,9 +59,15 @@
     </div>
 
     @if ($showModal)
-        <div class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4">
-            <div class="card w-full max-w-md p-6 shadow-lg">
-                <h2 class="mb-4 text-base font-semibold text-text-primary">
+        <div
+            class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4"
+            x-on:keydown.escape.window="$wire.closeModal()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="activity-modal-title"
+        >
+            <div class="card w-full max-w-md p-6 shadow-lg" @click.outside="$wire.closeModal()">
+                <h2 id="activity-modal-title" class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar actividad' : 'Nueva actividad' }}
                 </h2>
 
@@ -105,7 +111,7 @@
                         <button type="submit" class="btn-primary">
                             Guardar
                         </button>
-                        <button type="button" wire:click="$set('showModal', false)" class="btn-text text-text-secondary">
+                        <button type="button" wire:click="closeModal" class="btn-text text-text-secondary">
                             Cancelar
                         </button>
                     </div>

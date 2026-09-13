@@ -5,9 +5,13 @@ namespace Tests\Feature\Catalogs;
 use App\Enums\RoleName;
 use App\Livewire\Catalogs\ActivityIndex;
 use App\Livewire\Catalogs\ComponentIndex;
+use App\Livewire\Catalogs\CrossCuttingCommitmentIndex;
+use App\Livewire\Catalogs\ProgramUnitIndex;
 use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Models\Activity;
 use App\Models\Component;
+use App\Models\CrossCuttingCommitment;
+use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\Subcomponent;
 use App\Models\User;
@@ -124,5 +128,102 @@ class CatalogManagementTest extends TestCase
             ->call('toggleActive', $activity);
 
         $this->assertDatabaseHas('activities', ['id' => $activity->id, 'is_active' => false]);
+    }
+
+    // Regresión: un intento de creación fallido no debe dejar errores de
+    // validación visibles al abrir "Editar" sobre un registro válido —
+    // ver [[project-livewire4-gotchas]].
+
+    public function test_component_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create(['name' => 'Docencia']);
+
+        $test = Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->call('openCreate')
+            ->set('name', '')
+            ->call('save')
+            ->assertHasErrors('name')
+            ->call('closeModal')
+            ->assertHasNoErrors();
+
+        $test->call('openEdit', $component)
+            ->assertHasNoErrors()
+            ->assertSet('name', 'Docencia');
+    }
+
+    public function test_subcomponent_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+        $subcomponent = Subcomponent::factory()->create(['component_id' => $component->id, 'name' => 'Procesos OACA']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->call('openCreate')
+            ->call('save')
+            ->assertHasErrors(['name', 'component_id'])
+            ->call('openEdit', $subcomponent)
+            ->assertHasNoErrors()
+            ->assertSet('name', 'Procesos OACA');
+    }
+
+    public function test_activity_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $activity = Activity::factory()->create(['name' => 'Clases teóricas']);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->call('openCreate')
+            ->call('save')
+            ->assertHasErrors(['name', 'component_id'])
+            ->call('openEdit', $activity)
+            ->assertHasNoErrors()
+            ->assertSet('name', 'Clases teóricas');
+    }
+
+    public function test_program_unit_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $programUnit = ProgramUnit::factory()->create(['name' => 'Facultad de Ciencias Naturales']);
+
+        Livewire::actingAs($admin)
+            ->test(ProgramUnitIndex::class)
+            ->call('openCreate')
+            ->call('save')
+            ->assertHasErrors('name')
+            ->call('openEdit', $programUnit)
+            ->assertHasNoErrors()
+            ->assertSet('name', 'Facultad de Ciencias Naturales');
+    }
+
+    public function test_cross_cutting_commitment_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $commitment = CrossCuttingCommitment::factory()->create(['name' => 'Bienestar y desarrollo humano']);
+
+        Livewire::actingAs($admin)
+            ->test(CrossCuttingCommitmentIndex::class)
+            ->call('openCreate')
+            ->call('save')
+            ->assertHasErrors('name')
+            ->call('openEdit', $commitment)
+            ->assertHasNoErrors()
+            ->assertSet('name', 'Bienestar y desarrollo humano');
+    }
+
+    public function test_closing_the_component_modal_resets_the_form(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->call('openCreate')
+            ->set('name', 'Texto sin guardar')
+            ->call('closeModal')
+            ->assertSet('name', '')
+            ->assertSet('showModal', false);
     }
 }

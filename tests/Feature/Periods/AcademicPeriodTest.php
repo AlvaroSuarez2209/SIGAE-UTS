@@ -136,4 +136,26 @@ class AcademicPeriodTest extends TestCase
         $this->assertEquals('2026-01-20', $period->start_date->toDateString());
         $this->assertEquals('2026-06-15', $period->end_date->toDateString());
     }
+
+    // Regresión: un intento de creación fallido no debe dejar errores de
+    // validación visibles al abrir "Editar" sobre un periodo válido — ver
+    // [[project-livewire4-gotchas]].
+    public function test_period_edit_does_not_inherit_errors_from_a_failed_create(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create([
+            'name' => '2026-1',
+            'start_date' => '2026-01-20',
+            'end_date' => '2026-06-15',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(PeriodIndex::class)
+            ->call('openCreate')
+            ->call('save')
+            ->assertHasErrors(['name', 'start_date', 'end_date'])
+            ->call('openEdit', $period)
+            ->assertHasNoErrors()
+            ->assertSet('name', '2026-1');
+    }
 }

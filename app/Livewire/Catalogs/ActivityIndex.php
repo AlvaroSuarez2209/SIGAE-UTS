@@ -34,18 +34,32 @@ class ActivityIndex extends LivewireComponent
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'is_active']);
+        $this->resetValidation();
         $this->is_active = true;
         $this->showModal = true;
     }
 
     public function openEdit(Activity $activity): void
     {
+        $this->resetValidation();
         $this->editing = $activity;
         $this->name = $activity->name;
         $this->component_id = $activity->component_id;
         $this->subcomponent_id = $activity->subcomponent_id;
         $this->is_active = $activity->is_active;
         $this->showModal = true;
+    }
+
+    /**
+     * Cancelar, clic fuera de la tarjeta o Escape convergen aquí — nunca
+     * deben dejar un error de una validación anterior visible la próxima
+     * vez que se abra el modal (ver [[project-livewire4-gotchas]]).
+     */
+    public function closeModal(): void
+    {
+        $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'is_active']);
+        $this->resetValidation();
+        $this->showModal = false;
     }
 
     public function save(): void

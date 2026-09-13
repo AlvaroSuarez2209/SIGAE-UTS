@@ -383,7 +383,58 @@ expuestas en `EvidenceWorkspace` y la vista `evidence-workspace.blade.php`):
   revisión (pendiente, borrador, vencida), ya que `reviews.index` solo
   lista evidencia `Enviada`.
 
-### 5.8 Estructura de carpetas relevantes
+### 5.8 Modal de creación/edición reutilizable (catálogos y Periodos)
+
+Componentes, Subcomponentes, Actividades, Programas, Compromisos
+transversales y Periodos académicos comparten el mismo patrón de modal
+(no el componente `<x-confirm-modal>` de las confirmaciones — este es
+más simple, un `<div>` mostrado con `@if ($showModal)` del lado del
+servidor, sin `x-show`/`x-cloak`). Cualquier catálogo nuevo con este
+mismo patrón debe implementar exactamente estos tres métodos:
+
+```php
+public function openCreate(): void
+{
+    $this->reset([...campos del formulario..., 'editing']);
+    $this->resetValidation();
+    $this->showModal = true;
+}
+
+public function openEdit(Modelo $registro): void
+{
+    $this->resetValidation();   // antes de precargar los campos
+    $this->editing = $registro;
+    // ...asignar cada campo desde $registro...
+    $this->showModal = true;
+}
+
+public function closeModal(): void
+{
+    $this->reset([...campos del formulario..., 'editing']);
+    $this->resetValidation();
+    $this->showModal = false;
+}
+```
+
+`closeModal()` es el único punto de cierre — lo llaman "Cancelar"
+(`wire:click="closeModal"`), el clic fuera de la tarjeta
+(`@click.outside="$wire.closeModal()"` en el `<div class="card">`) y
+Escape (`x-on:keydown.escape.window="$wire.closeModal()"` en el overlay).
+El overlay lleva además `role="dialog"`, `aria-modal="true"` y
+`aria-labelledby` apuntando al `<h2>` del título, igual que
+`<x-confirm-modal>`.
+
+**Por qué los tres `resetValidation()`, no solo uno:** `$this->reset()`
+únicamente restaura el *valor* de las propiedades públicas — nunca toca
+el error bag de la validación. Sin este fix, un intento de "Nuevo" con
+campos vacíos (que genera errores) seguido de "Cancelar" y luego
+"Editar" sobre un registro válido mostraba los mismos mensajes de error
+de la validación anterior bajo campos que sí tenían datos correctos —
+bug real encontrado y corregido en los seis módulos de este patrón.
+Detalle completo en la memoria del proyecto
+(`project_livewire4_gotchas.md`, sección sobre `reset()` y el error bag).
+
+### 5.9 Estructura de carpetas relevantes
 
 ```
 app/

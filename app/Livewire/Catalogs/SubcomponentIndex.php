@@ -24,17 +24,31 @@ class SubcomponentIndex extends LivewireComponent
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'component_id', 'is_active']);
+        $this->resetValidation();
         $this->is_active = true;
         $this->showModal = true;
     }
 
     public function openEdit(Subcomponent $subcomponent): void
     {
+        $this->resetValidation();
         $this->editing = $subcomponent;
         $this->name = $subcomponent->name;
         $this->component_id = $subcomponent->component_id;
         $this->is_active = $subcomponent->is_active;
         $this->showModal = true;
+    }
+
+    /**
+     * Cancelar, clic fuera de la tarjeta o Escape convergen aquí — nunca
+     * deben dejar un error de una validación anterior visible la próxima
+     * vez que se abra el modal (ver [[project-livewire4-gotchas]]).
+     */
+    public function closeModal(): void
+    {
+        $this->reset(['editing', 'name', 'component_id', 'is_active']);
+        $this->resetValidation();
+        $this->showModal = false;
     }
 
     public function save(): void
