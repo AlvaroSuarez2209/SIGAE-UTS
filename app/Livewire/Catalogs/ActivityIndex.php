@@ -24,6 +24,8 @@ class ActivityIndex extends LivewireComponent
 
     public bool $is_active = true;
 
+    public string $search = '';
+
     public function updatedComponentId(): void
     {
         if (! $this->editing || $this->editing->component_id !== $this->component_id) {
@@ -88,7 +90,10 @@ class ActivityIndex extends LivewireComponent
     public function render()
     {
         return view('livewire.catalogs.activity-index', [
-            'activities' => Activity::with(['component', 'subcomponent'])->orderBy('name')->get(),
+            'activities' => Activity::with(['component', 'subcomponent'])
+                ->when($this->search, fn ($query) => $query->where('name', 'ilike', "%{$this->search}%"))
+                ->orderBy('name')
+                ->get(),
             'components' => Component::orderBy('name')->get(),
             'availableSubcomponents' => $this->component_id
                 ? Subcomponent::where('component_id', $this->component_id)->orderBy('name')->get()

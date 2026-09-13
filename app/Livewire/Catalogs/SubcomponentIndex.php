@@ -21,6 +21,8 @@ class SubcomponentIndex extends LivewireComponent
 
     public bool $is_active = true;
 
+    public string $search = '';
+
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'component_id', 'is_active']);
@@ -79,7 +81,10 @@ class SubcomponentIndex extends LivewireComponent
     public function render()
     {
         return view('livewire.catalogs.subcomponent-index', [
-            'subcomponents' => Subcomponent::with('component')->orderBy('name')->get(),
+            'subcomponents' => Subcomponent::with('component')
+                ->when($this->search, fn ($query) => $query->where('name', 'ilike', "%{$this->search}%"))
+                ->orderBy('name')
+                ->get(),
             'components' => Component::orderBy('name')->get(),
         ]);
     }

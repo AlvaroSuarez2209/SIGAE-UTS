@@ -6,6 +6,14 @@
         </button>
     </div>
 
+    <div class="mb-4 flex flex-wrap gap-4">
+        <x-search-input
+            wire:model.live.debounce.300ms="search"
+            placeholder="Buscar actividad..."
+            class="w-full max-w-xs"
+        />
+    </div>
+
     <div class="table-shell">
         <table class="min-w-full divide-y divide-border-subtle">
             <thead>

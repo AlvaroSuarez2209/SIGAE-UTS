@@ -226,4 +226,30 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', '')
             ->assertSet('showModal', false);
     }
+
+    public function test_activity_search_filters_by_name(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->create(['name' => 'Clases teóricas']);
+        Activity::factory()->create(['name' => 'Dirección de trabajos de grado']);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('search', 'teóricas')
+            ->assertViewHas('activities', fn ($activities) => $activities->count() === 1
+                && $activities->first()->name === 'Clases teóricas');
+    }
+
+    public function test_subcomponent_search_filters_by_name(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Subcomponent::factory()->create(['name' => 'Procesos OACA']);
+        Subcomponent::factory()->create(['name' => 'Procesos ODA']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->set('search', 'OACA')
+            ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->count() === 1
+                && $subcomponents->first()->name === 'Procesos OACA');
+    }
 }
