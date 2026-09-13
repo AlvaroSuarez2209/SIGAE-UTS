@@ -11,14 +11,15 @@
             </select>
         </div>
 
-        <div>
+        <div class="w-64">
             <label class="field-label">Docente</label>
-            <select wire:model.live="teacherFilter" class="field-input">
-                <option value="">Selecciona un docente</option>
-                @foreach ($teachers as $teacher)
-                    <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
-                @endforeach
-            </select>
+            <x-searchable-select
+                wire-model="teacherFilter"
+                :options="$teachers->map(fn ($teacher) => ['value' => $teacher->id, 'label' => $teacher->name])->all()"
+                :selected="$teacherFilter"
+                placeholder="Busca por nombre..."
+                empty-label="Selecciona un docente"
+            />
         </div>
 
         @if ($report)

@@ -284,6 +284,27 @@ de forma consistente en los 10 módulos funcionales:
   (Periodos, Componentes, Actividades, Programas, Usuarios, Mis
   entregables, informes) — agregar un subtítulo a todo diluiría la señal
   de las secciones que sí lo necesitan.
+- **`<x-progress-bar :percentage="...">`** — track + relleno de avance
+  (antes solo en el Dashboard, "Consolidado por docente"). No trae alto/
+  ancho por defecto: siempre se pasan por `class` (`class="h-1.5 w-20"`),
+  para no depender de qué utilidad de Tailwind "gana" cuando dos clases
+  de tamaño conviven en el mismo atributo tras un `$attributes->merge()`.
+  Usada también en el resumen de "% de avance" de los informes en
+  pantalla (`_sections.blade.php`), donde va más grande (`h-2.5 w-full
+  max-w-xs`) junto al número en `text-4xl font-bold`, en vez de la caja
+  de texto plano anterior — es el dato más importante del informe.
+- **`<x-searchable-select>`** — combobox con búsqueda para listas que
+  pueden crecer mucho en producción (el docente en "Informe individual
+  por docente": todos los docentes activos del sistema, sin acotar por
+  periodo). Filtra en el navegador sobre las opciones ya cargadas (no
+  pagina contra el servidor); usa `$wire.entangle('propiedad').live`
+  para el enlace de datos con Livewire en vez de un `<select>` nativo
+  oculto, así el valor queda sincronizado en ambos sentidos (incluida
+  la señal externa) sin depender de disparar eventos DOM a mano. Mismo
+  ícono de lupa que `<x-search-input>`, más un botón de limpiar y
+  navegación por teclado (flechas + Enter + Escape). No reemplaza los
+  `<select>` nativos de listas cortas (Periodo, Actividad, Compromiso) —
+  solo tiene sentido donde el catálogo puede volverse largo.
 
 ### Regla: modal vs. página completa para formularios CRUD
 

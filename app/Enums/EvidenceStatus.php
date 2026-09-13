@@ -62,4 +62,21 @@ enum EvidenceStatus: string
             self::Exempt => 'shield-check',
         };
     }
+
+    /**
+     * Reverso de label(): los informes (ReportBuilder) entregan cada fila
+     * ya como texto plano en español, no como el enum — necesario para
+     * poder mostrar <x-status-badge> (que espera el enum) en la vista en
+     * pantalla de esos informes sin cambiar esa estructura de datos.
+     */
+    public static function fromLabel(string $label): ?self
+    {
+        foreach (self::cases() as $status) {
+            if ($status->label() === $label) {
+                return $status;
+            }
+        }
+
+        return null;
+    }
 }

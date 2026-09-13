@@ -18,10 +18,13 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * la app cambia, hay que actualizar también esta clase — ver la sección
  * de paleta en docs/manual-diseno.md.
  *
- * Usada por resources/views/reports/pdf/report.blade.php (PDF) y
- * app/Exports/ReportSectionSheet.php (Excel), para que los cuatro
- * informes (individual, por actividad, transversales, consolidado)
- * compartan un único lugar de formato en vez de repetirlo cada uno.
+ * Usada por resources/views/reports/pdf/report.blade.php (PDF),
+ * app/Exports/ReportSectionSheet.php (Excel) y, para la detección
+ * genérica de columnas (statusColumnIndex/isNumericColumnValue),
+ * también por resources/views/livewire/reports/_sections.blade.php (la
+ * vista en pantalla) — así los cuatro informes (individual, por
+ * actividad, transversales, consolidado) comparten un único lugar de
+ * formato en los tres canales, en vez de repetirlo cada uno.
  */
 class ReportTheme
 {

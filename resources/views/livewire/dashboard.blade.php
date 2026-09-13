@@ -145,9 +145,7 @@
                                 <td class="table-cell">{{ $row['teacher']->name }}</td>
                                 <td class="table-cell text-right">
                                     <div class="flex items-center justify-end gap-2">
-                                        <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-surface-muted">
-                                            <div class="h-full rounded-full bg-brand-primary" style="width: {{ $row['compliance']['percentage'] }}%"></div>
-                                        </div>
+                                        <x-progress-bar :percentage="$row['compliance']['percentage']" class="h-1.5 w-20" />
                                         <span class="text-text-secondary">{{ $row['compliance']['percentage'] }}% ({{ $row['compliance']['approved'] }}/{{ $row['compliance']['total'] }})</span>
                                     </div>
                                 </td>
