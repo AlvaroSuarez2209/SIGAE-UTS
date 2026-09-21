@@ -87,6 +87,36 @@ class ReportTheme
     }
 
     /**
+     * Encabezados de columna que ReportBuilder ya entrega con valores
+     * numéricos (conteos, horas, porcentajes) en cualquiera de los 4
+     * informes — conjunto cerrado, igual que 'Estado' arriba, porque
+     * ReportBuilder solo produce estas etiquetas exactas hoy. Un informe
+     * futuro con una columna numérica nueva se suma aquí una sola vez.
+     */
+    private const NUMERIC_HEADINGS = [
+        'Horas asignadas',
+        'Obligatorios',
+        'Aprobados',
+        '% Avance',
+        'Destinatarios',
+        'Enviados',
+        'Cantidad',
+    ];
+
+    /**
+     * Determina la alineación de una columna completa (encabezado y cada
+     * celda) por el nombre de su encabezado — la misma regla ya aplicada
+     * a mano en Distribución docente ("Horas") y Entregables
+     * ("Destinatarios"), unificada aquí para que la apliquen por igual
+     * los cuatro informes (individual, por actividad, transversales,
+     * consolidado) sin repetirla en cada vista.
+     */
+    public static function isNumericHeading(string $heading): bool
+    {
+        return in_array($heading, self::NUMERIC_HEADINGS, true);
+    }
+
+    /**
      * Heurística genérica (no atada a nombres de columna concretos) para
      * decidir si un valor de celda debe alinearse a la derecha — cubre
      * enteros, decimales y porcentajes ("75%") ya formateados como texto

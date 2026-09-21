@@ -44,7 +44,7 @@
                 <thead>
                     <tr>
                         @foreach ($section['headings'] as $heading)
-                            <th class="table-header-cell">{{ $heading }}</th>
+                            <th class="table-header-cell{{ \App\Services\Reports\ReportTheme::isNumericHeading($heading) ? ' text-right' : '' }}">{{ $heading }}</th>
                         @endforeach
                     </tr>
                 </thead>
@@ -52,7 +52,8 @@
                     @forelse ($section['rows'] as $row)
                         <tr class="table-row">
                             @foreach (array_values($row) as $i => $value)
-                                <td class="table-cell">
+                                @php $numeric = \App\Services\Reports\ReportTheme::isNumericHeading($section['headings'][$i] ?? ''); @endphp
+                                <td class="table-cell{{ $numeric ? ' text-right' : '' }}">
                                     @if ($i === $statusIndex && ($status = \App\Enums\EvidenceStatus::fromLabel((string) $value)))
                                         <x-status-badge :status="$status" />
                                     @else
