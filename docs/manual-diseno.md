@@ -49,9 +49,9 @@ sueltos en las vistas. Esto permite reemplazar la paleta institucional real
 | `category-subtle` | `#efeaf7` | Clasificación, fondo suave | Fondo del badge "Transversal" |
 | `status-success` | `#1e7a4c` | Éxito / aprobado | Badge "Aprobado", botón "Aprobar" en revisión |
 | `status-success-subtle` | `#e8f5ee` | Éxito, fondo suave | Fondo de mensajes de confirmación |
-| `status-warning` | `#9a5b12` | Advertencia | Badge "Requiere ajustes" / "Cerrado", botón "Devolver" |
+| `status-warning` | `#9a5b12` | Advertencia | Badge "Requiere ajustes" / "Cerrado", botón "Devolver"; botón de confirmación (`variant: warning`) de "Desactivar", "Cerrar periodo", "Finalizar liderazgo" |
 | `status-warning-subtle` | `#fbf1e4` | Advertencia, fondo suave | Fondo de avisos (periodo bloqueado, etc.) |
-| `status-error` | `#b3261e` | Error / vencido | Badge "Vencido", botones destructivos |
+| `status-error` | `#b3261e` | Error | Badge de estado "Vencido"; botón de confirmación (`variant: danger`) de una eliminación permanente — ver aclaración justo debajo de esta tabla |
 | `status-error-subtle` | `#fbeceb` | Error, fondo suave | Fondo de mensajes de error |
 | `surface` | `#ffffff` | Superficie base | Fondo de tarjetas, tablas, sidebar |
 | `surface-muted` | `#f4f6f8` | Superficie secundaria | Fondo de página, filas al pasar el cursor |
@@ -64,6 +64,33 @@ sobre `surface`, texto de badges sobre sus fondos "subtle", texto blanco
 sobre `brand-primary`/`status-success`/`status-warning`/`status-error`) se
 verificaron con la fórmula de luminancia relativa de WCAG 2.x y cumplen un
 mínimo de 4.5:1 para texto normal y 3:1 para texto grande, cumpliendo AA.
+
+**El rojo (`status-error`) tiene dos usos distintos e intencionales, que no
+deben confundirse entre sí ni combinarse por analogía de color:**
+
+1. **Rojo en un badge de estado → exclusivo para el estado "Vencido"**
+   (`EvidenceStatus::Expired`, `resources/views/components/status-badge.blade.php`).
+   Ningún otro estado del sistema usa este color; es la señal visual de
+   "algo venció y ya requiere atención", no de "algo se puede perder".
+2. **Rojo en un botón de confirmación (`variant: danger` de
+   `<x-confirm-modal>`, clase `.btn-danger`) → exclusivo para acciones
+   destructivas e irreversibles**: "Eliminar archivo" y "Eliminar enlace"
+   de una evidencia (`evidence-file-row.blade.php`,
+   `evidence-link-row.blade.php`) son los únicos casos actuales, y
+   cualquier "Eliminar" permanente futuro debe seguir esta misma regla.
+
+**El ámbar (`status-warning`, `variant: warning`, clase `.btn-warning`) es
+el color de las acciones reversibles de impacto medio**: "Desactivar" (un
+usuario, un catálogo, una plantilla), "Cerrar" (un periodo) y "Finalizar"
+(un liderazgo) — todas se pueden deshacer con una acción equivalente
+("Activar", reabrir el periodo, reasignar el liderazgo) y ninguna borra
+datos. Por eso **"Desactivar" nunca lleva `variant: danger`**, aunque a
+primera vista ambos colores parezcan intercambiables como "advertencia
+genérica": el criterio no es "qué tan grave se ve la acción", sino **si es
+reversible (ámbar) o irreversible (rojo)** — confundir uno con otro por
+similitud visual llevaría, por ejemplo, a pintar "Desactivar" de rojo (como
+ocurrió una vez en el módulo de Usuarios, corregido después) o a suavizar
+una eliminación permanente a ámbar, comunicando mal su verdadero impacto.
 
 **`category` es intencionalmente distinto de `accent`**, aunque ambos parten
 de la misma familia de neutros apagados: el badge "Transversal" clasifica
@@ -214,7 +241,8 @@ de forma consistente en los 10 módulos funcionales:
   botón de confirmación (`variant`) comunica el impacto real de la acción:
   ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),
   rojo solo para eliminaciones permanentes, verde para acciones que
-  habilitan/aprueban.
+  habilitan/aprueban — ver la aclaración completa de rojo-vs-ámbar en la
+  sección 2 (Paleta de colores), justo debajo de la tabla de tokens.
 
   **Regla para pares Activar/Desactivar** (catálogos, plantillas,
   usuarios): solo **"Desactivar" pide confirmación** (variante ámbar,
