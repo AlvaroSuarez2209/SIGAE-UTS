@@ -47,19 +47,25 @@
                             <a href="{{ route('admin.users.edit', $user) }}" class="btn-text">Editar</a>
 
                             @if (! auth()->user()->is($user))
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: '{{ $user->is_active ? 'Desactivar usuario' : 'Activar usuario' }}',
-                                        body: '¿{{ $user->is_active ? 'Desactivar' : 'Activar' }} a <strong>{{ e($user->name) }}</strong>? {{ $user->is_active ? 'No podrá iniciar sesión mientras esté desactivado.' : 'Podrá volver a iniciar sesión de inmediato.' }}',
-                                        confirmLabel: '{{ $user->is_active ? 'Desactivar' : 'Activar' }}',
-                                        variant: '{{ $user->is_active ? 'danger' : 'success' }}',
-                                        action: () => $wire.toggleActive({{ $user->id }}),
-                                    })"
-                                >
-                                    {{ $user->is_active ? 'Desactivar' : 'Activar' }}
-                                </button>
+                                @if ($user->is_active)
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 text-text-secondary"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Desactivar usuario',
+                                            body: '¿Desactivar a <strong>{{ e($user->name) }}</strong>? No podrá iniciar sesión mientras esté desactivado.',
+                                            confirmLabel: 'Desactivar',
+                                            variant: 'warning',
+                                            action: () => $wire.toggleActive({{ $user->id }}),
+                                        })"
+                                    >
+                                        Desactivar
+                                    </button>
+                                @else
+                                    <button type="button" wire:click="toggleActive({{ $user->id }})" class="btn-text ml-4 text-text-secondary">
+                                        Activar
+                                    </button>
+                                @endif
                             @endif
                         </td>
                     </tr>
