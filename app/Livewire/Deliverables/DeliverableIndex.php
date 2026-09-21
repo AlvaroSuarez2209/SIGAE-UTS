@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Deliverables;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
 use App\Models\Deliverable;
 use Livewire\Attributes\Layout;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class DeliverableIndex extends Component
 {
-    use WithPagination;
+    use HasStandardPagination, WithPagination;
 
     public ?int $periodFilter = null;
 
@@ -31,7 +32,7 @@ class DeliverableIndex extends Component
             ->with(['academicPeriod', 'activity.component', 'crossCuttingCommitment', 'recipients'])
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('due_at')
-            ->paginate(15);
+            ->paginate(self::PER_PAGE);
 
         return view('livewire.deliverables.deliverable-index', [
             'deliverables' => $deliverables,

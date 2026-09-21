@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Distribution;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
 use App\Models\TeacherAssignment;
 use Livewire\Attributes\Layout;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class AssignmentIndex extends Component
 {
-    use WithPagination;
+    use HasStandardPagination, WithPagination;
 
     public string $search = '';
 
@@ -41,7 +42,7 @@ class AssignmentIndex extends Component
             )
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('created_at')
-            ->paginate(15);
+            ->paginate(self::PER_PAGE);
 
         return view('livewire.distribution.assignment-index', [
             'assignments' => $assignments,

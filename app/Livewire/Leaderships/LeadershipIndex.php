@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leaderships;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
 use App\Models\Leadership;
 use Livewire\Attributes\Layout;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class LeadershipIndex extends Component
 {
-    use WithPagination;
+    use HasStandardPagination, WithPagination;
 
     public string $search = '';
 
@@ -48,7 +49,7 @@ class LeadershipIndex extends Component
             )
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('starts_at')
-            ->paginate(15);
+            ->paginate(self::PER_PAGE);
 
         return view('livewire.leaderships.leadership-index', [
             'leaderships' => $leaderships,

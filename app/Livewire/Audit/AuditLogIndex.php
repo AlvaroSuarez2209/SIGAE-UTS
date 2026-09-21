@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Audit;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AuditLog;
 use App\Models\User;
 use Livewire\Attributes\Layout;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class AuditLogIndex extends Component
 {
-    use WithPagination;
+    use HasStandardPagination, WithPagination;
 
     public string $userFilter = '';
 
@@ -37,7 +38,7 @@ class AuditLogIndex extends Component
             ->when($this->fromFilter, fn ($q) => $q->where('created_at', '>=', $this->fromFilter))
             ->when($this->toFilter, fn ($q) => $q->where('created_at', '<=', $this->toFilter.' 23:59:59'))
             ->orderByDesc('created_at')
-            ->paginate(25);
+            ->paginate(self::PER_PAGE);
 
         return view('livewire.audit.audit-log-index', [
             'logs' => $logs,

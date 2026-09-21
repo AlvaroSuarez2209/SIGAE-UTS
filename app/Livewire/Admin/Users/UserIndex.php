@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
@@ -12,7 +13,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class UserIndex extends Component
 {
-    use WithPagination;
+    use HasStandardPagination, WithPagination;
 
     public string $search = '';
 
@@ -54,7 +55,7 @@ class UserIndex extends Component
                 ->whereHas('roles', fn ($q) => $q->where('name', $this->roleFilter))
             )
             ->orderBy('name')
-            ->paginate(10);
+            ->paginate(self::PER_PAGE);
 
         return view('livewire.admin.users.user-index', [
             'users' => $users,

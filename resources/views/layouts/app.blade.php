@@ -188,7 +188,7 @@
                 </span>
             </header>
 
-            <main class="flex-1 px-6 py-8 sm:px-8 lg:px-10">
+            <main class="min-w-0 flex-1 px-6 py-8 sm:px-8 lg:px-10">
                 {{ $slot }}
             </main>
         </div>

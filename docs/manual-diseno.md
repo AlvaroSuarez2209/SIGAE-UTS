@@ -224,7 +224,14 @@ de forma consistente en los 10 módulos funcionales:
   (Seguimiento, Gestión académica, Catálogos, Informes, Administración),
   colapsable a un panel lateral en móvil mediante Alpine
   (`x-data="{ mobileOpen: false }"`), en vez de menús desplegables
-  horizontales.
+  horizontales. Ancho fijo (`w-72 shrink-0`, nunca se encoge) frente al
+  área de contenido (`flex-1 min-w-0`) — el `min-w-0` en `<main>` es el
+  que de verdad importa: sin él, un hijo muy ancho (p. ej. la tabla de
+  Auditoría, con una columna "Detalle" que vuelca JSON crudo) puede forzar
+  a los ítems flex de todo el layout a crecer para acomodarlo, aunque el
+  sidebar tenga un ancho fijo declarado. El scroll horizontal de una tabla
+  ancha vive **dentro** de `.table-shell` (`overflow-x-auto` propio), no
+  en la página completa.
 - **`<x-confirm-modal>`** — modal de confirmación reutilizable (una sola
   instancia global, incluida en `layouts/app.blade.php`) que reemplaza el
   `confirm()` nativo del navegador en toda la aplicación (cerrar/activar/
@@ -360,14 +367,49 @@ cuenta los campos del formulario antes de decidir el patrón.
   `<th>` como en `<td>` (`text-right` sobre `.table-header-cell`/
   `.table-cell`, que por defecto alinean a la izquierda). El resto de
   columnas — texto, fechas, badges — se mantiene alineado a la izquierda.
-- Toda tabla de listado cuyo volumen de datos crece con el uso real de la
-  institución (docentes, periodos, entregables) usa `WithPagination` de
-  Livewire y `->paginate(n)` desde el primer día, aunque con datos de
-  prueba no se note ningún cambio visual — evita tener que retrabajar la
-  vista de listado más adelante. Ya implementado en Distribución docente,
-  Entregables, Usuarios y Líderes; Periodos académicos es la única lista
-  que se deja sin paginar a propósito, porque el número de periodos de una
-  institución nunca crece más allá de unas pocas decenas.
+- **Umbral estándar de paginación — 25 registros por página.** Toda tabla
+  de listado cuyo volumen de datos crece con el uso real de la institución
+  usa `WithPagination` de Livewire y `->paginate(self::PER_PAGE)` desde el
+  primer día, aunque con datos de prueba no se note ningún cambio visual —
+  evita tener que retrabajar la vista de listado más adelante. El número
+  (25) no se repite a mano en cada componente: vive una sola vez en el
+  trait `App\Livewire\Concerns\HasStandardPagination`
+  (`protected const PER_PAGE = 25;`), que cada componente paginado incluye
+  junto con `WithPagination` (`use HasStandardPagination, WithPagination;`).
+  Antes de esto cada módulo traía su propio número sin ningún criterio
+  compartido (10, 15 o 25 según el componente) — ya unificados los cinco:
+  Usuarios, Auditoría, Distribución docente, Líderes y Entregables.
+  Cualquier listado nuevo de alto volumen debe sumar el trait en vez de
+  escribir `->paginate(25)` (o cualquier otro número) directamente.
+- **Catálogos pequeños: sin paginar, a propósito.** Componentes,
+  Subcomponentes, Actividades, Programas, Compromisos transversales,
+  Plantillas de entregables y Periodos académicos **no** usan el trait de
+  arriba ni paginan — mismo criterio ya aplicado al decidir no agregarles
+  `<x-search-input>` (ver más abajo): son catálogos de alto nivel que no
+  se espera que superen unas pocas decenas de registros incluso en
+  producción real. Si alguno de estos catálogos creciera de forma
+  inesperada en el futuro, la salida es sumar `HasStandardPagination`
+  (25) o, si el volumen se queda a medio camino, un umbral propio más
+  alto (ej. 50) — nunca dejarlo sin paginar "porque siempre fue así".
+- La vista de paginación es una sola, compartida por toda la app:
+  `resources/views/vendor/livewire/tailwind.blade.php` sobrescribe la
+  vista por defecto de **Livewire** (`livewire::tailwind`) — basta con que
+  ese archivo exista ahí para que cualquier `{{ $paginador->links() }}`
+  de un componente con `WithPagination` la use automáticamente, sin pasar
+  un nombre de vista en cada llamada. Va en `vendor/livewire/`, no en
+  `vendor/pagination/` (la vista por defecto de Laravel): Livewire
+  reemplaza esa configuración en cada componente que usa
+  `WithPagination` y apunta en su lugar a su propia vista — como los 5
+  listados paginados de esta app son componentes Livewire, no vistas de
+  paginación "pura" de Laravel, `vendor/pagination/` no tendría ningún
+  efecto real (detalle completo en el comentario del propio archivo).
+  Reemplaza el texto en inglés del tema por defecto ("Showing X to Y of Z
+  results", "Previous"/"Next") por español ("Mostrando X a Y de Z
+  resultados", "Anterior"/"Siguiente") y su estilo gris genérico por los
+  tokens del sistema de diseño: página activa en `brand-primary` con
+  texto blanco, resto de páginas y flechas con `border-border-subtle` y
+  `hover:bg-surface-muted`, igual que cualquier otro control secundario
+  de la app.
 
 ### Formularios de página completa: ancho centrado
 
