@@ -35,17 +35,17 @@ class AuditLogPresenter
      * `created` automáticas del trait Auditable.
      */
     private const ACTION_LABELS = [
-        'created' => 'Registro creado',
-        'updated' => 'Registro modificado',
-        'login' => 'Inició sesión',
-        'logout' => 'Cerró sesión',
-        'login_failed' => 'Intento de acceso fallido',
-        'login_blocked_inactive' => 'Acceso bloqueado (cuenta inactiva)',
-        'password_reset_requested' => 'Solicitó restablecer su contraseña',
-        'password_reset_completed' => 'Restableció su contraseña',
-        'evidence_marked_exempt' => 'Se marcó una evidencia como exenta',
-        'evidence_marked_overdue' => 'Una evidencia venció automáticamente',
-        'evidence_exemption_removed' => 'Se quitó la exención de una evidencia',
+        'created' => 'Creación',
+        'updated' => 'Modificación',
+        'login' => 'Inicio de sesión',
+        'logout' => 'Cierre de sesión',
+        'login_failed' => 'Acceso fallido',
+        'login_blocked_inactive' => 'Bloqueado (inactivo)',
+        'password_reset_requested' => 'Solicitud de contraseña',
+        'password_reset_completed' => 'Contraseña restablecida',
+        'evidence_marked_exempt' => 'Marcada como exenta',
+        'evidence_marked_overdue' => 'Vencimiento automático',
+        'evidence_exemption_removed' => 'Exención removida',
     ];
 
     /**

@@ -244,8 +244,8 @@ class AuditLogTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin/audit-logs');
 
         $response->assertOk();
-        $response->assertSee('Inició sesión');
-        $response->assertSee('Registro modificado');
+        $response->assertSee('Inicio de sesión');
+        $response->assertSee('Modificación');
         $response->assertSee('Cuenta desactivada');
         $response->assertDontSee('is_active');
         $response->assertDontSee('"changes"');

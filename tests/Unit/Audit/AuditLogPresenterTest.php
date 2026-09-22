@@ -17,8 +17,8 @@ class AuditLogPresenterTest extends TestCase
 
     public function test_translates_known_actions(): void
     {
-        $this->assertEquals('Inició sesión', AuditLogPresenter::actionLabel('login'));
-        $this->assertEquals('Se marcó una evidencia como exenta', AuditLogPresenter::actionLabel('evidence_marked_exempt'));
+        $this->assertEquals('Inicio de sesión', AuditLogPresenter::actionLabel('login'));
+        $this->assertEquals('Marcada como exenta', AuditLogPresenter::actionLabel('evidence_marked_exempt'));
     }
 
     public function test_falls_back_to_the_raw_value_for_an_unmapped_action(): void
@@ -31,8 +31,8 @@ class AuditLogPresenterTest extends TestCase
         $options = AuditLogPresenter::actionOptions(['login', 'created']);
 
         $this->assertEquals([
-            'login' => 'Inició sesión',
-            'created' => 'Registro creado',
+            'login' => 'Inicio de sesión',
+            'created' => 'Creación',
         ], $options);
     }
 
