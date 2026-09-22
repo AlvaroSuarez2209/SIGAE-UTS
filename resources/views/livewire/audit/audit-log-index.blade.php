@@ -41,12 +41,12 @@
     <div class="table-shell">
         <table class="w-full table-fixed divide-y divide-border-subtle">
             <colgroup>
-                <col class="w-[15%]">
-                <col class="w-[13%]">
+                <col class="w-[19%]">
                 <col class="w-[17%]">
+                <col class="w-[22%]">
                 <col class="w-[17%]">
                 <col class="w-[8%]">
-                <col class="w-[30%]">
+                <col class="w-[17%]">
             </colgroup>
             <thead>
                 <tr>
@@ -67,7 +67,7 @@
                         <td class="table-cell text-text-secondary">{{ \App\Services\Audit\AuditLogPresenter::actionLabel($log->action) }}</td>
                         <td class="table-cell truncate text-text-secondary" title="{{ $log->auditableLabel() }}">{{ $log->auditableLabel() }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->ip_address ?? '—' }}</td>
-                        <td class="table-cell truncate text-text-secondary" title="{{ $detail }}">{{ $detail }}</td>
+                        <td class="table-cell whitespace-normal text-text-secondary">{{ $detail }}</td>
                     </tr>
                 @empty
                     <tr>

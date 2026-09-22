@@ -225,16 +225,31 @@ de forma consistente en los 10 módulos funcionales:
     las mismas columnas — los informes también agrupan varias tablas,
     pero cada sección tiene encabezados distintos por diseño, así que no
     sufren este problema y no llevan este tratamiento.
-  - **Una sola tabla paginada**: "Auditoría" (15/13/17/17/8/30 para
-    Fecha/Usuario/Acción/Objeto/IP/Detalle; truncan "Objeto" y
-    "Detalle", las dos columnas de texto libre/variable). Aquí el
-    contenido que cambia entre renders no son grupos distintos sino
-    páginas distintas del mismo paginado: sin ancho fijo, cambiar de
-    página con el paginado podía ensanchar o comprimir columnas según
-    qué tan largos fueran los valores de esa página en particular,
-    perdiendo consistencia visual entre una página y otra. Cualquier
-    tabla paginada nueva con columnas de texto libre debe seguir este
-    mismo patrón desde el principio.
+  - **Una sola tabla paginada**: "Auditoría" (19/17/22/17/8/17 para
+    Fecha/Usuario/Acción/Objeto/IP/Detalle). Aquí el contenido que
+    cambia entre renders no son grupos distintos sino páginas distintas
+    del mismo paginado: sin ancho fijo, cambiar de página con el
+    paginado podía ensanchar o comprimir columnas según qué tan largos
+    fueran los valores de esa página en particular, perdiendo
+    consistencia visual entre una página y otra. Cualquier tabla
+    paginada nueva con columnas de texto libre debe seguir este mismo
+    patrón desde el principio.
+    - **Dos maneras distintas de manejar el desbordamiento** en las dos
+      columnas de texto libre/variable, elegidas según qué tan largo
+      puede llegar a ser el contenido real: "Objeto" (típicamente corto,
+      "Usuario: Nombre") trunca en una sola línea con `truncate` +
+      `title` con el texto completo. "Detalle" (frases completas del
+      `describeChanges()` de auditoría, más largas y más variables en
+      longitud) usa `whitespace-normal` — deja que el texto salte de
+      línea dentro de su ancho fijo en vez de truncarlo — porque
+      reservarle una columna lo bastante ancha para nunca truncar
+      habría dejado la tabla con mucho espacio vacío en las filas sin
+      detalle o con un detalle corto (la mayoría). El alto de fila no
+      necesita ningún ajuste aparte: una fila HTML ya iguala la altura
+      de todas sus celdas a la más alta, y `.table-cell` centra
+      verticalmente por defecto (comportamiento nativo del navegador),
+      así que una celda de una sola línea junto a una de dos líneas
+      queda alineada sin CSS adicional.
 - **Sidebar de navegación** (`layouts/app.blade.php`) — agrupado por rol
   (Seguimiento, Gestión académica, Catálogos, Informes, Administración),
   colapsable a un panel lateral en móvil mediante Alpine
