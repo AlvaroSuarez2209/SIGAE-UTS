@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -14,6 +13,16 @@ use Livewire\Component;
  * propia cuenta. Dos secciones independientes en la misma página, cada
  * una con su propio método de guardado/validación/mensaje de éxito, para
  * que un error en una no afecte ni limpie el estado de la otra.
+ *
+ * `document_number` y `email` son de solo lectura aquí a propósito: son
+ * datos administrativos/de acceso, no autoservicio libre — corregirlos
+ * requiere un Administrador desde "Usuarios" (misma validación de
+ * unicidad que ya existía ahí, y queda registrado en Auditoría vía el
+ * trait `Auditable`). `saveProfile()` solo valida y guarda `name`; las
+ * otras dos propiedades siguen existiendo para poblar los campos
+ * deshabilitados en la vista, pero nunca se validan ni se persisten
+ * desde aquí — ni siquiera si alguien manipulara la petición de
+ * Livewire a mano, ya que `update()` ni las toca.
  *
  * No usa UserPolicy/Gate: a diferencia de app/Livewire/Admin/Users
  * (Administrador gestionando OTRAS cuentas), aquí no hace falta
@@ -51,15 +60,9 @@ class Profile extends Component
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'document_number' => ['nullable', 'string', 'max:50', Rule::unique('users', 'document_number')->ignore($user->id)],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
         ]);
 
-        $user->update([
-            'name' => $data['name'],
-            'document_number' => $data['document_number'] ?: null,
-            'email' => $data['email'],
-        ]);
+        $user->update(['name' => $data['name']]);
 
         session()->flash('profileStatus', 'Perfil actualizado correctamente.');
     }

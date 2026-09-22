@@ -685,6 +685,18 @@ por rol.
   usuario" salvo Roles y Cuenta activa (los administra exclusivamente
   un Administrador desde "Usuarios") — nada de gestión de sesiones de
   navegador activas ni campos que no existen en el modelo `User`.
+- **`document_number` y `email` son de solo lectura, no autoservicio
+  libre.** Son datos administrativos/de acceso — corregirlos requiere
+  pasar por "Usuarios" (Administrador), donde ya existe la validación
+  de unicidad y queda auditado vía el trait `Auditable`. En la vista,
+  ambos campos van con el atributo HTML `disabled` (`.field-input` ya
+  trae el estilo `disabled:bg-surface-muted disabled:text-text-secondary`,
+  sin tocar CSS aparte) y un `.field-help` "Si necesitas actualizar
+  este dato, contacta a un Administrador." `saveProfile()` valida y
+  guarda únicamente `name` — ni siquiera si alguien manipulara la
+  petición de Livewire a mano para escribir en `document_number`/
+  `email` esos valores llegarían a persistirse, porque `update()` no
+  los toca en absoluto (no es solo un candado de interfaz).
 - **Contraseña nueva: requisitos de complejidad, no solo `min:8`.**
   "Editar usuario" (un Administrador fijando la contraseña de otra
   persona) solo exige `min:8`. Aquí, al ser el propio usuario

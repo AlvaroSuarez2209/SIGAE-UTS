@@ -52,21 +52,50 @@ class ProfileTest extends TestCase
             ->assertSet('email', 'original@sigae.local');
     }
 
-    public function test_user_can_update_their_own_profile_information(): void
+    public function test_user_can_update_their_own_name(): void
     {
         $user = $this->userWithRole(RoleName::Teacher);
 
         Livewire::actingAs($user)->test(Profile::class)
             ->set('name', 'Nombre Nuevo')
-            ->set('document_number', '999888777')
-            ->set('email', 'nuevo@sigae.local')
+            ->call('saveProfile')
+            ->assertHasNoErrors();
+
+        $this->assertEquals('Nombre Nuevo', $user->fresh()->name);
+    }
+
+    public function test_document_number_and_email_are_read_only_fields_in_the_view(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher);
+
+        $html = $this->actingAs($user)->get('/profile')->getContent();
+
+        $this->assertMatchesRegularExpression('/<input[^>]*wire:model="document_number"[^>]*\bdisabled\b[^>]*>/', $html);
+        $this->assertMatchesRegularExpression('/<input[^>]*wire:model="email"[^>]*\bdisabled\b[^>]*>/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<input[^>]*wire:model="name"[^>]*\bdisabled\b[^>]*>/', $html);
+        $this->assertStringContainsString('Si necesitas actualizar este dato, contacta a un Administrador.', $html);
+    }
+
+    public function test_saving_the_profile_never_changes_document_number_or_email_even_if_tampered_with(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher, [
+            'document_number' => '111111111',
+            'email' => 'original@sigae.local',
+        ]);
+
+        // Simula que alguien manipuló la petición de Livewire a mano para
+        // escribir en propiedades que la interfaz deja deshabilitadas.
+        Livewire::actingAs($user)->test(Profile::class)
+            ->set('document_number', '999999999')
+            ->set('email', 'cambiado@sigae.local')
+            ->set('name', 'Nombre Nuevo')
             ->call('saveProfile')
             ->assertHasNoErrors();
 
         $user->refresh();
         $this->assertEquals('Nombre Nuevo', $user->name);
-        $this->assertEquals('999888777', $user->document_number);
-        $this->assertEquals('nuevo@sigae.local', $user->email);
+        $this->assertEquals('111111111', $user->document_number);
+        $this->assertEquals('original@sigae.local', $user->email);
     }
 
     public function test_profile_form_has_no_roles_or_active_account_fields(): void
@@ -77,26 +106,6 @@ class ProfileTest extends TestCase
 
         $response->assertDontSee('Roles');
         $response->assertDontSee('Cuenta activa');
-    }
-
-    public function test_email_must_be_unique_excluding_the_current_user(): void
-    {
-        $user = $this->userWithRole(RoleName::Teacher, ['email' => 'mio@sigae.local']);
-        $other = $this->userWithRole(RoleName::Teacher, ['email' => 'otro@sigae.local']);
-
-        // Guardar el propio correo sin cambios no debe fallar por "único".
-        Livewire::actingAs($user)->test(Profile::class)
-            ->set('email', 'mio@sigae.local')
-            ->call('saveProfile')
-            ->assertHasNoErrors();
-
-        // Pero tomar el correo de otro usuario sí debe fallar.
-        Livewire::actingAs($user)->test(Profile::class)
-            ->set('email', 'otro@sigae.local')
-            ->call('saveProfile')
-            ->assertHasErrors('email');
-
-        $this->assertEquals('otro@sigae.local', $other->fresh()->email);
     }
 
     public function test_updating_password_requires_the_correct_current_password(): void

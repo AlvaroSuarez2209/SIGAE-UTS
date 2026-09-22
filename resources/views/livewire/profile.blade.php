@@ -22,14 +22,14 @@
 
             <div>
                 <label class="field-label">Número de documento</label>
-                <input type="text" wire:model="document_number" class="field-input">
-                @error('document_number') <p class="field-error">{{ $message }}</p> @enderror
+                <input type="text" wire:model="document_number" disabled class="field-input">
+                <p class="field-help">Si necesitas actualizar este dato, contacta a un Administrador.</p>
             </div>
 
             <div>
                 <label class="field-label">Correo electrónico</label>
-                <input type="email" wire:model="email" class="field-input">
-                @error('email') <p class="field-error">{{ $message }}</p> @enderror
+                <input type="email" wire:model="email" disabled class="field-input">
+                <p class="field-help">Si necesitas actualizar este dato, contacta a un Administrador.</p>
             </div>
 
             <div class="pt-2">

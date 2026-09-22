@@ -11,11 +11,13 @@ indicará y no podrás continuar, aunque la contraseña sea correcta.
 
 **"Mi perfil"** (enlace en la parte inferior del menú lateral, junto a
 "Cerrar sesión") está disponible para cualquier persona autenticada,
-sin importar su rol: permite actualizar tu nombre, número de documento
-y correo, y por separado — con su propio botón "Guardar" — cambiar tu
-contraseña pidiendo primero la actual. No incluye tus roles ni el
-estado de tu cuenta (activa/inactiva): eso solo lo administra un
-Administrador desde "Usuarios".
+sin importar su rol: permite actualizar tu nombre, y por separado — con
+su propio botón "Guardar" — cambiar tu contraseña pidiendo primero la
+actual. El número de documento y el correo se muestran de solo
+lectura (fondo gris, no editables): si necesitas corregir alguno de
+los dos, debe hacerlo un Administrador desde "Usuarios". Tampoco
+incluye tus roles ni el estado de tu cuenta (activa/inactiva): eso
+también es exclusivo de un Administrador.
 
 ---
 
