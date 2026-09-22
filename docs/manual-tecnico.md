@@ -639,6 +639,19 @@ español, reutilizado tanto por la columna como por el filtro "Acción" de
     oculta un campo nuevo. Los booleanos se muestran como "Sí"/"No" (no
     `true`/`false`) en este respaldo genérico también, no solo en
     `is_active`.
+  - **El `valor` también se traduce cuando el campo es un enum del
+    proyecto** (`EvidenceStatus`, `AcademicPeriodStatus`,
+    `ReviewDecision`, `PeriodicityType`, `EvidenceType`) — sin esto,
+    `getChanges()` de Eloquent entrega el valor crudo tal como se guarda
+    en la columna (`'pending'`, `'exempt'`, `'active'`...), no la
+    instancia del enum ni su `label()`, así que el respaldo genérico
+    mostraba literalmente "Estado cambió a pending" en vez de "Estado
+    cambió a Pendiente" — bug real, encontrado generando datos de
+    prueba con los flujos reales de la app. `status` es ambiguo entre
+    modelos (`Evidence` y `AcademicPeriod` usan enums de estado
+    distintos con el mismo nombre de columna) y se resuelve por modelo
+    en `MODEL_FIELD_ENUMS`; el resto de campos con enum no se repite
+    entre modelos y no necesita esa distinción.
   - Si `metadata` no tiene `changes` ni `redacted_fields` (los `login`/
     `logout`, que no tocan ningún modelo), la columna queda vacía —
     mismo comportamiento que antes de este cambio.

@@ -2,8 +2,10 @@
 
 namespace Tests\Unit\Audit;
 
+use App\Models\AcademicPeriod;
 use App\Models\AuditLog;
 use App\Models\Component;
+use App\Models\Evidence;
 use App\Models\User;
 use App\Services\Audit\AuditLogPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,6 +95,43 @@ class AuditLogPresenterTest extends TestCase
         ]);
 
         $this->assertEquals('Correo electrónico cambió a nuevo@sigae.local', AuditLogPresenter::describeChanges($log));
+    }
+
+    public function test_evidence_status_enum_value_is_translated_not_shown_raw(): void
+    {
+        $log = AuditLog::create([
+            'action' => 'updated',
+            'auditable_type' => Evidence::class,
+            'metadata' => ['changes' => ['status' => 'exempt']],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals('Estado cambió a Exento', AuditLogPresenter::describeChanges($log));
+    }
+
+    public function test_academic_period_status_enum_value_is_translated_using_its_own_enum(): void
+    {
+        $log = AuditLog::create([
+            'action' => 'updated',
+            'auditable_type' => AcademicPeriod::class,
+            'metadata' => ['changes' => ['status' => 'active']],
+            'created_at' => now(),
+        ]);
+
+        // 'active' significa algo distinto según el modelo: aquí "Activo"
+        // (AcademicPeriodStatus), no "Sí"/booleano ni el "Activado" de is_active.
+        $this->assertEquals('Estado cambió a Activo', AuditLogPresenter::describeChanges($log));
+    }
+
+    public function test_review_decision_enum_value_is_translated(): void
+    {
+        $log = AuditLog::create([
+            'action' => 'created',
+            'metadata' => ['changes' => ['decision' => 'returned']],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals('Decisión cambió a Devuelto', AuditLogPresenter::describeChanges($log));
     }
 
     public function test_boolean_values_read_as_si_no_in_the_generic_sentence(): void

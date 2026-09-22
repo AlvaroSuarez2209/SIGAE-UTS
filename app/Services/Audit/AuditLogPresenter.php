@@ -2,6 +2,11 @@
 
 namespace App\Services\Audit;
 
+use App\Enums\AcademicPeriodStatus;
+use App\Enums\EvidenceStatus;
+use App\Enums\EvidenceType;
+use App\Enums\PeriodicityType;
+use App\Enums\ReviewDecision;
 use App\Models\AuditLog;
 use Illuminate\Support\Collection;
 
@@ -122,6 +127,28 @@ class AuditLogPresenter
         'remember_token',
     ];
 
+    /**
+     * `getChanges()` de Eloquent entrega el valor CRUDO tal como se
+     * guarda en la columna (ej. `'pending'`, `'exempt'`), no la instancia
+     * del enum — así que sin este mapeo, el respaldo genérico mostraba
+     * literalmente el valor en inglés del enum ("Estado cambió a
+     * pending") en vez de su `label()` ya traducido ("Estado cambió a
+     * Pendiente"). `status` es ambiguo entre modelos (Evidence y
+     * AcademicPeriod usan enums de estado distintos con el mismo nombre
+     * de columna) y se resuelve por modelo en `MODEL_FIELD_ENUMS`; el
+     * resto de campos con enum no se repite entre modelos.
+     */
+    private const FIELD_ENUMS = [
+        'decision' => ReviewDecision::class,
+        'periodicity_type' => PeriodicityType::class,
+        'allowed_evidence_types' => EvidenceType::class,
+    ];
+
+    private const MODEL_FIELD_ENUMS = [
+        'Evidence' => ['status' => EvidenceStatus::class],
+        'AcademicPeriod' => ['status' => AcademicPeriodStatus::class],
+    ];
+
     public static function actionLabel(string $action): string
     {
         return self::ACTION_LABELS[$action] ?? $action;
@@ -205,7 +232,7 @@ class AuditLogPresenter
             return $activated ? 'Activado' : 'Desactivado';
         }
 
-        return self::fieldLabel($field).' cambió a '.self::formatValue($value);
+        return self::fieldLabel($field).' cambió a '.self::formatValue($modelBasename, $field, $value);
     }
 
     private static function fieldLabel(string $field): string
@@ -213,7 +240,7 @@ class AuditLogPresenter
         return self::FIELD_LABELS[$field] ?? $field;
     }
 
-    private static function formatValue(mixed $value): string
+    private static function formatValue(?string $modelBasename, string $field, mixed $value): string
     {
         if (is_bool($value)) {
             return $value ? 'Sí' : 'No';
@@ -223,8 +250,26 @@ class AuditLogPresenter
             return '(vacío)';
         }
 
+        $enumClass = self::MODEL_FIELD_ENUMS[$modelBasename][$field] ?? self::FIELD_ENUMS[$field] ?? null;
+
         if (is_array($value)) {
-            return implode(', ', $value);
+            return implode(', ', array_map(
+                fn ($item) => self::formatScalarValue($enumClass, $item),
+                $value
+            ));
+        }
+
+        return self::formatScalarValue($enumClass, $value);
+    }
+
+    private static function formatScalarValue(?string $enumClass, mixed $value): string
+    {
+        if ($enumClass && is_string($value)) {
+            $case = $enumClass::tryFrom($value);
+
+            if ($case) {
+                return $case->label();
+            }
         }
 
         return (string) $value;
