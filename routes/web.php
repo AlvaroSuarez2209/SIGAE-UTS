@@ -27,6 +27,7 @@ use App\Livewire\Evidence\MyDeliverables;
 use App\Livewire\Leaderships\LeadershipForm;
 use App\Livewire\Leaderships\LeadershipIndex;
 use App\Livewire\Periods\PeriodIndex;
+use App\Livewire\Profile;
 use App\Livewire\Reports\ActivityReport;
 use App\Livewire\Reports\ConsolidatedReport;
 use App\Livewire\Reports\CrossCuttingReport;
@@ -49,6 +50,7 @@ Route::post('/logout', LogoutController::class)->name('logout')->middleware('aut
 
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+    Route::get('/profile', Profile::class)->name('profile');
 
     Route::prefix('my-deliverables')->name('my-deliverables.')->group(function () {
         Route::get('/', MyDeliverables::class)->name('index');

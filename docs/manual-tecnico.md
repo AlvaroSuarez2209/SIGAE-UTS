@@ -656,6 +656,58 @@ español, reutilizado tanto por la columna como por el filtro "Acción" de
     `logout`, que no tocan ningún modelo), la columna queda vacía —
     mismo comportamiento que antes de este cambio.
 
+### 5.13 "Mi perfil"
+
+Autoservicio de cualquier usuario autenticado sobre su propia cuenta
+(`App\Livewire\Profile`, sin subcarpeta — mismo nivel que `Dashboard`,
+no un módulo con varias pantallas). Enlazado desde el bloque de usuario
+al final del sidebar (escritorio y drawer móvil), no desde un ítem de
+`$navGroups` — es una pantalla personal, no una sección de navegación
+por rol.
+
+- **Sin Policy/Gate.** A diferencia de `app/Livewire/Admin/Users`
+  (un Administrador gestionando OTRAS cuentas, con `UserPolicy`), aquí
+  no hace falta autorización adicional: cualquier usuario autenticado
+  ya tiene permiso de editar su propia cuenta por definición. El único
+  guardián es el middleware `auth` de la ruta.
+- **Dos secciones, dos formularios, dos estados de éxito
+  independientes.** Un único componente Livewire con dos métodos
+  (`saveProfile()`, `savePassword()`) y dos claves de sesión distintas
+  para el mensaje de éxito (`profileStatus`, `passwordStatus`) — para
+  que guardar una sección nunca limpie ni interfiera con lo que el
+  usuario esté escribiendo (sin guardar) en la otra. No hay redirección
+  tras guardar (a diferencia de `UserForm`, que redirige a la lista):
+  "Mi perfil" no tiene una "lista" a la que volver, así que el
+  mensaje de éxito se muestra en línea, mismo patrón ya usado en
+  `EvidenceWorkspace` (banda `bg-status-success-subtle` con ícono
+  `check-circle`).
+- **Alcance deliberadamente angosto.** Mismos tres campos que "Editar
+  usuario" salvo Roles y Cuenta activa (los administra exclusivamente
+  un Administrador desde "Usuarios") — nada de gestión de sesiones de
+  navegador activas ni campos que no existen en el modelo `User`.
+- **Contraseña nueva: requisitos de complejidad, no solo `min:8`.**
+  "Editar usuario" (un Administrador fijando la contraseña de otra
+  persona) solo exige `min:8`. Aquí, al ser el propio usuario
+  escogiendo su contraseña —el mismo tipo de evento que un
+  restablecimiento por correo (`ResetPassword`)— se exige la regla
+  `Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()`
+  en vez de solo `min:8`, más cerca de la política real de contraseñas
+  del sistema. **No es 100% idéntica** a la de `ResetPassword` (que
+  exige mayúscula + minúscula + **número o símbolo**, con un checklist
+  visual en vivo): la regla nativa de Laravel usada aquí exige mayúscula
+  + minúscula + número específicamente (un símbolo solo no basta), y no
+  incluye el checklist visual — decisión deliberada para no construir
+  una regla de validación a medida ni replicar esa UI solo para esta
+  pantalla; si se requiere paridad exacta, replicar la regla de
+  `ResetPassword`.
+- **`current_password` (regla nativa de Laravel)** valida "Contraseña
+  actual" contra el hash ya guardado del usuario autenticado, sin
+  ninguna consulta manual — mensaje ya traducido
+  (`lang/es/validation.php`: "La contraseña es incorrecta.").
+- Botones "Guardar" en `brand-primary` sólido (`.btn-primary` ya usa
+  ese color sólido, sin degradado — el degradado azul→verde queda
+  reservado a login/emails, ver `manual-diseno.md` §4).
+
 ## 6. Comandos útiles
 
 ```bash

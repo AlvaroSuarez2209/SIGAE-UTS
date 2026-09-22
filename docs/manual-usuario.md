@@ -9,6 +9,14 @@ correo institucional y contraseña en la pantalla de inicio de sesión.
 Si tu cuenta fue desactivada por un administrador, el sistema te lo
 indicará y no podrás continuar, aunque la contraseña sea correcta.
 
+**"Mi perfil"** (enlace en la parte inferior del menú lateral, junto a
+"Cerrar sesión") está disponible para cualquier persona autenticada,
+sin importar su rol: permite actualizar tu nombre, número de documento
+y correo, y por separado — con su propio botón "Guardar" — cambiar tu
+contraseña pidiendo primero la actual. No incluye tus roles ni el
+estado de tu cuenta (activa/inactiva): eso solo lo administra un
+Administrador desde "Usuarios".
+
 ---
 
 ## Administrador

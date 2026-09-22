@@ -117,6 +117,10 @@
             <div class="mt-auto shrink-0 border-t border-border-subtle p-5">
                 <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
                 <p class="mb-3 truncate text-sm text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
+                <a href="{{ route('profile') }}" class="mb-2 flex items-center gap-2 text-base font-medium text-text-secondary hover:text-text-primary hover:underline">
+                    <x-icon name="user" class="h-5 w-5" />
+                    Mi perfil
+                </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="flex items-center gap-2 text-base font-medium text-text-secondary hover:text-text-primary hover:underline">
@@ -167,6 +171,10 @@
                 </nav>
                 <div class="mt-auto border-t border-border-subtle p-5">
                     <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
+                    <a href="{{ route('profile') }}" class="mt-2 flex items-center gap-2 text-base font-medium text-text-secondary hover:text-text-primary hover:underline">
+                        <x-icon name="user" class="h-5 w-5" />
+                        Mi perfil
+                    </a>
                     <form method="POST" action="{{ route('logout') }}" class="mt-2">
                         @csrf
                         <button type="submit" class="flex items-center gap-2 text-base font-medium text-text-secondary hover:text-text-primary hover:underline">
