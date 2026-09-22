@@ -39,7 +39,15 @@
     </div>
 
     <div class="table-shell">
-        <table class="min-w-full divide-y divide-border-subtle">
+        <table class="w-full table-fixed divide-y divide-border-subtle">
+            <colgroup>
+                <col class="w-[15%]">
+                <col class="w-[13%]">
+                <col class="w-[17%]">
+                <col class="w-[17%]">
+                <col class="w-[8%]">
+                <col class="w-[30%]">
+            </colgroup>
             <thead>
                 <tr>
                     <th class="table-header-cell">Fecha</th>
@@ -52,15 +60,14 @@
             </thead>
             <tbody class="divide-y divide-border-subtle">
                 @forelse ($logs as $log)
+                    @php $detail = \App\Services\Audit\AuditLogPresenter::describeChanges($log); @endphp
                     <tr wire:key="log-{{ $log->id }}" class="table-row">
                         <td class="table-cell text-text-secondary">{{ $log->created_at->toReadable() }}</td>
                         <td class="table-cell">{{ $log->user->name ?? 'Sistema' }}</td>
                         <td class="table-cell text-text-secondary">{{ \App\Services\Audit\AuditLogPresenter::actionLabel($log->action) }}</td>
-                        <td class="table-cell text-text-secondary">{{ $log->auditableLabel() }}</td>
+                        <td class="table-cell truncate text-text-secondary" title="{{ $log->auditableLabel() }}">{{ $log->auditableLabel() }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->ip_address ?? '—' }}</td>
-                        <td class="table-cell max-w-xs text-text-secondary">
-                            {{ \App\Services\Audit\AuditLogPresenter::describeChanges($log) }}
-                        </td>
+                        <td class="table-cell truncate text-text-secondary" title="{{ $detail }}">{{ $detail }}</td>
                     </tr>
                 @empty
                     <tr>

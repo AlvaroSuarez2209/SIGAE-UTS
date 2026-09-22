@@ -205,21 +205,36 @@ de forma consistente en los 10 módulos funcionales:
 - **Clases de tabla** (`.table-shell`, `.table-header-cell`, `.table-cell`,
   `.table-row`) — tablas de seguimiento responsivas con scroll horizontal
   propio en pantallas angostas.
-- **Anchos fijos de columna en listados agrupados en varias tablas**
-  ("Mis entregables": una tabla `<table>` independiente por actividad) —
-  cada `<table>` usa `w-full table-fixed` + un `<colgroup>` con los mismos
-  porcentajes en cada grupo (40/12/16/16/16 para
-  Entregable/Obligatorio/Fecha límite/Estado/Acción), para que las
-  columnas queden alineadas verticalmente sin importar cuántos grupos
-  haya ni qué tan largo sea el contenido de una fila. Con `min-w-full` en
-  vez de `w-full`, el navegador deja crecer la tabla para acomodar texto
-  largo y el ancho fijo deja de cumplirse — hay que usar `w-full`. La
-  columna de texto libre (Entregable) trunca con `truncate` + `title` con
-  el texto completo, en vez de dejar que la fila crezca. Esta técnica
-  solo aplica cuando los grupos comparten las mismas columnas — los
-  informes también agrupan varias tablas, pero cada sección tiene
-  encabezados distintos por diseño, así que no sufren este problema y no
-  llevan este mismo tratamiento.
+- **Anchos fijos de columna en cualquier tabla cuyo contenido cambia de
+  render a render.** Sin ancho fijo, el navegador calcula el ancho de
+  cada columna según el contenido de la tabla que tiene delante en ESE
+  momento — así que cualquier tabla cuyo contenido cambie entre un
+  render y el siguiente (varias tablas independientes con las mismas
+  columnas, o una sola tabla paginada) puede desalinearse visualmente de
+  una vista a otra. Mismo tratamiento en ambos casos: `w-full
+  table-fixed` en el `<table>` + un `<colgroup>` con porcentajes fijos
+  por columna, y `truncate` + `title` con el texto completo en las
+  columnas de texto libre que puedan exceder su ancho, en vez de dejar
+  que la fila crezca. Con `min-w-full` en vez de `w-full` el navegador
+  vuelve a dejar crecer la tabla para acomodar texto largo y el ancho
+  fijo deja de cumplirse — hay que usar `w-full`.
+  - **Varias tablas independientes con las mismas columnas**: "Mis
+    entregables" (una `<table>` por actividad, 40/12/16/16/16 para
+    Entregable/Obligatorio/Fecha límite/Estado/Acción; trunca
+    "Entregable"). Esta variante solo aplica cuando los grupos comparten
+    las mismas columnas — los informes también agrupan varias tablas,
+    pero cada sección tiene encabezados distintos por diseño, así que no
+    sufren este problema y no llevan este tratamiento.
+  - **Una sola tabla paginada**: "Auditoría" (15/13/17/17/8/30 para
+    Fecha/Usuario/Acción/Objeto/IP/Detalle; truncan "Objeto" y
+    "Detalle", las dos columnas de texto libre/variable). Aquí el
+    contenido que cambia entre renders no son grupos distintos sino
+    páginas distintas del mismo paginado: sin ancho fijo, cambiar de
+    página con el paginado podía ensanchar o comprimir columnas según
+    qué tan largos fueran los valores de esa página en particular,
+    perdiendo consistencia visual entre una página y otra. Cualquier
+    tabla paginada nueva con columnas de texto libre debe seguir este
+    mismo patrón desde el principio.
 - **Sidebar de navegación** (`layouts/app.blade.php`) — agrupado por rol
   (Seguimiento, Gestión académica, Catálogos, Informes, Administración),
   colapsable a un panel lateral en móvil mediante Alpine
