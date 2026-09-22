@@ -521,6 +521,67 @@ la app cambia, hay que actualizarla también aquí (ver §2 de
   Corregido implementando `Maatwebsite\Excel\Concerns\WithStrictNullComparison`
   en `ReportSectionSheet`.
 
+### 5.11 Paginación: layout, feedback de carga y rendimiento real
+
+- **Vista de paginación compartida** en
+  `resources/views/vendor/livewire/tailwind.blade.php` (no
+  `vendor/pagination/` — ver el comentario del propio archivo: Livewire
+  pisa la vista por defecto de Laravel en cualquier componente con
+  `WithPagination`, que es el caso de los 5 listados paginados de esta
+  app). Traducida a español y con los tokens de marca; incluye un
+  spinner (`wire:loading`, con `wire:loading.delay` para no parpadear en
+  respuestas muy rápidas) junto al resumen "Mostrando X a Y de Z
+  resultados", y los botones de anterior/siguiente/número de página se
+  deshabilitan (`wire:loading.attr="disabled"`) mientras la petición
+  está en curso — evita doble clic durante la carga y hace visible que
+  algo está pasando, sin depender solo de la percepción.
+- **Umbral estándar (25/página)** vía el trait
+  `App\Livewire\Concerns\HasStandardPagination` — ver también
+  `manual-diseno.md`, sección "Tablas: alineación numérica y
+  paginación".
+- **Índices que faltaban en `audit_logs`** (migración
+  `2026_09_21_..._add_indexes_to_audit_logs_table`): `created_at`
+  (columna del `orderByDesc()` de `AuditLogIndex` y de los filtros
+  `fromFilter`/`toFilter`), `user_id` (filtro por usuario) y `action`
+  (filtro por acción). Ninguna tenía índice — `foreignId()->constrained()`
+  no crea un índice automáticamente en PostgreSQL (a diferencia de
+  MySQL/InnoDB, que sí indexa las columnas de llave foránea). Con los
+  ~170 registros de la base de demostración no se nota ninguna
+  diferencia, pero `audit_logs` es por diseño la tabla que más crece sin
+  límite en el tiempo (de solo escritura, nunca se purga): sin estos
+  índices, tanto el `ORDER BY` como el filtro de fecha habrían
+  terminado haciendo un recorrido secuencial completo de la tabla en
+  producción real. Verificado con `EXPLAIN`: la consulta de la página
+  pasó de un recorrido secuencial + ordenamiento en memoria a un
+  `Index Scan Backward using audit_logs_created_at_index`.
+- **El recálculo del total en cada página es esperado, no un bug.**
+  `paginate()` de Laravel (a diferencia de `simplePaginate()`) ejecuta
+  una consulta `COUNT(*)` en cada carga de página porque necesita
+  `total()` para el texto "de Z resultados" y para pintar los números de
+  página — es el costo inherente de esa función, no algo recalculado de
+  más por error. Cambiar a `simplePaginate()` eliminaría ese costo pero
+  también esas dos capacidades, que si se piden explícitamente en este
+  módulo. El índice de `created_at` sí ayuda al `COUNT(*)` cuando se usa
+  el filtro de fecha (rango con índice de apoyo en vez de recorrido
+  completo); sin filtro de fecha, un `COUNT(*)` sin condición siempre
+  recorre la tabla completa en PostgreSQL (no mantiene un contador de
+  filas cacheado como MyISAM) — a la escala de una sola institución
+  (documentada en todo este manual) esto se mantiene en el orden de
+  milisegundos incluso con decenas de miles de filas, así que no se
+  justificó ninguna solución más compleja (conteos aproximados, caché
+  del total, etc.) solo para este caso.
+- **Consulta de "Acciones" del filtro, cacheada 10 minutos.**
+  `AuditLogIndex::render()` se vuelve a ejecutar en cada interacción del
+  componente, incluido un simple cambio de página — sin caché, la
+  consulta `SELECT DISTINCT action FROM audit_logs` (sin índice de apoyo
+  hasta este mismo cambio) se repetía en cada clic aunque el conjunto de
+  acciones distintas casi nunca cambia (solo cuando se agrega una acción
+  nueva en el código). Envuelta en `Cache::remember(..., now()->addMinutes(10), ...)`
+  — es la única consulta cacheada de las tres que arma esta pantalla:
+  la lista de usuarios del otro filtro ya es barata (una tabla pequeña),
+  y los propios `$logs` (los datos que se filtran) nunca se cachean, se
+  leen siempre en vivo.
+
 ## 6. Comandos útiles
 
 ```bash

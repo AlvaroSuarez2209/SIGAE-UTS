@@ -232,6 +232,21 @@ de forma consistente en los 10 módulos funcionales:
   sidebar tenga un ancho fijo declarado. El scroll horizontal de una tabla
   ancha vive **dentro** de `.table-shell` (`overflow-x-auto` propio), no
   en la página completa.
+  - **Alto, igual: `h-screen`, nunca el alto del contenido.** El
+    contenedor raíz autenticado es `flex h-screen overflow-hidden` — el
+    documento/`<body>` en sí **nunca** hace scroll. `<aside>` es también
+    `h-screen`, con su `<nav>` (la lista de enlaces) como único elemento
+    con `overflow-y-auto` interno; la tarjeta de usuario al final
+    (nombre + "Cerrar sesión") lleva `mt-auto` para quedar anclada al
+    fondo *del sidebar*, no al fondo del documento. `<main>` es el que
+    lleva el scroll vertical real (`flex-1 overflow-y-auto`) — con esto,
+    una página de contenido larga (o una tabla que obliga a scrollear)
+    nunca mueve ni redimensiona el sidebar, que permanece fijo al alto
+    del viewport en todo momento. Antes el contenedor raíz era solo
+    `min-h-screen` (sin `overflow-hidden` ni scroll propio en `<main>`):
+    con contenido más alto que la pantalla, todo el documento scrolleaba
+    junto, y el `<aside>` se estiraba a la altura del contenido en vez de
+    quedarse fijo al viewport.
 - **`<x-confirm-modal>`** — modal de confirmación reutilizable (una sola
   instancia global, incluida en `layouts/app.blade.php`) que reemplaza el
   `confirm()` nativo del navegador en toda la aplicación (cerrar/activar/

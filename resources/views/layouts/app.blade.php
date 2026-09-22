@@ -75,10 +75,13 @@
     @endphp
 
     @auth
-    <div x-data="{ mobileOpen: false }" class="flex min-h-screen">
-        <!-- Sidebar (escritorio) -->
-        <aside class="hidden w-72 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
-            <div class="flex h-20 items-center gap-3 border-b border-border-subtle px-6">
+    <div x-data="{ mobileOpen: false }" class="flex h-screen overflow-hidden">
+        <!-- Sidebar (escritorio): h-screen, nunca la altura del contenido de
+             la página — su propio nav hace scroll interno si hace falta, y
+             la tarjeta de usuario queda anclada al fondo (mt-auto), no al
+             fondo del documento. Ver docs/manual-diseno.md. -->
+        <aside class="hidden h-screen w-72 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
+            <div class="flex h-20 shrink-0 items-center gap-3 border-b border-border-subtle px-6">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3 text-lg font-semibold text-brand-primary">
                     @if ($logoMarkPath)
                         <img src="{{ asset($logoMarkPath) }}" alt="" class="h-9 w-9">
@@ -111,7 +114,7 @@
                 @endforeach
             </nav>
 
-            <div class="border-t border-border-subtle p-5">
+            <div class="mt-auto shrink-0 border-t border-border-subtle p-5">
                 <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
                 <p class="mb-3 truncate text-sm text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
                 <form method="POST" action="{{ route('logout') }}">
@@ -162,7 +165,7 @@
                         </div>
                     @endforeach
                 </nav>
-                <div class="border-t border-border-subtle p-5">
+                <div class="mt-auto border-t border-border-subtle p-5">
                     <p class="truncate text-base font-medium text-text-primary">{{ $user->name }}</p>
                     <form method="POST" action="{{ route('logout') }}" class="mt-2">
                         @csrf
@@ -175,8 +178,13 @@
             </aside>
         </div>
 
-        <div class="flex min-w-0 flex-1 flex-col">
-            <header class="flex h-18 items-center gap-4 border-b border-border-subtle bg-surface px-5 md:hidden">
+        {{-- Columna de contenido: altura de viewport propia, con su propio
+             scroll vertical en <main> — completamente independiente del
+             sidebar (que nunca se mueve ni cambia de tamaño con esto). El
+             scroll horizontal de una tabla ancha se queda dentro de su
+             propio .table-shell (overflow-x-auto), nunca aquí. --}}
+        <div class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+            <header class="flex h-18 shrink-0 items-center gap-4 border-b border-border-subtle bg-surface px-5 md:hidden">
                 <button type="button" @click="mobileOpen = true" aria-label="Abrir menú">
                     <x-icon name="menu" class="h-7 w-7 text-text-secondary" />
                 </button>
@@ -188,7 +196,7 @@
                 </span>
             </header>
 
-            <main class="min-w-0 flex-1 px-6 py-8 sm:px-8 lg:px-10">
+            <main class="min-w-0 flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
                 {{ $slot }}
             </main>
         </div>

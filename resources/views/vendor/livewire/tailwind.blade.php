@@ -44,29 +44,39 @@
                 @if ($paginator->onFirstPage())
                     <span class="btn-secondary cursor-not-allowed opacity-50">Anterior</span>
                 @else
-                    <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" class="btn-secondary">Anterior</button>
+                    <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" wire:loading.class="opacity-50 cursor-not-allowed" class="btn-secondary">Anterior</button>
                 @endif
 
                 @if ($paginator->hasMorePages())
-                    <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" class="btn-secondary">Siguiente</button>
+                    <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" wire:loading.class="opacity-50 cursor-not-allowed" class="btn-secondary">Siguiente</button>
                 @else
                     <span class="btn-secondary cursor-not-allowed opacity-50">Siguiente</span>
                 @endif
             </div>
 
             {{-- Escritorio: resumen + números de página --}}
-            <p class="hidden text-sm text-text-secondary sm:block">
-                Mostrando
-                @if ($paginator->firstItem())
-                    <span class="font-medium text-text-primary">{{ $paginator->firstItem() }}</span>
-                    a
-                    <span class="font-medium text-text-primary">{{ $paginator->lastItem() }}</span>
-                @else
-                    {{ $paginator->count() }}
-                @endif
-                de
-                <span class="font-medium text-text-primary">{{ $paginator->total() }}</span>
-                resultados
+            <p class="hidden items-center gap-2 text-sm text-text-secondary sm:flex">
+                <span>
+                    Mostrando
+                    @if ($paginator->firstItem())
+                        <span class="font-medium text-text-primary">{{ $paginator->firstItem() }}</span>
+                        a
+                        <span class="font-medium text-text-primary">{{ $paginator->lastItem() }}</span>
+                    @else
+                        {{ $paginator->count() }}
+                    @endif
+                    de
+                    <span class="font-medium text-text-primary">{{ $paginator->total() }}</span>
+                    resultados
+                </span>
+
+                {{-- Spinner de carga: visible mientras cualquier acción de este
+                     componente (cambiar de página, pero también un filtro) está
+                     en curso — la tabla bajo la paginación se está actualizando. --}}
+                <span wire:loading wire:loading.delay class="inline-flex items-center gap-1.5 text-brand-primary" role="status" aria-live="polite">
+                    <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand-primary-subtle border-t-brand-primary"></span>
+                    Actualizando…
+                </span>
             </p>
 
             <div class="hidden items-center gap-1 sm:flex">
@@ -76,7 +86,7 @@
                         <x-icon name="chevron-left" class="h-4 w-4" />
                     </span>
                 @else
-                    <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" aria-label="{{ __('pagination.previous') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-text-secondary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+                    <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" wire:loading.class="opacity-50 cursor-not-allowed" aria-label="{{ __('pagination.previous') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-text-secondary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                         <x-icon name="chevron-left" class="h-4 w-4" />
                     </button>
                 @endif
@@ -93,7 +103,7 @@
                                 @if ($page == $paginator->currentPage())
                                     <span aria-current="page" class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-brand-primary text-sm font-semibold text-white">{{ $page }}</span>
                                 @else
-                                    <button type="button" wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" aria-label="Ir a la página {{ $page }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-sm text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">{{ $page }}</button>
+                                    <button type="button" wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" wire:loading.class="opacity-50 cursor-not-allowed" aria-label="Ir a la página {{ $page }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-sm text-text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">{{ $page }}</button>
                                 @endif
                             </span>
                         @endforeach
@@ -102,7 +112,7 @@
 
                 {{-- Siguiente --}}
                 @if ($paginator->hasMorePages())
-                    <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" aria-label="{{ __('pagination.next') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-text-secondary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+                    <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" x-on:click="{{ $scrollIntoViewJsSnippet }}" wire:loading.attr="disabled" wire:loading.class="opacity-50 cursor-not-allowed" aria-label="{{ __('pagination.next') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-subtle text-text-secondary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                         <x-icon name="chevron-right" class="h-4 w-4" />
                     </button>
                 @else
