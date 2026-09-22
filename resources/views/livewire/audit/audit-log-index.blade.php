@@ -43,10 +43,10 @@
             <colgroup>
                 <col class="w-[19%]">
                 <col class="w-[17%]">
-                <col class="w-[22%]">
+                <col class="w-[16%]">
                 <col class="w-[17%]">
                 <col class="w-[8%]">
-                <col class="w-[17%]">
+                <col class="w-[23%]">
             </colgroup>
             <thead>
                 <tr>
