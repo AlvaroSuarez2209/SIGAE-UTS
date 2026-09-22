@@ -752,6 +752,49 @@ por rol.
     montado sin recargar mientras se guarda el formulario de "Mi
     perfil" en la misma página.
 
+### 5.14 Nombre del archivo descargable de los informes: sin datos personales
+
+El nombre del archivo PDF/Excel de un informe (`ReportExportController::fileName()`)
+se arma a partir de `$report['file_identifier']`, **nunca** de
+`$report['title']` — son dos campos deliberadamente separados que
+`ReportBuilder` devuelve para cada uno de los 4 informes (ver el
+docblock de la clase para el detalle completo):
+
+- `title` es lo que se ve en pantalla y dentro del propio documento
+  (PDF/Excel) — puede incluir el nombre completo de una persona sin
+  ningún problema, porque quien lo está viendo ya sabe a quién
+  corresponde el informe que pidió.
+- `file_identifier` es lo único que `Str::slug()` convierte en el
+  nombre del archivo. Solo el informe **individual por docente**
+  identificaba a una persona ahí (el nombre completo del docente); los
+  otros 3 no identifican a ninguna persona en su título — actividad +
+  componente, compromiso transversal, o solo el periodo son
+  información institucional, no personal — así que su
+  `file_identifier` repite el mismo contenido que `title`, sin cambios.
+
+| Informe | Antes (nombre de archivo) | Ahora |
+|---|---|---|
+| Individual por docente | `informe-individual-diego-docente-2026-1.pdf` | `informe-individual-{id_docente}-2026-1.pdf` |
+| Por actividad | `informe-por-actividad-docencia-clases-teoricas-2026-1.pdf` | sin cambios (sin dato personal) |
+| Compromisos transversales | `informe-de-compromisos-transversales-capacitacion-institucional-2026-1.pdf` | sin cambios (sin dato personal) |
+| Consolidado por periodo | `consolidado-del-periodo-2026-1.pdf` | sin cambios (nunca identificó a nadie) |
+
+Separar los dos campos explícitamente (en vez de, por ejemplo,
+anonimizar el nombre solo dentro de `fileName()` con una expresión
+regular) evita que un cambio futuro al texto de `title` — si algún día
+se agrega el nombre de un líder a "Por actividad", por ejemplo — se
+filtre al nombre del archivo sin que nadie lo note: cualquiera que
+edite un `title` tiene que decidir explícitamente qué poner en
+`file_identifier` al mismo tiempo, en la misma línea del código.
+
+**Trazabilidad en pantalla, sin cambios**: las 4 pantallas de informes
+ya mostraban con claridad a qué corresponde cada descarga antes de
+hacer clic — el filtro seleccionado (docente/actividad/compromiso/
+periodo, por nombre) y el título del informe quedan visibles justo al
+lado de los botones "Descargar PDF"/"Descargar Excel" — así que este
+cambio no necesitó ningún ajuste de interfaz para no perder esa
+trazabilidad, solo en el nombre del archivo ya descargado.
+
 ## 6. Comandos útiles
 
 ```bash

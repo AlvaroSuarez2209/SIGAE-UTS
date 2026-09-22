@@ -15,9 +15,27 @@ use App\Services\ComplianceCalculator;
 
 /**
  * Arma los 4 informes mínimos del módulo 9. Cada informe se devuelve como
- * ['title' => ..., 'sections' => [['title', 'headings', 'rows'], ...], 'summary' => [...]]
+ * ['title' => ..., 'file_identifier' => ..., 'sections' => [['title', 'headings', 'rows'], ...], 'summary' => [...]]
  * — la misma estructura sirve para la vista en pantalla, el PDF y el Excel,
  * evitando triplicar la lógica de cada informe por formato de salida.
+ *
+ * `title` es lo que se ve en pantalla y dentro del documento (PDF/Excel) —
+ * puede incluir el nombre completo de una persona sin ningún problema, ya
+ * que ahí el usuario que lo está viendo ya sabe a quién corresponde.
+ * `file_identifier` es un texto aparte, deliberadamente separado de
+ * `title`, que ReportExportController::fileName() convierte en el nombre
+ * del archivo descargable (vía Str::slug()) — cuando el título de un
+ * informe identificaría a una persona (el docente en `teacher()`),
+ * `file_identifier` usa su ID en vez de su nombre, para no dejar un dato
+ * personal identificable en el nombre del archivo aunque el contenido del
+ * documento sí lo muestre con normalidad. Para los otros 3 informes
+ * (`activity()`, `crossCutting()`, `consolidated()`), que no identifican a
+ * ninguna persona en su título (nombre de actividad/componente, de un
+ * compromiso transversal, o de un periodo — información institucional,
+ * no personal), `file_identifier` repite el mismo contenido que `title`.
+ * Separar los dos campos explícitamente evita que un cambio futuro al
+ * texto de `title` (p. ej. si algún día se agrega el nombre de un líder
+ * ahí) se filtre al nombre del archivo sin que nadie lo note.
  *
  * Las horas asignadas solo aparecen como columna informativa; el % de
  * avance (App\Services\ComplianceCalculator) nunca las usa.
@@ -56,6 +74,10 @@ class ReportBuilder
 
         return [
             'title' => "Informe individual — {$teacher->name} ({$period->name})",
+            // El nombre del archivo descargable usa el ID del docente, no su
+            // nombre (dato personal) — ver "file_identifier" en la
+            // documentación de la clase, más abajo.
+            'file_identifier' => "Informe individual {$teacher->id} {$period->name}",
             'sections' => [
                 [
                     'title' => 'Distribución (horas informativas, no determinan entregables)',
@@ -116,6 +138,10 @@ class ReportBuilder
 
         return [
             'title' => "Informe por actividad — {$activity->component->name} / {$activity->name} ({$period->name})",
+            // Sin datos personales (nombre de componente/actividad, no de
+            // ninguna persona) — el archivo puede describirse igual que el
+            // título, sin necesidad de anonimizar.
+            'file_identifier' => "Informe por actividad {$activity->component->name} {$activity->name} {$period->name}",
             'sections' => [
                 [
                     'title' => 'Docentes asignados (horas informativas)',
@@ -170,6 +196,9 @@ class ReportBuilder
 
         return [
             'title' => 'Informe de compromisos transversales — '.($commitment?->name ?? 'Todos').' ('.$period->name.')',
+            // Sin datos personales (nombre del compromiso transversal, una
+            // clasificación institucional, no de ninguna persona).
+            'file_identifier' => 'Informe de compromisos transversales '.($commitment?->name ?? 'Todos').' '.$period->name,
             'sections' => [
                 [
                     'title' => 'Entregables transversales',
@@ -231,6 +260,8 @@ class ReportBuilder
 
         return [
             'title' => "Consolidado del periodo {$period->name}",
+            // Sin datos personales — nunca identifica a ningún docente.
+            'file_identifier' => "Consolidado del periodo {$period->name}",
             'sections' => [
                 [
                     'title' => 'Consolidado por docente / componente / actividad / líder / estado',

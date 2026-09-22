@@ -54,6 +54,14 @@ class ReportBuilderTest extends TestCase
 
         $this->assertEquals('100%', $report['summary']['value']);
         $this->assertStringContainsString('1 de 1', $report['summary']['detail']);
+
+        // El título (para pantalla/documento) sí lleva el nombre; el
+        // identificador de archivo usa el ID en su lugar — dato personal
+        // fuera del nombre del archivo descargable.
+        $this->assertStringContainsString('Ana Docente', $report['title']);
+        $this->assertStringContainsString((string) $teacher->id, $report['file_identifier']);
+        $this->assertStringNotContainsString('Ana', $report['file_identifier']);
+        $this->assertStringNotContainsString('Docente', $report['file_identifier']);
     }
 
     public function test_activity_report_computes_per_teacher_compliance_scoped_to_that_activity(): void
@@ -108,6 +116,33 @@ class ReportBuilderTest extends TestCase
         $names = collect($report['sections'][0]['rows'])->pluck(1);
         $this->assertTrue($names->contains('Encuesta transversal'));
         $this->assertCount(1, $report['sections'][0]['rows']);
+    }
+
+    /**
+     * A diferencia de teacher(), estos 3 informes no identifican a ninguna
+     * persona en su título (actividad/componente, compromiso transversal,
+     * o solo el periodo — información institucional) — así que
+     * file_identifier no necesita anonimizar nada, y describe lo mismo
+     * que title.
+     */
+    public function test_activity_cross_cutting_and_consolidated_reports_have_no_personal_data_to_anonymize_in_the_file_name(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create(['name' => 'Clases teóricas'])->load('component');
+        $commitment = CrossCuttingCommitment::factory()->create(['name' => 'Bienestar']);
+
+        $activityReport = ReportBuilder::activity($activity, $period);
+        $crossCuttingReport = ReportBuilder::crossCutting($period, $commitment);
+        $consolidatedReport = ReportBuilder::consolidated($period);
+
+        $this->assertArrayHasKey('file_identifier', $activityReport);
+        $this->assertStringContainsString('Clases teóricas', $activityReport['file_identifier']);
+
+        $this->assertArrayHasKey('file_identifier', $crossCuttingReport);
+        $this->assertStringContainsString('Bienestar', $crossCuttingReport['file_identifier']);
+
+        $this->assertArrayHasKey('file_identifier', $consolidatedReport);
+        $this->assertEquals($consolidatedReport['title'], $consolidatedReport['file_identifier']);
     }
 
     public function test_consolidated_report_includes_the_leader_covering_each_activity(): void

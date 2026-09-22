@@ -99,16 +99,22 @@ class ReportExportController extends Controller
         // ReportTheme::stampPageNumbers() para el motivo.
         ReportTheme::stampPageNumbers($pdf);
 
-        return $pdf->download($this->fileName($report['title'], 'pdf'));
+        return $pdf->download($this->fileName($report, 'pdf'));
     }
 
     private function excel(array $report)
     {
-        return Excel::download(new ReportExport($report), $this->fileName($report['title'], 'xlsx'));
+        return Excel::download(new ReportExport($report), $this->fileName($report, 'xlsx'));
     }
 
-    private function fileName(string $title, string $extension): string
+    /**
+     * El nombre del archivo se arma a partir de `file_identifier`, nunca de
+     * `title` — ver el docblock de ReportBuilder para el porqué (evitar que
+     * un dato personal como el nombre de un docente quede en el nombre del
+     * archivo, aunque sí aparezca con normalidad dentro del documento).
+     */
+    private function fileName(array $report, string $extension): string
     {
-        return Str::slug($title).'.'.$extension;
+        return Str::slug($report['file_identifier']).'.'.$extension;
     }
 }

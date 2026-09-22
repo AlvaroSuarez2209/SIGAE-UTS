@@ -70,6 +70,40 @@ class ReportAccessTest extends TestCase
         $this->assertEquals('application/pdf', $response->headers->get('content-type'));
     }
 
+    public function test_teacher_report_file_name_uses_the_teacher_id_not_their_name(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher->update(['name' => 'Diego Apellido Docente']);
+        $period = AcademicPeriod::factory()->create(['name' => '2026-1']);
+
+        $pdf = $this->actingAs($admin)
+            ->get("/reports/teacher/pdf?teacher={$teacher->id}&period={$period->id}");
+        $excel = $this->actingAs($admin)
+            ->get("/reports/teacher/excel?teacher={$teacher->id}&period={$period->id}");
+
+        foreach ([$pdf, $excel] as $response) {
+            $disposition = strtolower($response->headers->get('content-disposition'));
+
+            $this->assertStringContainsString("informe-individual-{$teacher->id}-2026-1", $disposition);
+            $this->assertStringNotContainsString('diego', $disposition);
+            $this->assertStringNotContainsString('apellido', $disposition);
+            $this->assertStringNotContainsString('docente', $disposition);
+        }
+    }
+
+    public function test_activity_report_file_name_still_describes_the_activity_no_personal_data_to_anonymize(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['name' => '2026-1']);
+        $activity = Activity::factory()->create(['name' => 'Clases teóricas']);
+
+        $response = $this->actingAs($admin)
+            ->get("/reports/activity/pdf?activity={$activity->id}&period={$period->id}");
+
+        $this->assertStringContainsString('clases-teoricas', $response->headers->get('content-disposition'));
+    }
+
     public function test_consolidated_excel_downloads_as_a_spreadsheet(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
