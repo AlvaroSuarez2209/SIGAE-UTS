@@ -350,6 +350,17 @@ ninguna ruta que permita editarlo o borrarlo).
 | `ip_address` | string(45), nulo | |
 | `created_at` | datetime | Único timestamp de la tabla |
 
+**`action`, `auditable_type` y las claves de `metadata->changes` se
+guardan siempre en inglés/snake_case, a propósito** — es nomenclatura de
+código (y de qué se filtra en el `WHERE`), no texto para mostrar. La
+traducción a español para la pantalla de Auditoría
+(`admin/audit-logs`) vive en un único lugar,
+`App\Services\Audit\AuditLogPresenter`, que la tabla y el filtro
+"Acción" reutilizan por igual — nunca se traduce el valor almacenado.
+Ver `docs/manual-tecnico.md` §5.12 para el detalle completo (qué pasa
+con un valor sin traducción mapeada, por qué "Cuenta desactivada" solo
+aplica a `User` y no a los demás catálogos, campos redactados, etc.).
+
 ## Tablas de infraestructura de Laravel (no son parte del modelo de dominio)
 
 `cache`, `jobs`, `job_batches`, `failed_jobs`, `password_reset_tokens`,

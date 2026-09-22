@@ -225,4 +225,29 @@ class AuditLogTest extends TestCase
         $this->actingAs($coordination)->get('/admin/audit-logs')->assertForbidden();
         $this->actingAs($admin)->get('/admin/audit-logs')->assertOk();
     }
+
+    public function test_audit_log_screen_shows_translated_labels_instead_of_raw_code_values(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create([
+            'action' => 'login',
+            'user_id' => $teacher->id,
+            'auditable_type' => User::class,
+            'auditable_id' => $teacher->id,
+            'created_at' => now(),
+        ]);
+
+        $teacher->update(['is_active' => false]);
+
+        $response = $this->actingAs($admin)->get('/admin/audit-logs');
+
+        $response->assertOk();
+        $response->assertSee('Inició sesión');
+        $response->assertSee('Registro modificado');
+        $response->assertSee('Cuenta desactivada');
+        $response->assertDontSee('is_active');
+        $response->assertDontSee('"changes"');
+    }
 }

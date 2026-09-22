@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Audit\AuditLogPresenter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -49,7 +50,7 @@ class AuditLog extends Model
             return '—';
         }
 
-        $type = class_basename($this->auditable_type);
+        $type = AuditLogPresenter::auditableLabel($this->auditable_type);
 
         if (! $this->auditable) {
             return "{$type} #{$this->auditable_id} (eliminado)";

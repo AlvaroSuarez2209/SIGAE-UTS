@@ -21,8 +21,8 @@
             <label class="field-label">Acción</label>
             <select wire:model.live="actionFilter" class="field-input">
                 <option value="">Todas</option>
-                @foreach ($actions as $action)
-                    <option value="{{ $action }}">{{ $action }}</option>
+                @foreach (\App\Services\Audit\AuditLogPresenter::actionOptions($actions) as $value => $label)
+                    <option value="{{ $value }}">{{ $label }}</option>
                 @endforeach
             </select>
         </div>
@@ -55,13 +55,11 @@
                     <tr wire:key="log-{{ $log->id }}" class="table-row">
                         <td class="table-cell text-text-secondary">{{ $log->created_at->toReadable() }}</td>
                         <td class="table-cell">{{ $log->user->name ?? 'Sistema' }}</td>
-                        <td class="table-cell text-text-secondary">{{ $log->action }}</td>
+                        <td class="table-cell text-text-secondary">{{ \App\Services\Audit\AuditLogPresenter::actionLabel($log->action) }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->auditableLabel() }}</td>
                         <td class="table-cell text-text-secondary">{{ $log->ip_address ?? '—' }}</td>
-                        <td class="table-cell max-w-xs text-xs text-text-secondary">
-                            @if ($log->metadata)
-                                <code class="block break-all">{{ json_encode($log->metadata, JSON_UNESCAPED_UNICODE) }}</code>
-                            @endif
+                        <td class="table-cell max-w-xs text-text-secondary">
+                            {{ \App\Services\Audit\AuditLogPresenter::describeChanges($log) }}
                         </td>
                     </tr>
                 @empty

@@ -582,6 +582,67 @@ la app cambia, hay que actualizarla también aquí (ver §2 de
   y los propios `$logs` (los datos que se filtran) nunca se cachean, se
   leen siempre en vivo.
 
+### 5.12 Traducción de la bitácora de auditoría a lenguaje claro
+
+`audit_logs` guarda `action`, `auditable_type` y las claves de
+`metadata->changes` en inglés/snake_case a propósito (es nomenclatura de
+código, y el filtro de la pantalla compara contra ese valor crudo) — pero
+la bitácora la lee Administración/Coordinación, no un desarrollador.
+`App\Services\Audit\AuditLogPresenter` es el único punto de traducción a
+español, reutilizado tanto por la columna como por el filtro "Acción" de
+`audit-log-index.blade.php`:
+
+- **`actionLabel(string $action): string`** — las 11 acciones que el
+  código realmente registra hoy (`grep -rn "AuditLog::record(" app/`; no
+  solo `created`/`updated`, automáticas del trait `Auditable`, sino
+  también las 5 que cada flujo dispara a mano: `login`, `logout`,
+  `login_failed`, `login_blocked_inactive`,
+  `password_reset_requested`, `password_reset_completed`,
+  `evidence_marked_exempt`, `evidence_marked_overdue`,
+  `evidence_exemption_removed`). Una acción sin traducción mapeada
+  (código futuro que agregue una nueva) se muestra tal cual en inglés en
+  vez de romper o desaparecer — degradación segura, nunca un error.
+- **`actionOptions(iterable $actions): array`** — arma las opciones del
+  `<select>` del filtro a partir de los valores realmente presentes en la
+  tabla (sin cambiar esa consulta, ver §5.11), traduciendo solo la
+  etiqueta visible; el `value` del `<option>` sigue siendo el string
+  crudo en inglés, que es contra lo que compara el `WHERE`.
+- **`auditableLabel(?string $auditableType): ?string`** — traduce el
+  prefijo de la columna "Objeto" (ej. `User` → "Usuario") para los 13
+  modelos que usan el trait `Auditable`
+  (`AcademicPeriod`, `Activity`, `Component`, `CrossCuttingCommitment`,
+  `Deliverable`, `DeliverableTemplate`, `Evidence`, `Leadership`,
+  `ProgramUnit`, `Review`, `Subcomponent`, `TeacherAssignment`, `User`).
+  Un modelo nuevo con el trait que aún no esté en el mapeo muestra su
+  `class_basename()` en inglés (ej. "SomeNewModel") en vez de romper.
+- **`describeChanges(AuditLog $log): string`** — arma la columna
+  "Detalle" en una frase, nunca el JSON crudo de `metadata`:
+  - `is_active` tiene frase propia y **distinta según el modelo**: para
+    `User` es "Cuenta activada"/"Cuenta desactivada" (tiene sentido
+    hablar de "cuenta"); para cualquier otro modelo (los 6 catálogos con
+    `is_active`: `Component`, `Subcomponent`, `Activity`, `ProgramUnit`,
+    `CrossCuttingCommitment`, `DeliverableTemplate`) es
+    "Activado"/"Desactivado", sin la palabra "cuenta" — un catálogo no es
+    una cuenta de acceso.
+  - `password` viene siempre en `redacted_fields` (nunca en `changes`,
+    ver el trait `Auditable`), y se anuncia como "Contraseña
+    actualizada" sin exponer nada del valor — sigue sin mostrarse jamás.
+  - `remember_token` (el otro campo redactado posible) se **suprime por
+    completo**: es un token de sesión sin ningún significado legible
+    para un usuario no técnico, a diferencia de "la contraseña cambió".
+  - Cualquier otro campo usa un respaldo genérico:
+    "`Campo traducido` cambió a `valor`" — el nombre de campo se traduce
+    si está en el mapa de ~35 columnas conocidas (`name`, `email`,
+    `status`, `due_at`, `weight_percentage`, los `_id` de relación,
+    etc.; ver el código fuente para la lista completa) o se deja tal
+    cual (snake_case en inglés) si no lo está — nunca se rompe ni se
+    oculta un campo nuevo. Los booleanos se muestran como "Sí"/"No" (no
+    `true`/`false`) en este respaldo genérico también, no solo en
+    `is_active`.
+  - Si `metadata` no tiene `changes` ni `redacted_fields` (los `login`/
+    `logout`, que no tocan ningún modelo), la columna queda vacía —
+    mismo comportamiento que antes de este cambio.
+
 ## 6. Comandos útiles
 
 ```bash
