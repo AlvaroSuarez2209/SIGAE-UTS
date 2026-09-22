@@ -64,6 +64,12 @@ class Profile extends Component
 
         $user->update(['name' => $data['name']]);
 
+        // Livewire retransmite esto como un CustomEvent de navegador real,
+        // así que cualquier componente Livewire ya montado en la página lo
+        // recibe — no solo un componente "padre" — ver App\Livewire\UserName,
+        // que es quien realmente actualiza el nombre en el sidebar.
+        $this->dispatch('profile-updated');
+
         session()->flash('profileStatus', 'Perfil actualizado correctamente.');
     }
 

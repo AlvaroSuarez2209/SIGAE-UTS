@@ -719,6 +719,38 @@ por rol.
 - Botones "Guardar" en `brand-primary` sólido (`.btn-primary` ya usa
   ese color sólido, sin degradado — el degradado azul→verde queda
   reservado a login/emails, ver `manual-diseno.md` §4).
+- **El nombre en el sidebar se actualiza sin recargar la página —
+  `App\Livewire\UserName`.** `layouts/app.blade.php` NO es en sí mismo
+  un componente Livewire: es el layout que Livewire renderiza una sola
+  vez por carga de página, y en el que luego inserta el "slot" del
+  componente activo (`Profile`, `Dashboard`, etc.) en cada actualización
+  AJAX — un `{{ $user->name }}` puesto directamente ahí nunca se
+  refrescaría solo porque `Profile` actualice su propio HTML. Por eso
+  el nombre se extrajo a su propio componente, `App\Livewire\UserName`,
+  montado dos veces en el layout (`<livewire:user-name key="..." />`,
+  con `key` distinto en escritorio y en el drawer móvil, obligatorio en
+  Livewire al montar el mismo componente más de una vez en la misma
+  página). `Profile::saveProfile()` llama a
+  `$this->dispatch('profile-updated')` tras guardar; Livewire lo
+  retransmite como un `CustomEvent` de navegador real, así que
+  **cualquier** componente Livewire ya montado en la página lo recibe
+  (no hace falta relación padre-hijo) — `UserName::refreshName()`,
+  con el atributo `#[On('profile-updated')]`, es quien reacciona y
+  vuelve a leer `Auth::user()->name`. Roles, el enlace "Mi perfil" y
+  "Cerrar sesión" siguen siendo Blade plano en el layout — no hacía
+  falta moverlos, nada de eso cambia desde "Mi perfil".
+  - **Revisado, no hacía falta el mismo tratamiento en otros lugares**:
+    el único otro sitio del sistema que muestra el nombre del usuario
+    autenticado es el saludo de `dashboard.blade.php`
+    ("Bienvenido, ..."), pero ese es el propio `render()` de
+    `App\Livewire\Dashboard` — se vuelve a consultar la base de datos
+    en cada carga de esa página, y como el proyecto no usa
+    `wire:navigate` en ningún enlace (toda navegación entre pantallas
+    es una carga de página normal), no hay forma de que ese saludo
+    quede desactualizado sin que a la vez ocurra una recarga completa
+    que ya lo refresca solo. Distinto del sidebar, que sí permanece
+    montado sin recargar mientras se guarda el formulario de "Mi
+    perfil" en la misma página.
 
 ## 6. Comandos útiles
 

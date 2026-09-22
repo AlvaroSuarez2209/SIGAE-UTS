@@ -64,6 +64,16 @@ class ProfileTest extends TestCase
         $this->assertEquals('Nombre Nuevo', $user->fresh()->name);
     }
 
+    public function test_saving_the_profile_dispatches_an_event_so_the_sidebar_name_updates_live(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher);
+
+        Livewire::actingAs($user)->test(Profile::class)
+            ->set('name', 'Nombre Nuevo')
+            ->call('saveProfile')
+            ->assertDispatched('profile-updated');
+    }
+
     public function test_document_number_and_email_are_read_only_fields_in_the_view(): void
     {
         $user = $this->userWithRole(RoleName::Teacher);
