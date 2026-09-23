@@ -93,13 +93,14 @@ Esto evita que correr las pruebas borre los datos con los que se está
 navegando la aplicación manualmente (`RefreshDatabase` migra y limpia
 esta base en cada ejecución).
 
-### Correo local (recuperación de contraseña)
+### Correo local (recuperación de contraseña y notificaciones de evidencias)
 
-El sistema envía un correo real cuando un usuario pide restablecer su
-contraseña (pantalla "¿Olvidó su contraseña?"). En local, ese correo se
-entrega a **Mailpit** — un servidor SMTP + bandeja web que ya viene
-incluido con Laragon, sin salir a internet ni depender de credenciales de
-un proveedor externo (Gmail, etc.):
+El sistema envía correos reales en dos casos: cuando un usuario pide
+restablecer su contraseña (pantalla "¿Olvidó su contraseña?") y cuando
+una evidencia cambia de estado (ver 5.15). En local, ambos se entregan a
+**Mailpit** — un servidor SMTP + bandeja web que ya viene incluido con
+Laragon, sin salir a internet ni depender de credenciales de un
+proveedor externo (Gmail, etc.):
 
 ```bash
 # Laragon ya lo trae; solo hace falta arrancarlo (una vez, mientras se use):
@@ -119,6 +120,27 @@ enlace de restablecimiento directamente desde ahí.
 Si Mailpit no está corriendo, `php artisan serve` sigue funcionando con
 normalidad — simplemente el envío del correo fallará silenciosamente en
 segundo plano (no bloquea la respuesta al usuario) y no habrá dónde verlo.
+
+**Las notificaciones de evidencias van en cola — hace falta un worker
+corriendo.** A diferencia del correo de recuperación de contraseña (que
+se envía de inmediato, sin cola), las 9 notificaciones de cambio de
+estado de evidencias (`App\Notifications\Evidence\*`, ver 5.15)
+implementan `ShouldQueue`, para que aprobar/devolver/enviar una evidencia
+no espere a que el correo salga. Los jobs quedan en la tabla `jobs`
+(driver `database`, `QUEUE_CONNECTION=database` por defecto en
+`.env.example`) hasta que algo los procese. En local, eso significa dejar
+corriendo, en una terminal aparte:
+
+```bash
+php artisan queue:work
+# o, en desarrollo, si se prefiere que recargue solo al cambiar código:
+php artisan queue:listen
+```
+
+Sin este comando corriendo, los correos de evidencias quedan encolados
+indefinidamente en la tabla `jobs` y nunca llegan a Mailpit — no fallan,
+simplemente esperan. `php artisan queue:work` los procesa uno a uno tan
+pronto se encolan.
 
 **Importante para un futuro despliegue real:** esta configuración es solo
 para desarrollo local. En un servidor de producción, `MAIL_MAILER` y las
@@ -795,6 +817,77 @@ lado de los botones "Descargar PDF"/"Descargar Excel" — así que este
 cambio no necesitó ningún ajuste de interfaz para no perder esa
 trazabilidad, solo en el nombre del archivo ya descargado.
 
+### 5.15 Notificaciones por correo de cambios de estado de evidencias
+
+Medio adicional de seguimiento para los docentes (requerimiento de la
+dirección del proyecto): cada transición de estado de una evidencia
+envía uno o dos correos, usando Mailpit en local (ver 3, "Correo local")
+y quedando en cola (ver 3, "Las notificaciones de evidencias van en
+cola").
+
+**9 clases, una por combinación transición/destinatario**
+(`App\Notifications\Evidence\*`), todas heredando de la base abstracta
+`EvidenceStatusNotification` (mismo principio que `ReportTheme` para
+PDF/Excel: un único lugar de identidad visual — logo, badge de estado,
+layout — en vez de repetirlo 9 veces):
+
+| Transición | Al docente/actor original | Al otro rol |
+|---|---|---|
+| Enviado | `EvidenceSubmissionConfirmedNotification` | `EvidencePendingReviewNotification` (líder o Coordinación) |
+| Requiere ajustes | `EvidenceReturnConfirmedNotification` (al revisor) | `EvidenceNeedsAdjustmentNotification` (al docente) |
+| Aprobado | `EvidenceApprovalConfirmedNotification` (al revisor) | `EvidenceApprovedNotification` (al docente) |
+| Vencido | — (automático) | `EvidenceOverdueNotification` — **un solo envío, dos destinatarios**: docente y Coordinación |
+| Exento | `EvidenceExemptionConfirmedNotification` (a quien la marcó) | `EvidenceExemptedNotification` (al docente) |
+
+**Enganchada exactamente donde ya ocurre cada transición, nunca por un
+observer genérico de cambios de estado:**
+
+- `Evidence::submitCurrentVersion()`, `Evidence::markExempt()`: el envío
+  vive dentro del propio método del modelo, junto al `update()` del
+  estado — igual patrón que el `AuditLog::record()` que ya hacían.
+- `Evidence::approveCurrentReview()` / `returnCurrentReviewForAdjustment()`
+  (nuevos): antes, `ReviewShow::approve()`/`returnForAdjustment()`
+  actualizaban el estado directamente sobre el modelo (a diferencia de
+  las otras 3 transiciones, que ya eran métodos dedicados) — se
+  refactorizaron a estos dos métodos para que las 5 transiciones queden
+  centralizadas por igual.
+- `MarkOverdueEvidences::handle()`: el envío vive dentro del mismo
+  `foreach` que ya marca cada evidencia como `Vencido`. La consulta del
+  comando ya excluye la evidencia que una corrida anterior dejó en
+  `Expired` (solo selecciona `Pendiente`/`Borrador`), así que ejecutarlo
+  dos veces sobre los mismos datos nunca reenvía el aviso — no hace
+  falta ningún guard adicional.
+
+**Por qué `reopen()` no dispara nada:** `ReviewShow::reopen()` (acción
+excepcional de Administrador para reabrir una evidencia ya aprobada)
+también deja el estado en `NeedsAdjustment` — el mismo valor que produce
+una devolución real. Si la notificación se hubiera enganchado observando
+genéricamente "el estado pasó a NeedsAdjustment" en vez de en el punto
+exacto de `returnCurrentReviewForAdjustment()`, `reopen()` habría
+disparado por error el aviso de "tu evidencia requiere ajustes" — una
+acción sin `Review` asociada y fuera de los 5 escenarios pedidos. Es la
+razón concreta por la que este subsistema evita cualquier forma de
+observer de estado.
+
+**Destinatario "líder" en Enviado/Vencido** (`Evidence::reviewerRecipients()`
+y `Evidence::coordinationUsers()`): un entregable transversal nunca tiene
+líder por diseño (no tiene actividad), y una actividad puede quedarse
+momentáneamente sin nadie liderándola — en ambos casos, Coordinación
+recibe el aviso en su lugar, con el mismo criterio de vigencia de
+liderazgo que ya usa `User::canLeadAssignment()` (liderazgo activo hoy,
+por programa + periodo, con o sin actividad específica).
+
+**Plantilla compartida** (`resources/views/mail/status-notification.blade.php`):
+adaptada de `emails/reset-password.blade.php` (mismo logo incrustado con
+`$message->embed()`, mismo degradado de marca azul→verde reservado para
+momentos "de marca"), quitando el aviso de seguridad y la nota de
+expiración —no aplican aquí— y agregando el badge de estado y el bloque
+de contexto (entregable, actividad/compromiso transversal, periodo). El
+color del badge (`statusBgColor`/`statusTextColor`) viene de
+`ReportTheme::statusTone()` — la misma paleta que ya usan `<x-status-badge>`
+y los informes PDF/Excel, para que el badge del correo nunca quede
+desincronizado si algún día cambia el tono de un estado.
+
 ## 6. Comandos útiles
 
 ```bash
@@ -803,6 +896,8 @@ php artisan migrate:fresh --seed     # reiniciar la base de datos de desarrollo 
 ./vendor/bin/pint                    # aplicar el estilo de código
 npm run dev                          # Vite en modo watch durante desarrollo
 npm run build                        # compilar assets para "producción" local
+php artisan queue:work               # procesar las notificaciones de evidencias encoladas (ver 3 y 5.15)
+php artisan evidences:mark-overdue   # marcar a mano las evidencias vencidas (normalmente vía scheduler, ver 5.7)
 ```
 
 ## 7. Seguridad (repaso, sección 10 de la especificación)

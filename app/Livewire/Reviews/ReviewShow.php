@@ -3,9 +3,7 @@
 namespace App\Livewire\Reviews;
 
 use App\Enums\EvidenceStatus;
-use App\Enums\ReviewDecision;
 use App\Models\Evidence;
-use App\Models\Review;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -40,9 +38,7 @@ class ReviewShow extends Component
             'observation' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $this->recordDecision(ReviewDecision::Approved);
-
-        $this->evidence->update(['status' => EvidenceStatus::Approved]);
+        $this->evidence->approveCurrentReview(auth()->user(), $this->observation ?: null);
 
         session()->flash('status', 'Evidencia aprobada.');
         $this->redirect(route('reviews.index'), navigate: false);
@@ -62,9 +58,7 @@ class ReviewShow extends Component
             'observation.required' => 'La devolución exige una observación explicando qué debe ajustar el docente.',
         ]);
 
-        $this->recordDecision(ReviewDecision::Returned);
-
-        $this->evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+        $this->evidence->returnCurrentReviewForAdjustment(auth()->user(), $this->observation);
 
         session()->flash('status', 'Evidencia devuelta al docente para ajustes.');
         $this->redirect(route('reviews.index'), navigate: false);
@@ -79,20 +73,6 @@ class ReviewShow extends Component
         }
 
         return true;
-    }
-
-    private function recordDecision(ReviewDecision $decision): void
-    {
-        $review = Review::create([
-            'evidence_version_id' => $this->evidence->current_version_id,
-            'reviewer_id' => auth()->id(),
-            'decision' => $decision,
-            'decided_at' => now(),
-        ]);
-
-        if (filled($this->observation)) {
-            $review->observations()->create(['body' => $this->observation]);
-        }
     }
 
     public function reopen(): void

@@ -5,7 +5,9 @@ namespace App\Console\Commands;
 use App\Enums\EvidenceStatus;
 use App\Models\AuditLog;
 use App\Models\Evidence;
+use App\Notifications\Evidence\EvidenceOverdueNotification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Transición automática pendiente/borrador -> vencido. Se ejecuta a diario
@@ -27,7 +29,7 @@ class MarkOverdueEvidences extends Command
         $overdue = Evidence::query()
             ->whereIn('status', [EvidenceStatus::Pending, EvidenceStatus::Draft])
             ->whereHas('deliverable', fn ($query) => $query->where('due_at', '<', now()))
-            ->with('deliverable')
+            ->with(['deliverable', 'user'])
             ->get();
 
         foreach ($overdue as $evidence) {
@@ -43,6 +45,17 @@ class MarkOverdueEvidences extends Command
                 'previous_status' => $previousStatus->value,
                 'due_at' => $evidence->deliverable->due_at->toIso8601String(),
             ]);
+
+            // Docente + Coordinación (seguimiento institucional), sin
+            // duplicar si la misma persona calzara en ambos — ver
+            // Evidence::coordinationUsers(). La consulta de arriba ya
+            // excluye a las evidencias que una corrida anterior dejó en
+            // Expired, así que correr el comando dos veces nunca reenvía
+            // este aviso para la misma evidencia.
+            Notification::send(
+                collect([$evidence->user])->merge(Evidence::coordinationUsers())->unique('id'),
+                new EvidenceOverdueNotification($evidence)
+            );
         }
 
         $this->info("Evidencias marcadas como vencidas: {$overdue->count()}");

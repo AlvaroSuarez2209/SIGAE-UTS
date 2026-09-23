@@ -3,13 +3,24 @@
 namespace App\Models;
 
 use App\Enums\EvidenceStatus;
+use App\Enums\ReviewDecision;
 use App\Enums\RoleName;
 use App\Models\Concerns\Auditable;
+use App\Notifications\Evidence\EvidenceApprovalConfirmedNotification;
+use App\Notifications\Evidence\EvidenceApprovedNotification;
+use App\Notifications\Evidence\EvidenceExemptedNotification;
+use App\Notifications\Evidence\EvidenceExemptionConfirmedNotification;
+use App\Notifications\Evidence\EvidenceNeedsAdjustmentNotification;
+use App\Notifications\Evidence\EvidencePendingReviewNotification;
+use App\Notifications\Evidence\EvidenceReturnConfirmedNotification;
+use App\Notifications\Evidence\EvidenceSubmissionConfirmedNotification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Notification;
 
 class Evidence extends Model
 {
@@ -89,6 +100,50 @@ class Evidence extends Model
     {
         $this->currentVersion->update(['submitted_at' => now()]);
         $this->update(['status' => EvidenceStatus::Submitted]);
+
+        $this->user->notify(new EvidenceSubmissionConfirmedNotification($this));
+        Notification::send($this->reviewerRecipients(), new EvidencePendingReviewNotification($this));
+    }
+
+    /**
+     * Registra la aprobación de una revisión: crea el Review (con su
+     * observación opcional) y mueve el estado, todo en un único punto —
+     * antes vivía inline en ReviewShow::approve(), igual que
+     * returnCurrentReviewForAdjustment() reemplaza a
+     * ReviewShow::returnForAdjustment(). Se centraliza aquí para que las
+     * 5 transiciones de estado (enviar, aprobar, devolver, eximir, quitar
+     * exención) vivan todas en el modelo, en vez de que dos de ellas
+     * queden como excepción sin justificación aparente.
+     */
+    public function approveCurrentReview(User $reviewer, ?string $observation = null): void
+    {
+        $this->recordReview($reviewer, ReviewDecision::Approved, $observation);
+        $this->update(['status' => EvidenceStatus::Approved]);
+
+        $reviewer->notify(new EvidenceApprovalConfirmedNotification($this));
+        $this->user->notify(new EvidenceApprovedNotification($this));
+    }
+
+    public function returnCurrentReviewForAdjustment(User $reviewer, string $observation): void
+    {
+        $this->recordReview($reviewer, ReviewDecision::Returned, $observation);
+        $this->update(['status' => EvidenceStatus::NeedsAdjustment]);
+
+        $reviewer->notify(new EvidenceReturnConfirmedNotification($this));
+        $this->user->notify(new EvidenceNeedsAdjustmentNotification($this));
+    }
+
+    private function recordReview(User $reviewer, ReviewDecision $decision, ?string $observation): void
+    {
+        $review = $this->currentVersion->reviews()->create([
+            'reviewer_id' => $reviewer->id,
+            'decision' => $decision,
+            'decided_at' => now(),
+        ]);
+
+        if (filled($observation)) {
+            $review->observations()->create(['body' => $observation]);
+        }
     }
 
     /**
@@ -110,6 +165,16 @@ class Evidence extends Model
             'justification' => $justification,
             'previous_status' => $previousStatus->value,
         ]);
+
+        // auth()->user() ya es la fuente del actor para el registro de
+        // auditoría de arriba (vía AuditLog::record() -> auth()->id());
+        // se reutiliza aquí por el mismo motivo, en vez de agregar un
+        // parámetro $actor que solo serviría para esto.
+        if (auth()->check()) {
+            auth()->user()->notify(new EvidenceExemptionConfirmedNotification($this));
+        }
+
+        $this->user->notify(new EvidenceExemptedNotification($this));
     }
 
     /**
@@ -189,5 +254,44 @@ class Evidence extends Model
         }
 
         return false;
+    }
+
+    /**
+     * A quién avisar por correo cuando esta evidencia se envía: los
+     * líderes vigentes del ámbito (actividad + programa + periodo) de
+     * esta evidencia, igual criterio de vigencia que
+     * User::canLeadAssignment(). Si el entregable es transversal (no
+     * tiene actividad, luego nunca tiene líder por diseño) o si nadie
+     * cubre ese ámbito en este momento, cae a Coordinación — para que
+     * ninguna evidencia enviada se quede sin que nadie se entere.
+     */
+    public function reviewerRecipients(): Collection
+    {
+        $assignment = $this->matchingTeacherAssignment();
+
+        $leaders = $assignment
+            ? User::whereHas('leaderships', fn ($query) => $query
+                ->where('academic_period_id', $assignment->academic_period_id)
+                ->where('program_unit_id', $assignment->program_unit_id)
+                ->where(fn ($q) => $q->whereNull('activity_id')->orWhere('activity_id', $assignment->activity_id))
+                ->where('starts_at', '<=', now())
+                ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', now())))
+                ->get()
+            : collect();
+
+        $recipients = $leaders->isEmpty() ? self::coordinationUsers() : $leaders;
+
+        // Defensivo: si la misma persona es a la vez el docente dueño de
+        // la evidencia y líder/coordinación de su propio ámbito, no debe
+        // notificarse a sí misma como revisora (mismo principio de
+        // isReviewableBy(): nadie revisa su propia evidencia).
+        return $recipients->reject(fn (User $user) => $user->id === $this->user_id)->values();
+    }
+
+    public static function coordinationUsers(): Collection
+    {
+        return User::whereHas('roles', fn ($query) => $query->where('name', RoleName::Coordination->value))
+            ->where('is_active', true)
+            ->get();
     }
 }

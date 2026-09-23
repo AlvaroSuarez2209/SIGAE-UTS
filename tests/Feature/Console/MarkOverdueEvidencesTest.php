@@ -3,11 +3,16 @@
 namespace Tests\Feature\Console;
 
 use App\Enums\EvidenceStatus;
+use App\Enums\RoleName;
 use App\Models\AuditLog;
 use App\Models\Deliverable;
 use App\Models\Evidence;
+use App\Models\Role;
+use App\Models\User;
+use App\Notifications\Evidence\EvidenceOverdueNotification;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class MarkOverdueEvidencesTest extends TestCase
@@ -71,5 +76,49 @@ class MarkOverdueEvidencesTest extends TestCase
         $this->assertNotNull($log);
         $this->assertNull($log->user_id);
         $this->assertEquals('pending', $log->metadata['previous_status']);
+    }
+
+    private function userWithRole(RoleName $role): User
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $user->roles()->attach(Role::where('name', $role->value)->first());
+
+        return $user;
+    }
+
+    public function test_notifies_the_teacher_and_coordination_when_an_evidence_becomes_overdue(): void
+    {
+        Notification::fake();
+
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $overdueDeliverable = Deliverable::factory()->create(['due_at' => now()->subDay()]);
+        $evidence = Evidence::factory()->create([
+            'deliverable_id' => $overdueDeliverable->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        $this->artisan('evidences:mark-overdue');
+
+        Notification::assertSentTo($evidence->user, EvidenceOverdueNotification::class);
+        Notification::assertSentTo($coordination, EvidenceOverdueNotification::class);
+    }
+
+    /**
+     * La consulta del comando ya excluye las evidencias que una corrida
+     * anterior dejó en Expired, así que ejecutarlo dos veces sobre la
+     * misma evidencia no debe reenviar el aviso.
+     */
+    public function test_running_the_command_twice_does_not_send_duplicate_notifications(): void
+    {
+        $overdueDeliverable = Deliverable::factory()->create(['due_at' => now()->subDay()]);
+        Evidence::factory()->create(['deliverable_id' => $overdueDeliverable->id, 'status' => EvidenceStatus::Pending]);
+
+        $this->artisan('evidences:mark-overdue');
+
+        Notification::fake();
+
+        $this->artisan('evidences:mark-overdue');
+
+        Notification::assertNothingSent();
     }
 }
