@@ -48,13 +48,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Copiar primero solo los manifiestos para aprovechar la caché de capas de
-# Docker — "composer install" solo se repite si composer.lock cambia,
-# no en cada cambio de código de la aplicación.
+# Docker — esta instalación de dependencias solo se repite si
+# composer.lock cambia, no en cada cambio de código de la aplicación.
+# --no-scripts es obligatorio aquí: composer.json dispara
+# "post-autoload-dump" -> "php artisan package:discover" automáticamente,
+# y en este punto todavía no existe "artisan" (recién llega con el
+# COPY . . de abajo) — sin --no-scripts, ese hook falla con
+# "Could not open input file: artisan" y aborta todo el build.
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction
 
 COPY . .
 COPY --from=assets /app/public/build public/build
+
+# Recién ahora, con "artisan" y el resto de la app ya presentes, se genera
+# el autoload optimizado — esto sí dispara "post-autoload-dump" (y por lo
+# tanto "package:discover"), y esta vez encuentra "artisan" sin problema.
+RUN composer dump-autoload --optimize --no-interaction
 
 # storage/ y bootstrap/cache/ deben quedar escribibles por el usuario con
 # el que corre la app (ver USER más abajo) — logs, sesiones, vistas
