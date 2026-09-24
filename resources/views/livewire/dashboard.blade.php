@@ -1,7 +1,7 @@
 <div class="space-y-8">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="page-title">Bienvenido, {{ auth()->user()->name }}</h1>
+            <h1 class="page-title">Bienvenido, <span class="text-brand-primary">{{ auth()->user()->name }}</span></h1>
             <p class="text-sm text-text-secondary">
                 Roles: {{ auth()->user()->roles->pluck('label')->join(', ') ?: 'Sin roles asignados' }}
             </p>

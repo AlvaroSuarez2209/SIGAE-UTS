@@ -12,15 +12,6 @@
 </head>
 <body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased">
     @php
-        // Isotipo pequeño: usa una versión propia (crisp) para tamaño de ícono si existe,
-        // el logo-mark original si no, o nada si aún no se ha colocado el logo real.
-        $logoMarkPath = collect([
-            'images/logo/logo-mark-icon.svg',
-            'images/logo/logo-mark-icon.png',
-            'images/logo/logo-mark.svg',
-            'images/logo/logo-mark.png',
-        ])->first(fn ($path) => file_exists(public_path($path)));
-
         $user = auth()->user();
         $isAdmin = $user?->hasRole(\App\Enums\RoleName::Administrator) ?? false;
         $isCoordination = $user?->hasAnyRole(['administrator', 'coordination']) ?? false;
@@ -83,9 +74,7 @@
         <aside class="hidden h-screen w-72 shrink-0 flex-col border-r border-border-subtle bg-surface md:flex">
             <div class="flex h-20 shrink-0 items-center gap-3 border-b border-border-subtle px-6">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-3 text-lg font-semibold text-brand-primary">
-                    @if ($logoMarkPath)
-                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-9 w-9">
-                    @endif
+                    <x-logo-mark class="h-9 w-9" />
                     SIGAE-UTS
                 </a>
             </div>
@@ -100,7 +89,7 @@
                                 <a
                                     href="{{ route($link['route']) }}"
                                     @class([
-                                        'flex items-center gap-3 rounded-md border-l-2 px-3 py-2.5 text-base font-medium',
+                                        'flex items-center gap-3 rounded-md border-l-4 px-3 py-2.5 text-base font-medium',
                                         'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
                                         'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                     ])
@@ -137,9 +126,7 @@
             <aside class="fixed inset-y-0 left-0 flex w-72 flex-col bg-surface shadow-xl">
                 <div class="flex h-20 items-center justify-between border-b border-border-subtle px-6">
                     <span class="flex items-center gap-3 text-lg font-semibold text-brand-primary">
-                        @if ($logoMarkPath)
-                            <img src="{{ asset($logoMarkPath) }}" alt="" class="h-9 w-9">
-                        @endif
+                        <x-logo-mark class="h-9 w-9" />
                         SIGAE-UTS
                     </span>
                     <button type="button" @click="mobileOpen = false" aria-label="Cerrar menú">
@@ -156,7 +143,7 @@
                                     <a
                                         href="{{ route($link['route']) }}"
                                         @class([
-                                            'flex items-center gap-3 rounded-md border-l-2 px-3 py-2.5 text-base font-medium',
+                                            'flex items-center gap-3 rounded-md border-l-4 px-3 py-2.5 text-base font-medium',
                                             'border-l-brand-primary bg-brand-primary-subtle text-brand-primary' => $active,
                                             'border-l-transparent text-text-primary hover:bg-surface-muted' => ! $active,
                                         ])
@@ -197,9 +184,7 @@
                     <x-icon name="menu" class="h-7 w-7 text-text-secondary" />
                 </button>
                 <span class="flex items-center gap-2 text-lg font-semibold text-brand-primary">
-                    @if ($logoMarkPath)
-                        <img src="{{ asset($logoMarkPath) }}" alt="" class="h-8 w-8">
-                    @endif
+                    <x-logo-mark class="h-8 w-8" />
                     SIGAE-UTS
                 </span>
             </header>
