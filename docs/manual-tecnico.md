@@ -989,13 +989,28 @@ sección toca `.env` ni la configuración local.
   concurrencia.
 - **`docker/start.sh`**: el comando que realmente arranca el contenedor.
   Corre `config:cache`/`route:cache`/`view:cache` y **`php artisan
-  migrate --force`** con las variables de entorno reales de Render ya
-  presentes (nunca en tiempo de build, ahí todavía no existen), y recién
-  después levanta `php artisan serve --host=0.0.0.0 --port=$PORT` — la
-  variable que Render asigna en tiempo de ejecución. `migrate --force`
-  corriendo en cada arranque es seguro: Laravel solo aplica las
-  migraciones pendientes, así que un segundo despliegue no vuelve a
-  ejecutar las que ya corrieron.
+  migrate --force --database=pgsql_migrate`** con las variables de
+  entorno reales de Render ya presentes (nunca en tiempo de build, ahí
+  todavía no existen), y recién después levanta `php artisan serve
+  --host=0.0.0.0 --port=$PORT` — la variable que Render asigna en tiempo
+  de ejecución. `migrate --force` corriendo en cada arranque es seguro:
+  Laravel solo aplica las migraciones pendientes, así que un segundo
+  despliegue no vuelve a ejecutar las que ya corrieron.
+- **Migraciones por la conexión directa de Neon, no la pooled**: el resto
+  de la app usa `DB_HOST` (el host `-pooler` de Neon) a través de la
+  conexión `pgsql`, pero `migrate` usa una conexión aparte,
+  `pgsql_migrate` (`config/database.php`), que apunta a `DB_HOST_MIGRATE`
+  — el host de Neon **sin** `-pooler`. El pooler de Neon corre PgBouncer
+  en modo *transaction pooling*, que puede reasignar la sesión de
+  backend real entre una transacción y la siguiente; esto causó un fallo
+  real y reproducible en el primer despliegue de pruebas (la primerísima
+  migración, `create_users_table`, fallaba siempre igual, con el
+  síntoma clásico de Postgres "current transaction is aborted" — el
+  mensaje genérico que aparece en *cualquier* sentencia posterior a la
+  que realmente falló dentro de la misma transacción). Sin
+  `DB_HOST_MIGRATE` definido (como en local, donde no existe ningún
+  pooler), `pgsql_migrate` cae al mismo `DB_HOST` de siempre — el
+  comportamiento local no cambia.
 - **Sin worker de colas persistente**: el plan gratuito de Render no
   ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
   `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
@@ -1031,7 +1046,11 @@ no ir y venir entre paneles:
    `config/database.php` toma el modo de `DB_SSLMODE` (`env('DB_SSLMODE',
    'prefer')`, con `'prefer'` de respaldo para que el local, que no lo
    define, siga sin SSL como siempre); en Render hay que fijar
-   explícitamente `DB_SSLMODE=require`.
+   explícitamente `DB_SSLMODE=require`. El panel de Neon muestra **dos**
+   connection strings, "Pooled connection" y una directa sin el sufijo
+   `-pooler` en el host — `DB_HOST` es el primero (pooled, para toda la
+   app); `DB_HOST_MIGRATE` es el segundo (directo, solo para
+   `migrate --force`, ver 8.1).
 2. **Brevo**: crear la cuenta y una clave SMTP — de ahí salen
    `MAIL_USERNAME` y `MAIL_PASSWORD` (`MAIL_HOST=smtp-relay.brevo.com`,
    `MAIL_PORT=587` ya son fijos).

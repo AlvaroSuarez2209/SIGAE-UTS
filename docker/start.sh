@@ -20,7 +20,11 @@ php artisan view:cache
 # Migra la base de Neon automáticamente en cada arranque — idempotente
 # (Laravel solo corre las migraciones pendientes), así que es seguro que
 # esto se repita en cada despliegue, no solo en el primero.
-php artisan migrate --force
+#
+# --database=pgsql_migrate: la conexión directa a Neon (sin "-pooler"),
+# nunca la pooled que usa el resto de la app — ver config/database.php y
+# "Despliegue en entorno de pruebas" en docs/manual-tecnico.md.
+php artisan migrate --force --database=pgsql_migrate
 
 # Render decide el puerto real vía $PORT en tiempo de ejecución; 8080 es
 # solo el valor de respaldo si esa variable no llegara a existir.
