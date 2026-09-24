@@ -26,6 +26,17 @@ php artisan view:cache
 # "Despliegue en entorno de pruebas" en docs/manual-tecnico.md.
 php artisan migrate --force --database=pgsql_migrate
 
+# Siembra el rol Administrador y el usuario admin@uts.edu.co UNA sola vez
+# — db:seed-if-empty comprueba que la tabla users esté vacía antes de
+# correr db:seed, así que reiniciar el contenedor (Render lo hace cada
+# vez que el plan gratuito lo "despierta" tras inactividad) nunca vuelve
+# a sembrar. Corre por la conexión pooled normal (sin --database=
+# pgsql_migrate): son INSERT simples, no DDL, así que no tienen el
+# problema de transacciones que sí tenía migrate. Ver
+# App\Console\Commands\SeedIfEmpty y "Despliegue en entorno de pruebas"
+# en docs/manual-tecnico.md.
+php artisan db:seed-if-empty
+
 # Render decide el puerto real vía $PORT en tiempo de ejecución; 8080 es
 # solo el valor de respaldo si esa variable no llegara a existir.
 exec php artisan serve --host=0.0.0.0 --port="${PORT:-8080}"

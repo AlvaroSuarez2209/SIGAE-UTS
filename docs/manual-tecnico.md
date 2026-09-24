@@ -1033,6 +1033,22 @@ sección toca `.env` ni la configuración local.
   `DB_HOST_MIGRATE` definido (como en local, donde no existe ningún
   pooler), `pgsql_migrate` cae al mismo `DB_HOST` de siempre — el
   comportamiento local no cambia.
+- **Seed solo la primera vez (`php artisan db:seed-if-empty`,
+  `App\Console\Commands\SeedIfEmpty`)**: siembra el rol Administrador y
+  `admin@uts.edu.co` (`DatabaseSeeder`, que en este entorno solo corre
+  `RoleSeeder` y `UserSeeder` — ver 5.7 y el commit de reseed) **solo si
+  la tabla `users` está vacía**. Hace falta esta guarda porque Render, en
+  el plan gratuito, reinicia el contenedor cada vez que lo "despierta"
+  tras un período de inactividad — sin ella, `db:seed` volvería a correr
+  en cada arranque. No usa un archivo marcador en el disco del contenedor
+  (ej. `storage/.seeded`): al "despertar", Render puede recrear el
+  contenedor desde la imagen, sin garantía de que sea el mismo disco de
+  antes de dormirse — la única fuente de verdad que persiste de verdad
+  entre arranques es la base de datos en Neon, así que `users` vacía o no
+  es la señal correcta. Corre por la conexión pooled normal (`pgsql`, sin
+  `--database=pgsql_migrate`): son `INSERT` simples vía `firstOrCreate()`,
+  no DDL, así que no tienen el problema de transacciones que sí tenía
+  `migrate`.
 - **Sin worker de colas persistente**: el plan gratuito de Render no
   ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
   `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
