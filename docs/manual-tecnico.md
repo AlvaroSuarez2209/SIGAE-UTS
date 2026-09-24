@@ -204,6 +204,10 @@ una ruta de página completa (`routes/web.php`).
   `submitCurrentVersion()`: implementan el versionado (cada ajuste tras
   una devolución genera una versión nueva; la versión enviada queda
   protegida).
+- `App\Services\PasswordPolicy`: única definición de la complejidad mínima
+  de contraseña (8 caracteres, mayúscula, minúscula, número), compartida
+  por "Mi perfil", "Usuarios" (Administrador) y "olvidé mi contraseña" —
+  antes cada ruta mantenía su propia regla por separado.
 - `App\Models\Concerns\Auditable` (trait): registra automáticamente
   creación/edición en los modelos administrativos en `audit_logs`, sin
   instrumentar cada componente a mano. Se desactiva únicamente durante
@@ -216,6 +220,17 @@ Cada archivo se guarda con un nombre aleatorio (`stored_name`); el
 nombre original se conserva aparte para mostrarlo al usuario. Las
 descargas pasan siempre por `EvidenceFileDownloadController`, que
 verifica permisos en cada solicitud vía `EvidenceFilePolicy`.
+
+**Extensiones permitidas, con una whitelist por defecto.** El campo
+"Formatos de archivo permitidos" de un entregable (`DeliverableForm`) es
+opcional — pero dejarlo vacío nunca significa "cualquier extensión es
+válida". `EvidenceWorkspace::fileValidationRules()` arma la regla
+`mimes:` a partir de `Deliverable::effectiveAllowedFileTypes()`, que
+aplica `Deliverable::DEFAULT_ALLOWED_FILE_TYPES`
+(`pdf, doc, docx, jpg, jpeg, png`) cuando el entregable admite evidencia
+tipo "Archivo"/"Múltiples archivos" y no se configuró explícitamente
+ninguna extensión. La regla `mimes:` de Laravel valida el tipo real del
+contenido (vía `finfo`), no solo la extensión del nombre de archivo.
 
 ### 5.5 Zona horaria
 
@@ -719,21 +734,20 @@ por rol.
   petición de Livewire a mano para escribir en `document_number`/
   `email` esos valores llegarían a persistirse, porque `update()` no
   los toca en absoluto (no es solo un candado de interfaz).
-- **Contraseña nueva: requisitos de complejidad, no solo `min:8`.**
-  "Editar usuario" (un Administrador fijando la contraseña de otra
-  persona) solo exige `min:8`. Aquí, al ser el propio usuario
-  escogiendo su contraseña —el mismo tipo de evento que un
-  restablecimiento por correo (`ResetPassword`)— se exige la regla
-  `Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()`
-  en vez de solo `min:8`, más cerca de la política real de contraseñas
-  del sistema. **No es 100% idéntica** a la de `ResetPassword` (que
-  exige mayúscula + minúscula + **número o símbolo**, con un checklist
-  visual en vivo): la regla nativa de Laravel usada aquí exige mayúscula
-  + minúscula + número específicamente (un símbolo solo no basta), y no
-  incluye el checklist visual — decisión deliberada para no construir
-  una regla de validación a medida ni replicar esa UI solo para esta
-  pantalla; si se requiere paridad exacta, replicar la regla de
-  `ResetPassword`.
+- **Contraseña nueva: una única política compartida
+  (`App\Services\PasswordPolicy::rules()`).** Las 3 rutas que crean o
+  cambian una contraseña —aquí, "Editar usuario" (un Administrador
+  fijando la de otra persona) y `ResetPassword` (restablecimiento por
+  correo)— exigen exactamente la misma regla:
+  `Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()`.
+  Antes cada una tenía su propia definición por separado —"Editar
+  usuario" solo pedía `min:8`, y `ResetPassword` una implementación
+  manual ligeramente distinta (número **o símbolo**, en vez de número
+  específicamente)— con el riesgo de que las 3 se desincronizaran en
+  silencio; ahora un cambio a la política se hace en un único lugar.
+  `ResetPassword` sigue teniendo su propio checklist visual en vivo (ver
+  abajo), pero es solo la traducción campo-por-campo de esta misma
+  política, no una segunda definición.
 - **`current_password` (regla nativa de Laravel)** valida "Contraseña
   actual" contra el hash ya guardado del usuario autenticado, sin
   ninguna consulta manual — mensaje ya traducido
@@ -905,8 +919,10 @@ php artisan evidences:mark-overdue   # marcar a mano las evidencias vencidas (no
 | Requisito | Cómo se cumple |
 |---|---|
 | Hash seguro de contraseñas | Cast `'password' => 'hashed'` de Laravel (bcrypt) |
-| HTTPS en producción | No aplica en este entorno 100% local (se documenta como requisito para un despliegue real; en local se usa HTTP) |
+| HTTPS en producción | No aplica en este entorno 100% local (en local se usa HTTP) — checklist de variables a cambiar antes de un despliegue real en 7.1 |
 | Expiración de sesión por inactividad | `SESSION_LIFETIME` (config/session.php), sesión en base de datos |
+| Cookie de sesión solo por HTTPS | `SESSION_SECURE_COOKIE` — `false` en local, debe pasar a `true` antes de un despliegue real (ver 7.1) |
+| Complejidad mínima de contraseña | `App\Services\PasswordPolicy::rules()`, única definición compartida por las 3 rutas que crean o cambian una contraseña (ver 5.3) |
 | Protección CSRF | Middleware `VerifyCsrfToken` de Laravel (activo por defecto en el grupo `web`) |
 | Validación de entradas en servidor | `$this->validate()` en cada componente Livewire que recibe datos |
 | Prevención de inyección SQL | Eloquent/Query Builder en todo el proyecto; no hay una sola consulta SQL cruda con datos de usuario (el único `DB::statement` es el `CHECK` constraint de `deliverables`, con una cadena fija, no con datos de usuario) |
@@ -914,6 +930,28 @@ php artisan evidences:mark-overdue   # marcar a mano las evidencias vencidas (no
 | Descarga con verificación de permisos | `EvidenceFileDownloadController` + `EvidenceFilePolicy`, en cada solicitud |
 | Secretos en variables de entorno | Todo en `.env` / `.env.testing`, ambos excluidos de Git (`.gitignore`) |
 | Bitácora de auditoría | Módulo 10 — ver diccionario de datos, tabla `audit_logs` |
+
+### 7.1 Checklist de despliegue
+
+Variables de `.env` que solo son correctas en local y **deben** cambiar
+antes de cualquier despliegue con HTTPS real — nada de esto es
+automático, es responsabilidad de quien despliegue revisarlo:
+
+- **`APP_DEBUG=false`** — con `true` en producción, cualquier error 500
+  expone el stack trace completo (rutas del servidor, y potencialmente
+  valores ya cargados del `.env`) a quien lo provoque.
+- **`APP_ENV=production`**.
+- **`SESSION_SECURE_COOKIE=true`** — en `false` (correcto en local, sin
+  HTTPS), la cookie de sesión nunca lleva el flag `Secure`, ni siquiera
+  si el sitio ya sirve por HTTPS.
+- **`MAIL_MAILER` y credenciales de correo**, apuntando a un proveedor
+  real (relay SMTP institucional, Amazon SES, Mailgun, Postmark...) en
+  vez de Mailpit — ver 3, "Correo local".
+- El cron del sistema operativo apuntando a `schedule:run` cada minuto
+  (`evidences:mark-overdue` no se dispara solo sin esto) — ver 5.7.
+- Un proceso supervisado (Supervisor, systemd, etc.) corriendo
+  `php artisan queue:work` de forma persistente — ver 3, "Las
+  notificaciones de evidencias van en cola".
 
 ## 8. Alcance explícitamente fuera de este proyecto
 

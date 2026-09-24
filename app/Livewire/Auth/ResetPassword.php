@@ -4,10 +4,12 @@ namespace App\Livewire\Auth;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\PasswordPolicy;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -55,9 +57,16 @@ class ResetPassword extends Component
         return (bool) preg_match('/\p{Ll}/u', $this->password);
     }
 
-    public function hasNumberOrSymbol(): bool
+    /**
+     * Mismo criterio que el `numbers()` de PasswordPolicy::rules()
+     * (`preg_match('/\pN/u', ...)` — cualquier dígito Unicode, no solo
+     * ASCII) — este checklist en vivo es solo la traducción visual, campo
+     * por campo, de esa misma política única; nunca una segunda regla que
+     * pueda desalinearse de la real (ver el gate en resetPassword()).
+     */
+    public function hasNumber(): bool
     {
-        return (bool) preg_match('/[0-9]|[^\p{L}\p{N}]/u', $this->password);
+        return (bool) preg_match('/\pN/u', $this->password);
     }
 
     /**
@@ -69,7 +78,7 @@ class ResetPassword extends Component
             ['label' => 'Mínimo 8 caracteres', 'met' => $this->meetsLength()],
             ['label' => 'Una letra mayúscula', 'met' => $this->hasUppercase()],
             ['label' => 'Una letra minúscula', 'met' => $this->hasLowercase()],
-            ['label' => 'Un número o símbolo', 'met' => $this->hasNumberOrSymbol()],
+            ['label' => 'Un número', 'met' => $this->hasNumber()],
         ];
     }
 
@@ -133,6 +142,17 @@ class ResetPassword extends Component
         // un enlace inválido, sin necesidad de validarlo aquí como si fuera
         // un campo de formulario.
         if (! $this->meetsAllRequirements() || $this->confirmationError() !== null) {
+            return;
+        }
+
+        // meetsAllRequirements() de arriba ya replica, campo por campo, los
+        // mismos 3 requisitos para el checklist en vivo — este es el punto
+        // que efectivamente autoriza el cambio, aplicando la política real
+        // (PasswordPolicy::rules(), la misma que Profile y UserForm) en vez
+        // de confiar solo en las comprobaciones manuales.
+        if (Validator::make(['password' => $this->password], ['password' => PasswordPolicy::rules()])->fails()) {
+            $this->genericError = 'La contraseña no cumple los requisitos mínimos.';
+
             return;
         }
 

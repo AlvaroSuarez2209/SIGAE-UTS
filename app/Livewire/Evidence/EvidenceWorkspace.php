@@ -50,13 +50,15 @@ class EvidenceWorkspace extends Component
     private function fileValidationRules(): array
     {
         $deliverable = $this->evidence->deliverable;
-        $rules = ['file', 'max:'.($deliverable->max_file_size_mb * 1024)];
 
-        if (! empty($deliverable->allowed_file_types)) {
-            $rules[] = 'mimes:'.implode(',', $deliverable->allowed_file_types);
-        }
-
-        return $rules;
+        // Siempre hay una whitelist de extensiones — nunca "cualquier
+        // archivo" solo porque Administración/Coordinación dejó el campo
+        // sin configurar. Ver Deliverable::effectiveAllowedFileTypes().
+        return [
+            'file',
+            'max:'.($deliverable->max_file_size_mb * 1024),
+            'mimes:'.implode(',', $deliverable->effectiveAllowedFileTypes()),
+        ];
     }
 
     public function saveDraft(): bool

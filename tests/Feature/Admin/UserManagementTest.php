@@ -66,7 +66,7 @@ class UserManagementTest extends TestCase
             ->test(UserForm::class)
             ->set('name', 'Nuevo Docente')
             ->set('email', 'nuevo.docente@sigae.local')
-            ->set('password', 'password123')
+            ->set('password', 'Password123')
             ->set('selectedRoles', [RoleName::Teacher->value])
             ->call('save')
             ->assertRedirect(route('admin.users.index'));
@@ -85,10 +85,26 @@ class UserManagementTest extends TestCase
             ->test(UserForm::class)
             ->set('name', 'Sin Rol')
             ->set('email', 'sinrol@sigae.local')
-            ->set('password', 'password123')
+            ->set('password', 'Password123')
             ->set('selectedRoles', [])
             ->call('save')
             ->assertHasErrors('selectedRoles');
+    }
+
+    public function test_creating_a_user_with_a_weak_password_fails_validation(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('name', 'Nuevo Docente')
+            ->set('email', 'otro.docente@sigae.local')
+            ->set('password', 'password123')
+            ->set('selectedRoles', [RoleName::Teacher->value])
+            ->call('save')
+            ->assertHasErrors('password');
+
+        $this->assertDatabaseMissing('users', ['email' => 'otro.docente@sigae.local']);
     }
 
     public function test_password_is_optional_when_editing_an_existing_user(): void

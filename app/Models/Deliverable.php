@@ -18,6 +18,16 @@ class Deliverable extends Model
 {
     use Auditable, HasFactory;
 
+    /**
+     * Whitelist aplicada cuando este entregable admite evidencia tipo
+     * "Archivo"/"Múltiples archivos" pero Administración/Coordinación
+     * dejó `allowed_file_types` sin configurar (campo opcional, ver
+     * DeliverableForm) — nunca se debe interpretar "sin configurar" como
+     * "cualquier extensión es válida". Ver effectiveAllowedFileTypes() y
+     * la sección de subida de archivos en docs/manual-tecnico.md.
+     */
+    public const DEFAULT_ALLOWED_FILE_TYPES = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+
     protected $fillable = [
         'deliverable_template_id',
         'academic_period_id',
@@ -85,6 +95,17 @@ class Deliverable extends Model
     public function isCrossCutting(): bool
     {
         return $this->activity_id === null;
+    }
+
+    /**
+     * Extensiones realmente aceptadas al validar un archivo subido: las
+     * configuradas explícitamente, o DEFAULT_ALLOWED_FILE_TYPES si el
+     * campo quedó vacío. Nunca hay que leer `allowed_file_types` a secas
+     * para decidir la regla `mimes:` — ver EvidenceWorkspace::fileValidationRules().
+     */
+    public function effectiveAllowedFileTypes(): array
+    {
+        return ! empty($this->allowed_file_types) ? $this->allowed_file_types : self::DEFAULT_ALLOWED_FILE_TYPES;
     }
 
     /**

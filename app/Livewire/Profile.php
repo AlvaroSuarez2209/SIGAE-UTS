@@ -2,9 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Services\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -81,7 +81,7 @@ class Profile extends Component
 
         $data = $this->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
+            'password' => ['required', 'confirmed', PasswordPolicy::rules()],
         ]);
 
         $user->update(['password' => Hash::make($data['password'])]);

@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Users;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\PasswordPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -54,7 +55,7 @@ class UserForm extends Component
             'name' => ['required', 'string', 'max:255'],
             'document_number' => ['nullable', 'string', 'max:50', Rule::unique('users', 'document_number')->ignore($this->user)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user)],
-            'password' => [$this->user ? 'nullable' : 'required', 'string', 'min:8'],
+            'password' => [$this->user ? 'nullable' : 'required', PasswordPolicy::rules()],
             'is_active' => ['boolean'],
             'selectedRoles' => ['required', 'array', 'min:1'],
             'selectedRoles.*' => ['exists:roles,name'],

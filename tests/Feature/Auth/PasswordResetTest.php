@@ -164,6 +164,28 @@ class PasswordResetTest extends TestCase
             ->assertDontSee('Tu contraseña no cumple con todos los requisitos.');
     }
 
+    /**
+     * Antes de centralizar la política en PasswordPolicy, este checklist
+     * aceptaba "un número O símbolo" — una contraseña con símbolo pero sin
+     * ningún dígito pasaba aquí aunque Profile/UserForm ya la habrían
+     * rechazado. Ahora las 3 rutas exigen específicamente un dígito.
+     */
+    public function test_a_password_with_a_symbol_but_no_digit_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $token = Password::createToken($user);
+
+        Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('email', $user->email)
+            ->set('password', 'Abcdefg!')
+            ->set('password_confirmation', 'Abcdefg!')
+            ->call('resetPassword')
+            ->assertSet('submitAttempted', true)
+            ->assertSee('Tu contraseña no cumple con todos los requisitos.');
+
+        $this->assertFalse(Hash::check('Abcdefg!', $user->fresh()->password));
+    }
+
     public function test_submitting_a_weak_password_flags_the_checklist_without_a_generic_error(): void
     {
         $user = User::factory()->create();

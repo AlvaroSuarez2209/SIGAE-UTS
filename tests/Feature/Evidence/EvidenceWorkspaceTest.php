@@ -161,6 +161,35 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
     }
 
+    /**
+     * "Formatos de archivo permitidos" es opcional en el formulario de
+     * entregable — pero dejarlo vacío nunca debe habilitar cualquier
+     * extensión. Ver Deliverable::DEFAULT_ALLOWED_FILE_TYPES.
+     */
+    public function test_file_upload_falls_back_to_the_default_whitelist_when_none_is_configured(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => []]);
+        $file = UploadedFile::fake()->create('script.exe', 100, 'application/x-msdownload');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft')
+            ->assertHasErrors('newFiles.0');
+    }
+
+    public function test_file_upload_accepts_a_default_whitelisted_extension_when_none_is_configured(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => []]);
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft')
+            ->assertHasNoErrors();
+    }
+
     public function test_uploaded_file_must_not_exceed_the_max_size(): void
     {
         $evidence = $this->evidenceFor(['max_file_size_mb' => 1]);
