@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Cron\ProcessQueueController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
 use App\Livewire\Admin\Users\UserForm;
@@ -39,6 +40,14 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
+
+// Endpoint de sistema para un cron externo (cron-job.org), no para
+// personas — protegido solo por CRON_SECRET (config/cron.php), nunca por
+// auth/role. Ver App\Http\Controllers\Cron\ProcessQueueController y
+// "Despliegue en entorno de pruebas" en docs/manual-tecnico.md.
+Route::get('/cron/process-queue', ProcessQueueController::class)
+    ->middleware('throttle:10,1')
+    ->name('cron.process-queue');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
