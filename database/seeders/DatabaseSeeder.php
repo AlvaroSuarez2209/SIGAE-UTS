@@ -11,14 +11,17 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             UserSeeder::class,
-            CatalogSeeder::class,
-            AcademicPeriodSeeder::class,
-            TeacherAssignmentSeeder::class,
-            LeadershipSeeder::class,
-            CrossCuttingCommitmentSeeder::class,
-            DeliverableTemplateSeeder::class,
-            DeliverableSeeder::class,
-            EvidenceSeeder::class,
+            // Catálogos/demo desactivados: la base debe quedar con solo el
+            // usuario Administrador. Descomentar estas 7 líneas para
+            // reactivar un seed completo de demostración.
+            // CatalogSeeder::class,
+            // AcademicPeriodSeeder::class,
+            // TeacherAssignmentSeeder::class,
+            // LeadershipSeeder::class,
+            // CrossCuttingCommitmentSeeder::class,
+            // DeliverableTemplateSeeder::class,
+            // DeliverableSeeder::class,
+            // EvidenceSeeder::class,
         ]);
     }
 }
