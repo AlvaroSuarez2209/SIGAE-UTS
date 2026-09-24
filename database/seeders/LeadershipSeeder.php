@@ -13,6 +13,12 @@ class LeadershipSeeder extends Seeder
 {
     public function run(): void
     {
+        // Desactivado: dependía de la cuenta de demostración
+        // (lider1@sigae.local) que UserSeeder ya no crea — solo siembra un
+        // Administrador. Vuelve a activarse (junto con
+        // TeacherAssignmentSeeder y EvidenceSeeder, que dependen de las
+        // mismas cuentas) si se necesita un seed completo de demostración.
+        /*
         $period = AcademicPeriod::where('name', '2026-1')->first();
         $programUnit = ProgramUnit::orderBy('id')->first();
         $lider1 = User::where('email', 'lider1@sigae.local')->first();
@@ -40,5 +46,6 @@ class LeadershipSeeder extends Seeder
             'starts_at' => $period->start_date,
             'ends_at' => null,
         ]);
+        */
     }
 }

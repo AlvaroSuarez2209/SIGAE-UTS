@@ -4,7 +4,8 @@ Este documento describe el esquema de base de datos implementado en
 PostgreSQL. Por convención del proyecto, **todo el esquema está en
 inglés** (tablas, columnas, modelos Eloquent, enums) — el español queda
 reservado para textos de interfaz y contenido cargado por el usuario
-(ver `CLAUDE.md` / especificación original, sección 4).
+(ver `docs/manual-tecnico.md`, sección 5.9, "Estructura de carpetas
+relevantes").
 
 Convenciones: claves primarias `id` (bigint autoincremental), claves
 foráneas `<entidad_singular>_id`, fechas con sufijo `_at` (datetime) o
