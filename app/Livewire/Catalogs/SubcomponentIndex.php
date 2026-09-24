@@ -6,9 +6,11 @@ use App\Models\Component;
 use App\Models\Subcomponent;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
 
 #[Layout('layouts.app')]
+#[Title('Subcomponentes')]
 class SubcomponentIndex extends LivewireComponent
 {
     public bool $showModal = false;

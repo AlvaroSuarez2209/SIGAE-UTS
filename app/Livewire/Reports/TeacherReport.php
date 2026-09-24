@@ -7,9 +7,11 @@ use App\Models\AcademicPeriod;
 use App\Models\User;
 use App\Services\Reports\ReportBuilder;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Individual por docente')]
 class TeacherReport extends Component
 {
     public ?int $periodFilter = null;

@@ -6,10 +6,12 @@ use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
 use App\Models\Deliverable;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
+#[Title('Entregables')]
 class DeliverableIndex extends Component
 {
     use HasStandardPagination, WithPagination;

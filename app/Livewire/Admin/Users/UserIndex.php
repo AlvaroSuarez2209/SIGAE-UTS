@@ -7,10 +7,12 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
+#[Title('Usuarios')]
 class UserIndex extends Component
 {
     use HasStandardPagination, WithPagination;

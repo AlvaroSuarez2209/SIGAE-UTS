@@ -6,9 +6,11 @@ use App\Enums\EvidenceStatus;
 use App\Models\AcademicPeriod;
 use App\Models\Evidence;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Revisión')]
 class ReviewInbox extends Component
 {
     public ?int $periodFilter = null;

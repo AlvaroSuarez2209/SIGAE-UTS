@@ -40,6 +40,6 @@ class DeliverableRecipients extends Component
 
         return view('livewire.deliverables.deliverable-recipients', [
             'rows' => $rows,
-        ]);
+        ])->title('Destinatarios: '.$this->deliverable->name);
     }
 }

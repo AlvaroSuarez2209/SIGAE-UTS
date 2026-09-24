@@ -4,9 +4,11 @@ namespace App\Livewire\Deliverables;
 
 use App\Models\DeliverableTemplate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Plantillas de entregables')]
 class TemplateIndex extends Component
 {
     public function toggleActive(DeliverableTemplate $template): void

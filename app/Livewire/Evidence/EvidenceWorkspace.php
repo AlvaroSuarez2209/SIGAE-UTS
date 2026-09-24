@@ -248,6 +248,6 @@ class EvidenceWorkspace extends Component
 
         return view('livewire.evidence.evidence-workspace', [
             'allowed' => $this->allowedTypes(),
-        ]);
+        ])->title($this->evidence->deliverable->name);
     }
 }

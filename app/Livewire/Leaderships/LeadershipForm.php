@@ -104,6 +104,6 @@ class LeadershipForm extends Component
                 ->orWhere('id', $this->activity_id)
                 ->orderBy('name')
                 ->get(),
-        ]);
+        ])->title($this->leadership ? 'Editar liderazgo' : 'Nuevo liderazgo');
     }
 }

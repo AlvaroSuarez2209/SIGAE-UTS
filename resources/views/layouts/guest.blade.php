@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SIGAE-UTS</title>
+    {{-- Mismo mecanismo que layouts/app.blade.php: $title llega vía
+         #[Title('Sección')] del componente Livewire de página. --}}
+    <title>{{ ($title ?? null) ? "{$title} - SIGAE-UTS" : 'SIGAE-UTS' }}</title>
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16.png') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('favicon-180.png') }}">

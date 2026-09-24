@@ -89,6 +89,6 @@ class UserForm extends Component
     {
         return view('livewire.admin.users.user-form', [
             'roles' => Role::orderBy('label')->get(),
-        ]);
+        ])->title($this->user ? 'Editar usuario' : 'Nuevo usuario');
     }
 }

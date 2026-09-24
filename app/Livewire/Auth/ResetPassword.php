@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
+#[Title('Restablecer contraseña')]
 class ResetPassword extends Component
 {
     public string $token = '';

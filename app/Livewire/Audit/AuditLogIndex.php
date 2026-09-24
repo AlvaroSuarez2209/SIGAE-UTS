@@ -7,10 +7,12 @@ use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
+#[Title('Auditoría')]
 class AuditLogIndex extends Component
 {
     use HasStandardPagination, WithPagination;

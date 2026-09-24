@@ -5,9 +5,11 @@ namespace App\Livewire\Catalogs;
 use App\Models\Component;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
 
 #[Layout('layouts.app')]
+#[Title('Componentes')]
 class ComponentIndex extends LivewireComponent
 {
     public bool $showModal = false;

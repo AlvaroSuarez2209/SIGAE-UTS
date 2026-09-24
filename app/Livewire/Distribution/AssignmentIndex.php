@@ -6,10 +6,12 @@ use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
 use App\Models\TeacherAssignment;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
+#[Title('Distribución')]
 class AssignmentIndex extends Component
 {
     use HasStandardPagination, WithPagination;

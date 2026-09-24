@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /**
@@ -31,6 +32,7 @@ use Livewire\Component;
  * `auth` de la ruta es la única puerta necesaria.
  */
 #[Layout('layouts.app')]
+#[Title('Mi perfil')]
 class Profile extends Component
 {
     public string $name = '';

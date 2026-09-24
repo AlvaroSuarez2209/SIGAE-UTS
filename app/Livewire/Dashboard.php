@@ -11,9 +11,11 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use App\Services\ComplianceCalculator;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Dashboard')]
 class Dashboard extends Component
 {
     public ?int $periodFilter = null;

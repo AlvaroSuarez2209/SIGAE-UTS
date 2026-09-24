@@ -6,9 +6,11 @@ use App\Models\AcademicPeriod;
 use App\Models\CrossCuttingCommitment;
 use App\Services\Reports\ReportBuilder;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Compromisos transversales')]
 class CrossCuttingReport extends Component
 {
     public ?int $periodFilter = null;

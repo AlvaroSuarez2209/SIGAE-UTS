@@ -115,6 +115,6 @@ class AssignmentForm extends Component
                 ->orWhere('id', $this->program_unit_id)
                 ->orderBy('name')
                 ->get(),
-        ]);
+        ])->title($this->assignment ? 'Editar asignación' : 'Nueva asignación');
     }
 }

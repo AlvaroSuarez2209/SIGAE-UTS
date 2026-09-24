@@ -4,9 +4,11 @@ namespace App\Livewire\Evidence;
 
 use App\Models\AcademicPeriod;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Mis entregables')]
 class MyDeliverables extends Component
 {
     public ?int $periodFilter = null;

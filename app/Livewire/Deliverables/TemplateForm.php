@@ -99,6 +99,6 @@ class TemplateForm extends Component
             'periodicityOptions' => PeriodicityType::cases(),
             'evidenceTypeOptions' => EvidenceType::cases(),
             'fileTypeOptions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'png', 'zip'],
-        ]);
+        ])->title($this->template ? 'Editar plantilla' : 'Nueva plantilla');
     }
 }

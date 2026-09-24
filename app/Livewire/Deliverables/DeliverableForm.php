@@ -243,6 +243,6 @@ class DeliverableForm extends Component
             'evidenceTypeOptions' => EvidenceType::cases(),
             'fileTypeOptions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'png', 'zip'],
             'candidateTeachers' => $this->candidateTeachers(),
-        ]);
+        ])->title($this->deliverable ? 'Editar entregable' : 'Nuevo entregable');
     }
 }

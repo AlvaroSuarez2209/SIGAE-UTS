@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
+#[Title('Recuperar contraseña')]
 class ForgotPassword extends Component
 {
     public string $email = '';

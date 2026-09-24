@@ -6,9 +6,11 @@ use App\Enums\AcademicPeriodStatus;
 use App\Models\AcademicPeriod;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Periodos')]
 class PeriodIndex extends Component
 {
     public bool $showModal = false;

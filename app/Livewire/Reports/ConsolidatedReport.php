@@ -5,9 +5,11 @@ namespace App\Livewire\Reports;
 use App\Models\AcademicPeriod;
 use App\Services\Reports\ReportBuilder;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Consolidado por periodo')]
 class ConsolidatedReport extends Component
 {
     public ?int $periodFilter = null;

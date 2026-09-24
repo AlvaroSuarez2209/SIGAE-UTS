@@ -5,9 +5,11 @@ namespace App\Livewire\Catalogs;
 use App\Models\ProgramUnit;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
+#[Title('Programas')]
 class ProgramUnitIndex extends Component
 {
     public bool $showModal = false;
