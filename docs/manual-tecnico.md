@@ -967,7 +967,94 @@ automático, es responsabilidad de quien despliegue revisarlo:
   `php artisan queue:work` de forma persistente — ver 3, "Las
   notificaciones de evidencias van en cola".
 
-## 8. Alcance explícitamente fuera de este proyecto
+## 8. Despliegue en entorno de pruebas (Render + Neon + Brevo)
+
+Este es un despliegue de **pruebas**, no de producción real — usa
+servicios gratuitos (Render, Neon Postgres, Brevo SMTP) que tienen
+límites propios (Render free no ofrece un worker de colas persistente,
+ver más abajo). No reemplaza el entorno local de desarrollo (Mailpit,
+PostgreSQL local), que sigue funcionando exactamente igual — nada de esta
+sección toca `.env` ni la configuración local.
+
+### 8.1 Cómo funciona
+
+- **`Dockerfile`** (raíz): Render no soporta PHP nativo, así que la app se
+  empaqueta en una imagen Docker de dos etapas — una etapa con Node
+  compila los assets de Tailwind/Vite en modo producción (`npm run
+  build`, nunca `npm run dev`) y la otra, con PHP 8.3, instala las
+  dependencias de Composer (`--no-dev --optimize-autoloader`) y copia
+  encima los assets ya compilados. No usa Nginx/PHP-FPM a propósito —
+  `php artisan serve` es suficiente para un contenedor único de pruebas;
+  no es la forma de servir tráfico de producción real a alta
+  concurrencia.
+- **`docker/start.sh`**: el comando que realmente arranca el contenedor.
+  Corre `config:cache`/`route:cache`/`view:cache` y **`php artisan
+  migrate --force`** con las variables de entorno reales de Render ya
+  presentes (nunca en tiempo de build, ahí todavía no existen), y recién
+  después levanta `php artisan serve --host=0.0.0.0 --port=$PORT` — la
+  variable que Render asigna en tiempo de ejecución. `migrate --force`
+  corriendo en cada arranque es seguro: Laravel solo aplica las
+  migraciones pendientes, así que un segundo despliegue no vuelve a
+  ejecutar las que ya corrieron.
+- **Sin worker de colas persistente**: el plan gratuito de Render no
+  ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
+  `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
+  fuera de los grupos de middleware `auth`/`role` en `routes/web.php` —
+  quien la llama es un cron externo, nunca una persona autenticada) exige
+  un token compartido (`CRON_SECRET`, comparado con `hash_equals()` y que
+  falla cerrado si no está configurado) y corre `queue:work
+  --stop-when-empty --max-time=50` una sola vez por solicitud. Un cron
+  externo gratuito, [cron-job.org](https://cron-job.org), debe golpear
+  esa URL cada 2-5 minutos con el token en la query string
+  (`?token=...`).
+- **Limitación conocida, no cubierta por lo anterior**: `evidences:mark-overdue`
+  depende del scheduler de Laravel (`Schedule::command(...)->dailyAt(...)`
+  en `routes/console.php`, ver 5.7), que a su vez necesita `schedule:run`
+  disparado cada minuto por un cron del sistema operativo — algo que
+  tampoco existe en Render free. Este despliegue de pruebas **no**
+  marca evidencias vencidas automáticamente; hay que correrlo a mano
+  (`php artisan evidences:mark-overdue` vía la shell de Render) o agregar
+  un segundo cron externo apuntando a un endpoint equivalente al de la
+  cola, si hace falta para la demostración.
+
+### 8.2 Variables de entorno a configurar en Render
+
+Plantilla completa en `.env.render.example` (no se carga automáticamente,
+es solo para copiar valores). **Nunca pegar ahí valores reales** — ese
+archivo se commitea al repositorio a propósito, como plantilla; los
+valores reales van directo al panel de Render. Orden recomendado, para
+no ir y venir entre paneles:
+
+1. **Neon**: crear el proyecto/base de datos primero — de su panel salen
+   `DB_HOST`, `DB_PORT` (`5432`), `DB_DATABASE`, `DB_USERNAME`,
+   `DB_PASSWORD`. Neon **exige** SSL y rechaza la conexión sin esto —
+   `config/database.php` toma el modo de `DB_SSLMODE` (`env('DB_SSLMODE',
+   'prefer')`, con `'prefer'` de respaldo para que el local, que no lo
+   define, siga sin SSL como siempre); en Render hay que fijar
+   explícitamente `DB_SSLMODE=require`.
+2. **Brevo**: crear la cuenta y una clave SMTP — de ahí salen
+   `MAIL_USERNAME` y `MAIL_PASSWORD` (`MAIL_HOST=smtp-relay.brevo.com`,
+   `MAIL_PORT=587` ya son fijos).
+3. **`APP_KEY`**: generar uno nuevo en local con `php artisan key:generate
+   --show` (no reutilizar el de `.env` local) y pegarlo tal cual.
+4. **`CRON_SECRET`**: generar un valor aleatorio largo (ej. `php artisan
+   tinker --execute="echo Str::random(40);"`) — se pega dos veces: acá y
+   en la URL que se configure en cron-job.org.
+5. El resto de variables de `.env.render.example` (`APP_ENV=production`,
+   `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true`,
+   `QUEUE_CONNECTION=database`, etc.) son valores fijos, no dependen de
+   ninguna cuenta externa — se copian tal cual.
+6. Recién con todo lo anterior en el panel, crear el servicio Web en
+   Render apuntando a este repositorio (detecta el `Dockerfile`
+   automáticamente) y desplegar.
+7. Con el servicio ya desplegado y su URL real conocida, volver a entrar
+   al panel y corregir `APP_URL` (`.env.render.example` trae un
+   placeholder `https://<tu-servicio>.onrender.com`).
+8. Configurar el cron externo en cron-job.org apuntando a
+   `https://<tu-servicio>.onrender.com/cron/process-queue?token=<CRON_SECRET>`,
+   cada 2-5 minutos.
+
+## 9. Alcance explícitamente fuera de este proyecto
 
 Ver la especificación original, sección 3: no incluye módulo de trabajo
 de grado, nómina/liquidación de horas, asistencia/notas, repositorio de

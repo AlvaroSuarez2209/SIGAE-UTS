@@ -94,7 +94,11 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            // 'prefer' por defecto (correcto en local, sin SSL configurado);
+            // Neon exige SSL y rechaza la conexión sin esto — ver
+            // DB_SSLMODE=require en .env.render.example y la sección de
+            // despliegue en docs/manual-tecnico.md.
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
             // Alinea la sesión de PostgreSQL con la zona horaria de la app
             // (ver config/app.php). Es un respaldo, no la causa principal
             // del fix: las columnas de fecha/hora del esquema son
