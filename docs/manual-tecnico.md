@@ -993,6 +993,13 @@ sección toca `.env` ni la configuración local.
   sentido si no se pudiera confiar en el proxy, y aquí sí se puede —
   agregarlo sería redundante (y, sin una condición por entorno, rompería
   el `http` correcto en local).
+- **`LOG_CHANNEL=stderr`, no `stack`**: el canal por defecto (`stack` →
+  `single`) escribe en `storage/logs/laravel.log`, un archivo *dentro*
+  del contenedor — se pierde en cada reinicio/redeploy y nunca aparece en
+  la pestaña "Logs" de Render. `stderr` (ya definido en
+  `config/logging.php`, sin cambios de código necesarios) escribe a la
+  salida estándar de error del proceso, que es justo lo que Render
+  captura y muestra en esa pestaña.
 - **`Dockerfile`** (raíz): Render no soporta PHP nativo, así que la app se
   empaqueta en una imagen Docker de dos etapas — una etapa con Node
   compila los assets de Tailwind/Vite en modo producción (`npm run
