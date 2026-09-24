@@ -13,6 +13,13 @@ class TeacherAssignmentSeeder extends Seeder
 {
     public function run(): void
     {
+        // Desactivado: dependía de las cuentas de demostración
+        // (docente1@sigae.local, docente2@sigae.local, lider1@sigae.local)
+        // que UserSeeder ya no crea — solo siembra un Administrador. Vuelve
+        // a activarse (junto con LeadershipSeeder y EvidenceSeeder, que
+        // dependen de las mismas cuentas) si se necesita un seed completo
+        // de demostración.
+        /*
         $period = AcademicPeriod::where('name', '2026-1')->first();
         $programUnit = ProgramUnit::orderBy('id')->first();
 
@@ -71,5 +78,6 @@ class TeacherAssignmentSeeder extends Seeder
         ], [
             'assigned_hours' => 12,
         ]);
+        */
     }
 }

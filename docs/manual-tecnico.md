@@ -467,11 +467,25 @@ el error bag de la validación. Sin este fix, un intento de "Nuevo" con
 campos vacíos (que genera errores) seguido de "Cancelar" y luego
 "Editar" sobre un registro válido mostraba los mismos mensajes de error
 de la validación anterior bajo campos que sí tenían datos correctos —
-bug real encontrado y corregido en los seis módulos de este patrón.
-Detalle completo en la memoria del proyecto
-(`project_livewire4_gotchas.md`, sección sobre `reset()` y el error bag).
+bug real encontrado y corregido en los seis módulos que siguen este
+patrón: Componentes, Subcomponentes, Actividades, Programas,
+Compromisos transversales y Periodos (`ComponentIndex.php` es la
+plantilla que copian los demás).
+
+**Beneficio adicional, no buscado a propósito:** antes de este fix,
+estas modales no tenían ninguna forma de cerrarse desde el lado del
+cliente — solo un botón que hacía `$set('showModal', false)`. Al
+introducir `closeModal()` como el único punto de cierre para resolver
+el error bag, de paso quedó como el lugar natural para engancharle
+Escape y clic-fuera-de-la-tarjeta, que antes no existían en ninguno de
+estos seis módulos.
 
 ### 5.9 Estructura de carpetas relevantes
+
+**Convención de idioma**: todo el código y el esquema de base de datos
+están en inglés (tablas, columnas, modelos Eloquent, enums, nombres de
+clase) — el español queda reservado para los textos de interfaz y el
+contenido cargado por el usuario. Ver también el diccionario de datos.
 
 ```
 app/
