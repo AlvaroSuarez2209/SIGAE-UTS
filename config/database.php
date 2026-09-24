@@ -2,6 +2,35 @@
 
 use Illuminate\Support\Str;
 
+// Definida aparte (en vez de inline en 'connections') para poder
+// reutilizarla en 'pgsql_migrate' de abajo sin duplicar cada opción.
+$pgsql = [
+    'driver' => 'pgsql',
+    'url' => env('DB_URL'),
+    'host' => env('DB_HOST', '127.0.0.1'),
+    'port' => env('DB_PORT', '5432'),
+    'database' => env('DB_DATABASE', 'laravel'),
+    'username' => env('DB_USERNAME', 'root'),
+    'password' => env('DB_PASSWORD', ''),
+    'charset' => env('DB_CHARSET', 'utf8'),
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'search_path' => 'public',
+    // 'prefer' por defecto (correcto en local, sin SSL configurado);
+    // Neon exige SSL y rechaza la conexión sin esto — ver
+    // DB_SSLMODE=require en .env.render.example y la sección de
+    // despliegue en docs/manual-tecnico.md.
+    'sslmode' => env('DB_SSLMODE', 'prefer'),
+    // Alinea la sesión de PostgreSQL con la zona horaria de la app
+    // (ver config/app.php). Es un respaldo, no la causa principal
+    // del fix: las columnas de fecha/hora del esquema son
+    // `timestamp`/`dateTime` sin zona horaria, así que Postgres no
+    // les aplica ninguna conversión — pero esto sí importa para
+    // cualquier valor generado por la propia base de datos (p. ej.
+    // el `useCurrent()` de failed_jobs.failed_at).
+    'timezone' => env('DB_TIMEZONE', 'America/Bogota'),
+];
+
 return [
 
     /*
@@ -82,32 +111,20 @@ return [
             ]) : [],
         ],
 
-        'pgsql' => [
-            'driver' => 'pgsql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => env('DB_CHARSET', 'utf8'),
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            // 'prefer' por defecto (correcto en local, sin SSL configurado);
-            // Neon exige SSL y rechaza la conexión sin esto — ver
-            // DB_SSLMODE=require en .env.render.example y la sección de
-            // despliegue en docs/manual-tecnico.md.
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
-            // Alinea la sesión de PostgreSQL con la zona horaria de la app
-            // (ver config/app.php). Es un respaldo, no la causa principal
-            // del fix: las columnas de fecha/hora del esquema son
-            // `timestamp`/`dateTime` sin zona horaria, así que Postgres no
-            // les aplica ninguna conversión — pero esto sí importa para
-            // cualquier valor generado por la propia base de datos (p. ej.
-            // el `useCurrent()` de failed_jobs.failed_at).
-            'timezone' => env('DB_TIMEZONE', 'America/Bogota'),
-        ],
+        'pgsql' => $pgsql,
+
+        // Exclusiva para migraciones/DDL (docker/start.sh: "migrate --force
+        // --database=pgsql_migrate") — Neon recomienda la conexión directa
+        // (sin "-pooler") para esto, nunca la pooled que usa el resto de la
+        // app vía 'pgsql'. El pooler de Neon corre en modo "transaction
+        // pooling" (PgBouncer): puede reasignar la sesión de backend real
+        // entre una transacción y la siguiente, lo que interfiere con
+        // migraciones que dependen de que la sesión persista. Sin
+        // DB_HOST_MIGRATE definido (como en local, donde no hay pooler),
+        // cae al mismo DB_HOST de siempre — comportamiento sin cambios.
+        'pgsql_migrate' => array_merge($pgsql, [
+            'host' => env('DB_HOST_MIGRATE', env('DB_HOST', '127.0.0.1')),
+        ]),
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
