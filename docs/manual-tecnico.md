@@ -978,6 +978,21 @@ sección toca `.env` ni la configuración local.
 
 ### 8.1 Cómo funciona
 
+- **Proxies de confianza (`bootstrap/app.php`)**: Render termina TLS en su
+  propio proxy y reenvía la petición al contenedor por HTTP plano,
+  informando el esquema real vía `X-Forwarded-Proto`. Sin
+  `$middleware->trustProxies(at: '*')`, Laravel ve esa conexión interna
+  como HTTP y genera con ese esquema toda URL absoluta (`url()`,
+  `asset()`, `@vite`) — el síntoma real de esto fue el navegador
+  bloqueando los assets del login como contenido mixto, aunque `APP_URL`
+  ya estuviera en `https`. `at: '*'` es lo estándar para este tipo de
+  despliegue de un solo proxy interno controlado por la plataforma (nunca
+  el cliente final, que solo le habla al proxy); no cambia nada en local,
+  que no manda ningún header `X-Forwarded-*`. No hace falta además
+  `URL::forceScheme('https')`: forzar el esquema a mano solo tendría
+  sentido si no se pudiera confiar en el proxy, y aquí sí se puede —
+  agregarlo sería redundante (y, sin una condición por entorno, rompería
+  el `http` correcto en local).
 - **`Dockerfile`** (raíz): Render no soporta PHP nativo, así que la app se
   empaqueta en una imagen Docker de dos etapas — una etapa con Node
   compila los assets de Tailwind/Vite en modo producción (`npm run
