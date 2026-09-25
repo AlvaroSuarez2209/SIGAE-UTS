@@ -504,10 +504,12 @@ public function closeModal(): void
 ```
 
 `closeModal()` es el único punto de cierre — lo llaman "Cancelar"
-(`wire:click="closeModal"`), el clic fuera de la tarjeta
-(`@click.outside="$wire.closeModal()"` en el `<div class="card">`) y
-Escape (`x-on:keydown.escape.window="$wire.closeModal()"` en el overlay).
-El overlay lleva además `role="dialog"`, `aria-modal="true"` y
+(`wire:click="closeModal"`) y Escape
+(`x-on:keydown.escape.window="$wire.closeModal()"` en el overlay).
+Deliberadamente **no** hay `@click.outside` en el `<div class="card">`:
+un clic fuera de lugar no debe descartar en silencio un formulario a
+medio llenar (mismo criterio en `<x-confirm-modal>`, que tampoco lo
+tiene). El overlay lleva además `role="dialog"`, `aria-modal="true"` y
 `aria-labelledby` apuntando al `<h2>` del título, igual que
 `<x-confirm-modal>`.
 

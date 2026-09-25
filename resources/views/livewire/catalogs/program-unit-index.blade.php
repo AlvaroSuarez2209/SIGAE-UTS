@@ -62,7 +62,7 @@
             aria-modal="true"
             aria-labelledby="program-unit-modal-title"
         >
-            <div class="card w-full max-w-md p-6 shadow-lg" @click.outside="$wire.closeModal()">
+            <div class="card w-full max-w-md p-6 shadow-lg">
                 <h2 id="program-unit-modal-title" class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar programa' : 'Nuevo programa' }}
                 </h2>

@@ -98,7 +98,7 @@
             aria-modal="true"
             aria-labelledby="period-modal-title"
         >
-            <div class="card w-full max-w-md p-6 shadow-lg" @click.outside="$wire.closeModal()">
+            <div class="card w-full max-w-md p-6 shadow-lg">
                 <h2 id="period-modal-title" class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar periodo' : 'Nuevo periodo' }}
                 </h2>
