@@ -25,7 +25,7 @@
 <!-- Header con marca: logo + degradado institucional -->
 <tr>
 <td class="header" style="padding: 32px 0 24px; text-align: center;">
-  <img src="{{ $message->embed(public_path('images/logo/logo-mark.png')) }}" alt="SIGAE-UTS" width="48" height="48" style="display: block; margin: 0 auto 12px;">
+  <img src="{{ asset('images/logo/logo-mark.png') }}" alt="SIGAE-UTS" width="48" height="48" style="display: block; margin: 0 auto 12px;">
   <div style="font-size: 20px; font-weight: 700; color: #1e293b; letter-spacing: -0.01em;">SIGAE-UTS</div>
   <div style="font-size: 12px; color: #0a7a45; font-weight: 500; margin-top: 2px;">Unidades Tecnológicas de Santander</div>
 </td>
