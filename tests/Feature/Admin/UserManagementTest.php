@@ -293,6 +293,77 @@ class UserManagementTest extends TestCase
         $this->assertFalse($teacher->hasRole(RoleName::Teacher));
     }
 
+    public function test_deactivating_a_teacher_is_blocked_when_user_has_pending_evidences(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'status' => EvidenceStatus::Submitted]);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('toggleActive', $teacher)
+            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 evidencia pendiente'));
+
+        $this->assertTrue($teacher->fresh()->is_active);
+    }
+
+    public function test_deactivating_a_teacher_is_allowed_when_no_pending_evidences(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'status' => EvidenceStatus::Approved]);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('toggleActive', $teacher)
+            ->assertSet('deactivationError', '');
+
+        $this->assertFalse($teacher->fresh()->is_active);
+    }
+
+    public function test_deactivating_a_leader_is_blocked_when_user_has_pending_reviews(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $this->submittedEvidenceUnderLeadership($leader);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('toggleActive', $leader)
+            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 revisión pendiente'));
+
+        $this->assertTrue($leader->fresh()->is_active);
+    }
+
+    public function test_deactivating_a_leader_is_allowed_when_no_pending_reviews(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $evidence = $this->submittedEvidenceUnderLeadership($leader);
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('toggleActive', $leader)
+            ->assertSet('deactivationError', '');
+
+        $this->assertFalse($leader->fresh()->is_active);
+    }
+
+    public function test_reactivating_a_user_is_never_blocked_by_pending_work(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher, ['is_active' => false]);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'status' => EvidenceStatus::Submitted]);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('toggleActive', $teacher)
+            ->assertSet('deactivationError', '');
+
+        $this->assertTrue($teacher->fresh()->is_active);
+    }
+
     public function test_user_search_by_name_is_accent_insensitive(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
