@@ -378,6 +378,23 @@ class CatalogManagementTest extends TestCase
                 && $activities->first()->name === 'Clases teóricas');
     }
 
+    public function test_activity_index_paginates_at_25_per_page(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->count(26)->create();
+
+        $test = Livewire::actingAs($admin)->test(ActivityIndex::class);
+
+        $test->assertViewHas('activities', function ($activities) {
+            return $activities->perPage() === 25
+                && $activities->count() === 25
+                && $activities->total() === 26
+                && $activities->hasMorePages();
+        });
+
+        $test->assertSee('Siguiente');
+    }
+
     public function test_subcomponent_search_filters_by_name(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

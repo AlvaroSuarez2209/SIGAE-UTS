@@ -422,20 +422,24 @@ cuenta los campos del formulario antes de decidir el patrón.
   (`protected const PER_PAGE = 25;`), que cada componente paginado incluye
   junto con `WithPagination` (`use HasStandardPagination, WithPagination;`).
   Antes de esto cada módulo traía su propio número sin ningún criterio
-  compartido (10, 15 o 25 según el componente) — ya unificados los cinco:
-  Usuarios, Auditoría, Distribución docente, Líderes y Entregables.
-  Cualquier listado nuevo de alto volumen debe sumar el trait en vez de
-  escribir `->paginate(25)` (o cualquier otro número) directamente.
+  compartido (10, 15 o 25 según el componente) — ya unificados los seis:
+  Usuarios, Auditoría, Distribución docente, Líderes, Entregables y
+  Actividades. Cualquier listado nuevo de alto volumen debe sumar el
+  trait en vez de escribir `->paginate(25)` (o cualquier otro número)
+  directamente.
 - **Catálogos pequeños: sin paginar, a propósito.** Componentes,
-  Subcomponentes, Actividades, Programas, Compromisos transversales,
-  Plantillas de entregables y Periodos académicos **no** usan el trait de
-  arriba ni paginan — mismo criterio ya aplicado al decidir no agregarles
+  Subcomponentes, Programas, Compromisos transversales, Plantillas de
+  entregables y Periodos académicos **no** usan el trait de arriba ni
+  paginan — mismo criterio ya aplicado al decidir no agregarles
   `<x-search-input>` (ver más abajo): son catálogos de alto nivel que no
   se espera que superen unas pocas decenas de registros incluso en
-  producción real. Si alguno de estos catálogos creciera de forma
-  inesperada en el futuro, la salida es sumar `HasStandardPagination`
-  (25) o, si el volumen se queda a medio camino, un umbral propio más
-  alto (ej. 50) — nunca dejarlo sin paginar "porque siempre fue así".
+  producción real. Actividades ya dejó de ser parte de este grupo (creció
+  más allá de las unas pocas decenas de registros previstas) y ahora usa
+  el trait de arriba. Si alguno de los catálogos que quedan aquí creciera
+  de forma inesperada en el futuro, la salida es la misma que se aplicó
+  ahí: sumar `HasStandardPagination` (25) o, si el volumen se queda a
+  medio camino, un umbral propio más alto (ej. 50) — nunca dejarlo sin
+  paginar "porque siempre fue así".
 - La vista de paginación es una sola, compartida por toda la app:
   `resources/views/vendor/livewire/tailwind.blade.php` sobrescribe la
   vista por defecto de **Livewire** (`livewire::tailwind`) — basta con que
@@ -444,7 +448,7 @@ cuenta los campos del formulario antes de decidir el patrón.
   un nombre de vista en cada llamada. Va en `vendor/livewire/`, no en
   `vendor/pagination/` (la vista por defecto de Laravel): Livewire
   reemplaza esa configuración en cada componente que usa
-  `WithPagination` y apunta en su lugar a su propia vista — como los 5
+  `WithPagination` y apunta en su lugar a su propia vista — como los 6
   listados paginados de esta app son componentes Livewire, no vistas de
   paginación "pura" de Laravel, `vendor/pagination/` no tendría ningún
   efecto real (detalle completo en el comentario del propio archivo).
