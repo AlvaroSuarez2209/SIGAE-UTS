@@ -58,6 +58,18 @@ class CatalogManagementTest extends TestCase
         $this->assertDatabaseHas('components', ['name' => 'Bienestar institucional', 'is_active' => true]);
     }
 
+    public function test_component_index_lists_newest_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $older = Component::factory()->create();
+        $newer = Component::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->assertViewHas('components', fn ($components) => $components->first()->is($newer)
+                && $components->last()->is($older));
+    }
+
     public function test_deactivating_a_component_does_not_delete_it(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -116,6 +128,18 @@ class CatalogManagementTest extends TestCase
             'component_id' => $component->id,
             'subcomponent_id' => null,
         ]);
+    }
+
+    public function test_activity_index_lists_newest_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $older = Activity::factory()->create();
+        $newer = Activity::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->assertViewHas('activities', fn ($activities) => $activities->first()->is($newer)
+                && $activities->last()->is($older));
     }
 
     public function test_deactivating_an_activity_preserves_historical_reference(): void
@@ -184,6 +208,18 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Clases teóricas');
     }
 
+    public function test_program_unit_index_lists_newest_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $older = ProgramUnit::factory()->create();
+        $newer = ProgramUnit::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ProgramUnitIndex::class)
+            ->assertViewHas('programUnits', fn ($programUnits) => $programUnits->first()->is($newer)
+                && $programUnits->last()->is($older));
+    }
+
     public function test_program_unit_edit_does_not_inherit_errors_from_a_failed_create(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -197,6 +233,18 @@ class CatalogManagementTest extends TestCase
             ->call('openEdit', $programUnit)
             ->assertHasNoErrors()
             ->assertSet('name', 'Facultad de Ciencias Naturales');
+    }
+
+    public function test_cross_cutting_commitment_index_lists_newest_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $older = CrossCuttingCommitment::factory()->create();
+        $newer = CrossCuttingCommitment::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(CrossCuttingCommitmentIndex::class)
+            ->assertViewHas('commitments', fn ($commitments) => $commitments->first()->is($newer)
+                && $commitments->last()->is($older));
     }
 
     public function test_cross_cutting_commitment_edit_does_not_inherit_errors_from_a_failed_create(): void
@@ -406,6 +454,18 @@ class CatalogManagementTest extends TestCase
         });
 
         $test->assertSee('Siguiente');
+    }
+
+    public function test_subcomponent_index_lists_newest_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $older = Subcomponent::factory()->create();
+        $newer = Subcomponent::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->first()->is($newer)
+                && $subcomponents->last()->is($older));
     }
 
     public function test_subcomponent_search_filters_by_name(): void
