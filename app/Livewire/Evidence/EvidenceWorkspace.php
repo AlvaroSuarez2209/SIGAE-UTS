@@ -6,6 +6,7 @@ use App\Enums\EvidenceType;
 use App\Models\Evidence;
 use App\Models\EvidenceFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -40,6 +41,36 @@ class EvidenceWorkspace extends Component
             : null;
 
         $this->description = $draft?->description ?? '';
+    }
+
+    /**
+     * Livewire sube cada archivo a almacenamiento temporal y llena
+     * $newFiles apenas el usuario lo selecciona, mucho antes de
+     * saveDraft() — sin este hook, un archivo fuera de whitelist queda
+     * adjunto en silencio (sin error, sin éxito) hasta que se intenta
+     * guardar. Valida de inmediato y descarta el archivo que no pase,
+     * para que $newFiles nunca contenga uno inválido "fantasma".
+     */
+    public function updatedNewFiles(): void
+    {
+        $this->resetErrorBag('newFiles');
+
+        $rules = $this->fileValidationRules();
+        $validFiles = [];
+
+        foreach ($this->newFiles as $file) {
+            $validator = Validator::make(['file' => $file], ['file' => $rules]);
+
+            if ($validator->fails()) {
+                $this->addError('newFiles', $validator->errors()->first('file'));
+
+                continue;
+            }
+
+            $validFiles[] = $file;
+        }
+
+        $this->newFiles = $validFiles;
     }
 
     private function allowedTypes(): array
@@ -160,6 +191,23 @@ class EvidenceWorkspace extends Component
         $file->disk()->delete($file->disk_path);
         $file->delete();
         $this->evidence->refresh();
+    }
+
+    public function removeNewFile(int $index): void
+    {
+        Gate::authorize('update', $this->evidence);
+
+        if (! $this->evidence->status->isEditable()) {
+            return;
+        }
+
+        unset($this->newFiles[$index]);
+        $this->newFiles = array_values($this->newFiles);
+    }
+
+    public function formatFileSize(int $bytes): string
+    {
+        return EvidenceFile::formatReadableSize($bytes);
     }
 
     public function removeLink(int $linkId): void

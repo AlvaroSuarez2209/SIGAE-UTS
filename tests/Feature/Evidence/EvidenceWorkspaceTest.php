@@ -152,11 +152,14 @@ class EvidenceWorkspaceTest extends TestCase
         $evidence = $this->evidenceFor(['allowed_file_types' => ['pdf']]);
         $file = UploadedFile::fake()->create('imagen.jpg', 100, 'image/jpeg');
 
+        // updatedNewFiles() valida y descarta el archivo inválido apenas se
+        // adjunta — para cuando saveDraft() correría, newFiles ya está
+        // vacío, así que el rechazo ya ocurrió antes de llegar ahí.
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('newFiles', [$file])
-            ->call('saveDraft')
-            ->assertHasErrors('newFiles.0');
+            ->assertHasErrors('newFiles')
+            ->assertSet('newFiles', []);
 
         $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
     }
@@ -174,8 +177,47 @@ class EvidenceWorkspaceTest extends TestCase
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('newFiles', [$file])
-            ->call('saveDraft')
-            ->assertHasErrors('newFiles.0');
+            ->assertHasErrors('newFiles')
+            ->assertSet('newFiles', []);
+    }
+
+    public function test_invalid_file_is_rejected_and_removed_immediately_on_attach(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => ['pdf']]);
+        $file = UploadedFile::fake()->create('virus.exe', 100, 'application/x-msdownload');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->assertHasErrors('newFiles')
+            ->assertSet('newFiles', [])
+            ->assertDontSee('virus.exe');
+    }
+
+    public function test_valid_file_appears_in_the_pending_list_immediately_after_attaching(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->assertHasNoErrors()
+            ->assertSee('propuesta.pdf')
+            ->assertSee('100 KB');
+    }
+
+    public function test_removing_a_pending_file_takes_it_out_of_new_files(): void
+    {
+        $evidence = $this->evidenceFor(['max_files' => 2]);
+        $fileA = UploadedFile::fake()->create('a.pdf', 50, 'application/pdf');
+        $fileB = UploadedFile::fake()->create('b.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$fileA, $fileB])
+            ->call('removeNewFile', 0)
+            ->assertSet('newFiles', fn ($files) => count($files) === 1 && $files[0]->getClientOriginalName() === 'b.pdf');
     }
 
     public function test_file_upload_accepts_a_default_whitelisted_extension_when_none_is_configured(): void
@@ -198,8 +240,8 @@ class EvidenceWorkspaceTest extends TestCase
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('newFiles', [$file])
-            ->call('saveDraft')
-            ->assertHasErrors('newFiles.0');
+            ->assertHasErrors('newFiles')
+            ->assertSet('newFiles', []);
     }
 
     public function test_cannot_exceed_the_max_files_limit(): void
