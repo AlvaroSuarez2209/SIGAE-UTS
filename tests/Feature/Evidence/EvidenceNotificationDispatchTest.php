@@ -145,8 +145,10 @@ class EvidenceNotificationDispatchTest extends TestCase
         $teacher = $this->userWithRole(RoleName::Teacher);
         $coordination = $this->userWithRole(RoleName::Coordination);
         $commitment = CrossCuttingCommitment::factory()->create();
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
 
         $deliverable = Deliverable::factory()->crossCutting()->create([
+            'academic_period_id' => $period->id,
             'cross_cutting_commitment_id' => $commitment->id,
             'allowed_evidence_types' => [EvidenceType::Text->value],
         ]);

@@ -298,8 +298,21 @@ una ruta de página completa (`routes/web.php`).
   descendente (fecha de inicio del periodo), un criterio más correcto
   para un periodo académico que "más reciente creado" — cambiarlo habría
   sido una regresión, no una mejora.
-
-### 5.4 Almacenamiento de archivos
+- **`Deliverable::acceptsEvidenceSubmissions()`: un docente solo puede
+  guardar borrador, adjuntar archivos, agregar enlaces o enviar mientras
+  el periodo académico del entregable está Activo.** RF-009 nombra 4
+  estados de periodo (planeación, activo, cerrado, archivado) sin
+  detallar el comportamiento de cada uno salvo "cerrado" — se resolvió
+  que "planeación" (el periodo aún se está configurando: distribución,
+  actividades, líderes) y "archivado" tampoco deben permitir cargar
+  evidencias, igual que "cerrado". El método vive en `Deliverable` (no en
+  `AcademicPeriod`) porque es ahí donde `EvidenceWorkspace` ya tenía la
+  relación a mano. Se usa en `saveDraft()`, `submit()` (que llama a
+  `saveDraft()` primero, así que hereda el bloqueo sin código adicional),
+  `updatedNewFiles()` (rechaza el archivo apenas se adjunta, igual que ya
+  hacía con la whitelist de extensiones) y `addLink()`. Es solo sobre
+  acciones de escritura — ver los entregables asignados sigue funcionando
+  en cualquier estado del periodo (RF-045).
 
 Disco `local` de Laravel (`storage/app/private`, sin symlink público).
 Cada archivo se guarda con un nombre aleatorio (`stored_name`); el

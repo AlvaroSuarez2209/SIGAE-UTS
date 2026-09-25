@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
@@ -95,6 +96,22 @@ class Deliverable extends Model
     public function isCrossCutting(): bool
     {
         return $this->activity_id === null;
+    }
+
+    /**
+     * Un docente solo puede guardar borrador, adjuntar archivos, agregar
+     * enlaces o enviar una evidencia mientras el periodo académico del
+     * entregable está Activo — RF-009 nombra 4 estados (planeación,
+     * activo, cerrado, archivado) sin detallar el comportamiento de cada
+     * uno salvo "cerrado"; se resolvió que "planeación" (el periodo aún
+     * se está configurando: distribución, actividades, líderes) y
+     * "archivado" tampoco deben permitir cargar evidencias, igual que
+     * "cerrado". Esto es solo sobre acciones de escritura — ver
+     * evidencias asignadas sigue funcionando en cualquier estado (RF-045).
+     */
+    public function acceptsEvidenceSubmissions(): bool
+    {
+        return $this->academicPeriod->status === AcademicPeriodStatus::Active;
     }
 
     /**
