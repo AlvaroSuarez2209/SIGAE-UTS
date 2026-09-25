@@ -51,11 +51,20 @@ class Dashboard extends Component
             ->sortBy(fn (Evidence $e) => $e->deliverable->due_at)
             ->values();
 
-        $compliance = ComplianceCalculator::forUser($user, $evidences->pluck('deliverable')->unique('id'));
+        $compliance = ComplianceCalculator::forUser($user, $evidences->pluck('deliverable')->unique('id'), $evidences);
 
         return compact('counts', 'upcoming', 'compliance');
     }
 
+    /**
+     * Antes, por cada docente único bajo el ámbito del líder, se hacían 2
+     * consultas nuevas (Deliverable::where(...)->get() +
+     * la consulta interna de ComplianceCalculator::forUser()) — con N
+     * docentes, 2N consultas. Ahora se traen todos los entregables de las
+     * actividades involucradas y todas las evidencias de los docentes
+     * involucrados en 2 consultas totales, y el cumplimiento se calcula en
+     * PHP sobre esos datos ya cargados.
+     */
     private function leaderPanel(User $user): ?array
     {
         if (! $this->periodFilter) {
@@ -68,49 +77,58 @@ class Dashboard extends Component
             return null;
         }
 
-        $rows = collect();
+        $assignments = $leaderships
+            ->flatMap(function ($leadership) {
+                $query = TeacherAssignment::where('academic_period_id', $this->periodFilter)
+                    ->where('program_unit_id', $leadership->program_unit_id);
 
-        foreach ($leaderships as $leadership) {
-            $query = TeacherAssignment::where('academic_period_id', $this->periodFilter)
-                ->where('program_unit_id', $leadership->program_unit_id);
-
-            if ($leadership->activity_id) {
-                $query->where('activity_id', $leadership->activity_id);
-            }
-
-            $assignments = $query->with(['user', 'activity.component'])->get()
-                ->unique(fn (TeacherAssignment $a) => $a->user_id.'-'.$a->activity_id);
-
-            foreach ($assignments as $assignment) {
-                $key = $assignment->user_id.'-'.$assignment->activity_id;
-
-                if ($rows->has($key)) {
-                    continue;
+                if ($leadership->activity_id) {
+                    $query->where('activity_id', $leadership->activity_id);
                 }
 
-                $deliverables = Deliverable::where('academic_period_id', $this->periodFilter)
-                    ->where('activity_id', $assignment->activity_id)
-                    ->get();
+                return $query->with(['user', 'activity.component'])->get();
+            })
+            ->unique(fn (TeacherAssignment $a) => $a->user_id.'-'.$a->activity_id)
+            ->values();
 
-                $compliance = ComplianceCalculator::forUser($assignment->user, $deliverables);
+        $deliverablesByActivity = Deliverable::where('academic_period_id', $this->periodFilter)
+            ->whereIn('activity_id', $assignments->pluck('activity_id')->unique())
+            ->get()
+            ->groupBy('activity_id');
 
-                $rows->put($key, [
-                    'teacher' => $assignment->user,
-                    'activity' => $assignment->activity,
-                    'compliance' => $compliance,
-                ]);
-            }
-        }
-
-        $pendingReviewCount = Evidence::where('status', EvidenceStatus::Submitted)
+        $evidencesByUser = Evidence::whereIn('user_id', $assignments->pluck('user_id')->unique())
             ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
             ->get()
-            ->filter(fn (Evidence $e) => $e->isReviewableBy($user))
+            ->groupBy('user_id');
+
+        $rows = $assignments->map(fn (TeacherAssignment $assignment) => [
+            'teacher' => $assignment->user,
+            'activity' => $assignment->activity,
+            'compliance' => ComplianceCalculator::forUser(
+                $assignment->user,
+                $deliverablesByActivity->get($assignment->activity_id, collect()),
+                $evidencesByUser->get($assignment->user_id, collect())
+            ),
+        ]);
+
+        $pendingReviewCount = Evidence::where('evidences.status', EvidenceStatus::Submitted)
+            ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
+            ->reviewableBy($user)
             ->count();
 
         return ['rows' => $rows->values(), 'pendingReviewCount' => $pendingReviewCount];
     }
 
+    /**
+     * Antes, por cada docente activo del sistema, se hacían 2 consultas
+     * nuevas (Deliverable::where(...)->get() + la consulta interna de
+     * ComplianceCalculator::forUser()) — con N docentes, 2N consultas,
+     * recalculadas en cada render() (cada cambio de filtro de periodo).
+     * Ahora se traen todos los entregables del periodo (con sus
+     * destinatarios) en 1 consulta y se reutiliza $evidences (ya cargada
+     * arriba para $counts) agrupada por docente — el cumplimiento se
+     * calcula en PHP sobre esos datos, sin consultar de nuevo por docente.
+     */
     private function coordinationPanel(): ?array
     {
         if (! $this->periodFilter) {
@@ -122,18 +140,28 @@ class Dashboard extends Component
         $counts = collect(EvidenceStatus::cases())
             ->mapWithKeys(fn ($status) => [$status->value => $evidences->where('status', $status)->count()]);
 
+        $evidencesByUser = $evidences->groupBy('user_id');
+
+        $deliverables = Deliverable::where('academic_period_id', $this->periodFilter)
+            ->with('recipients')
+            ->get();
+
         $teacherRows = User::where('is_active', true)
             ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
             ->orderBy('name')
             ->get()
-            ->map(function (User $teacher) {
-                $deliverables = Deliverable::where('academic_period_id', $this->periodFilter)
-                    ->whereHas('recipients', fn ($q) => $q->where('user_id', $teacher->id))
-                    ->get();
+            ->map(function (User $teacher) use ($deliverables, $evidencesByUser) {
+                $teacherDeliverables = $deliverables->filter(
+                    fn (Deliverable $d) => $d->recipients->contains('id', $teacher->id)
+                );
 
                 return [
                     'teacher' => $teacher,
-                    'compliance' => ComplianceCalculator::forUser($teacher, $deliverables),
+                    'compliance' => ComplianceCalculator::forUser(
+                        $teacher,
+                        $teacherDeliverables,
+                        $evidencesByUser->get($teacher->id, collect())
+                    ),
                 ];
             })
             ->filter(fn ($row) => $row['compliance']['total'] > 0)

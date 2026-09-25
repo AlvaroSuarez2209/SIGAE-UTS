@@ -720,6 +720,58 @@ la app cambia, hay que actualizarla también aquí (ver §2 de
   la lista de usuarios del otro filtro ya es barata (una tabla pequeña),
   y los propios `$logs` (los datos que se filtran) nunca se cachean, se
   leen siempre en vivo.
+- **N+1 de `ComplianceCalculator` en el Dashboard, corregido con carga
+  masiva en vez de una consulta por docente.**
+  `Dashboard::coordinationPanel()` y `leaderPanel()` recorrían la lista
+  de docentes con `.map()`, y por cada uno hacían
+  `Deliverable::where(...)->get()` más la consulta interna de
+  `ComplianceCalculator::forUser()` — 2 consultas nuevas por docente, en
+  cada `render()` (cada cambio de filtro de periodo). Ahora se trae todo
+  de una vez (entregables del periodo con sus destinatarios, evidencias
+  de los docentes involucrados) y se agrupa en PHP
+  (`Collection::groupBy()`/`filter()`); `ComplianceCalculator::forUser()`
+  acepta un tercer parámetro opcional `$evidences` para usar esos datos
+  ya cargados en vez de volver a consultar. Medido con `DB::getQueryLog()`:
+  `coordinationPanel()` con 20 docentes pasó de **42 a 4 consultas**
+  (antes escalaba linealmente: 2N+2; ahora es constante), y
+  `leaderPanel()` con 10 docentes de **57 a 8**.
+- **`Evidence::scopeReviewableBy()`: "evidencias que este usuario puede
+  revisar" como un JOIN, no como un filtro en PHP evidencia por
+  evidencia.** `ReviewInbox`, `Dashboard::leaderPanel()` (el contador
+  "pendientes de revisión en tu ámbito") y
+  `UserForm::pendingReviewCountForLeader()` traían TODAS las evidencias
+  `Submitted` y llamaban `isReviewableBy()` una por una — cada llamada,
+  para un Líder, disparaba `matchingTeacherAssignment()` +
+  `canLeadAssignment()`, 2 consultas nuevas por evidencia. El nuevo scope
+  expresa la misma regla (empareja por `teacher_assignments` +
+  liderazgo vigente en `leaderships`) como un único `JOIN`, con
+  `$onlyViaLeaderRole` para el caso de `UserForm` (que necesita el
+  conteo específico del rol Líder, sin el atajo de Administrador/
+  Coordinación que sí aplica en los otros dos). `isReviewableBy()`
+  sigue existiendo tal cual para el chequeo de una sola evidencia
+  (`EvidencePolicy::review()`), donde no tiene sentido montar un JOIN.
+  Medido: `ReviewInbox` con 10 evidencias pasó de un número de consultas
+  proporcional a la cantidad de evidencias a un número fijo, verificado
+  con un test que lo mantiene por debajo de un umbral aunque la cantidad
+  de evidencias crezca.
+- **Índices faltantes en `evidences`, `deliverables`, `teacher_assignments`
+  y `leaderships`** (migración
+  `2026_09_25_..._add_indexes_for_dashboard_and_review_queries`): mismo
+  hallazgo que `audit_logs` (`foreignId()->constrained()` no indexa en
+  PostgreSQL). Se agregó índice a `evidences.status` y `evidences.user_id`
+  (los uniques compuestos existentes no cubrían ninguno de los dos como
+  filtro independiente), `deliverables.academic_period_id`, y dos índices
+  compuestos — `teacher_assignments(academic_period_id, program_unit_id,
+  activity_id)` y `leaderships(user_id, academic_period_id,
+  program_unit_id)` — para los patrones de filtro que `leaderPanel()` y
+  el JOIN de `scopeReviewableBy()` usan y que el unique existente de cada
+  tabla no cubre (su columna líder es otra).
+- **`Model::preventLazyLoading()` activado solo en local**
+  (`AppServiceProvider::boot()`, `$this->app->isLocal()`) — red de
+  seguridad preventiva: lanza una excepción al acceder a una relación no
+  cargada, en vez de disparar una consulta silenciosa, para que un N+1
+  nuevo aparezca en el desarrollo diario en vez de en producción. Nunca
+  en `testing` ni en producción, a propósito.
 
 ### 5.12 Traducción de la bitácora de auditoría a lenguaje claro
 

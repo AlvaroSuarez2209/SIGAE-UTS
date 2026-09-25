@@ -14,6 +14,7 @@ use App\Notifications\Evidence\EvidenceNeedsAdjustmentNotification;
 use App\Notifications\Evidence\EvidencePendingReviewNotification;
 use App\Notifications\Evidence\EvidenceReturnConfirmedNotification;
 use App\Notifications\Evidence\EvidenceSubmissionConfirmedNotification;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -293,5 +294,65 @@ class Evidence extends Model
         return User::whereHas('roles', fn ($query) => $query->where('name', RoleName::Coordination->value))
             ->where('is_active', true)
             ->get();
+    }
+
+    /**
+     * Versión "muchas evidencias a la vez" de isReviewableBy() — misma
+     * regla de negocio, expresada como JOIN en vez de traer todas las
+     * evidencias a PHP y llamar isReviewableBy() evidencia por evidencia
+     * (eso disparaba matchingTeacherAssignment() + canLeadAssignment(),
+     * 2 consultas nuevas por fila). isReviewableBy() sigue existiendo tal
+     * cual para el chequeo de una sola evidencia (EvidencePolicy::review()),
+     * donde no tiene sentido montar un JOIN para una fila.
+     *
+     * El JOIN reproduce exactamente matchingTeacherAssignment() (empareja
+     * por user_id + activity_id + academic_period_id) y
+     * canLeadAssignment() (liderazgo vigente: mismo período + programa,
+     * actividad-o-null, dentro de starts_at/ends_at) — si esa regla
+     * cambia, hay que actualizar ambos lugares.
+     *
+     * $onlyViaLeaderRole: true omite el atajo de Administrador/
+     * Coordinación (que ve todo) y el resultado "nada" para quien no es
+     * Líder — para cuando interesa específicamente lo que depende del rol
+     * Líder de $user, no todo lo que podría revisar por cualquier otro
+     * motivo (ver UserForm::pendingReviewCountForLeader(), que bloquea
+     * quitar el rol Líder a alguien con revisiones pendientes bajo ESE
+     * rol, aunque también sea Administrador/Coordinación).
+     */
+    public function scopeReviewableBy(Builder $query, User $user, bool $onlyViaLeaderRole = false): Builder
+    {
+        if (! $onlyViaLeaderRole) {
+            if ($user->hasAnyRole([RoleName::Administrator, RoleName::Coordination])) {
+                return $query->where('evidences.user_id', '!=', $user->id);
+            }
+
+            if (! $user->hasRole(RoleName::Leader)) {
+                return $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query
+            ->join('deliverables', 'deliverables.id', '=', 'evidences.deliverable_id')
+            ->join('teacher_assignments', function ($join) {
+                $join->on('teacher_assignments.user_id', '=', 'evidences.user_id')
+                    ->on('teacher_assignments.activity_id', '=', 'deliverables.activity_id')
+                    ->on('teacher_assignments.academic_period_id', '=', 'deliverables.academic_period_id');
+            })
+            ->join('leaderships', function ($join) use ($user) {
+                $join->on('leaderships.academic_period_id', '=', 'teacher_assignments.academic_period_id')
+                    ->on('leaderships.program_unit_id', '=', 'teacher_assignments.program_unit_id')
+                    ->where(function ($q) {
+                        $q->whereNull('leaderships.activity_id')
+                            ->orWhereColumn('leaderships.activity_id', 'teacher_assignments.activity_id');
+                    })
+                    ->where('leaderships.user_id', $user->id)
+                    ->where('leaderships.starts_at', '<=', now())
+                    ->where(function ($q) {
+                        $q->whereNull('leaderships.ends_at')->orWhere('leaderships.ends_at', '>=', now());
+                    });
+            })
+            ->where('evidences.user_id', '!=', $user->id)
+            ->select('evidences.*')
+            ->distinct();
     }
 }
