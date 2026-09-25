@@ -195,4 +195,19 @@ class LeadershipTest extends TestCase
 
         $this->assertFalse($leader->canLeadAssignment($assignment));
     }
+
+    public function test_leadership_search_is_accent_insensitive(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $leader->update(['name' => 'Andrés Peña']);
+        Leadership::factory()->create(['user_id' => $leader->id]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipIndex::class)
+            ->set('periodFilter', null)
+            ->set('search', 'andres pena')
+            ->assertViewHas('leaderships', fn ($leaderships) => $leaderships->total() === 1
+                && $leaderships->first()->user->name === 'Andrés Peña');
+    }
 }

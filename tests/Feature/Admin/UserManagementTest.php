@@ -292,4 +292,16 @@ class UserManagementTest extends TestCase
         $this->assertFalse($teacher->is_active);
         $this->assertFalse($teacher->hasRole(RoleName::Teacher));
     }
+
+    public function test_user_search_by_name_is_accent_insensitive(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $this->userWithRole(RoleName::Teacher, ['name' => 'Andrés Peña']);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->set('search', 'andres pena')
+            ->assertViewHas('users', fn ($users) => $users->total() === 1
+                && $users->first()->name === 'Andrés Peña');
+    }
 }

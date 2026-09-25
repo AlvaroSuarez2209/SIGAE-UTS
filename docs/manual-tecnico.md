@@ -233,6 +233,23 @@ una ruta de página completa (`routes/web.php`).
   porque PostgreSQL trata cada `NULL` como distinto en un índice único
   normal) — los otros 5 catálogos ya tenían su índice único exacto desde
   antes.
+- **`$query->whereAccentInsensitive($columna, $valor)` — mismo problema de
+  mayúsculas/tildes, pero para los buscadores (`<x-search-input>`), no
+  para unicidad.** Buscar "distribucion" no encontraba "Distribución"
+  porque `ilike` de PostgreSQL sí distingue tildes. A diferencia de
+  `CaseAccentInsensitiveUnique` (que compara en PHP porque los catálogos
+  que valida son pequeños), esto se resuelve en SQL: los 5 buscadores
+  existentes (Usuarios, Liderazgos, Distribución docente, Actividades,
+  Subcomponentes) viven justo en las tablas de mayor volumen del
+  sistema — traer todas las filas a PHP para filtrar anularía la
+  paginación que varias de ellas ya tienen. Es un macro de
+  `Illuminate\Database\Eloquent\Builder`, registrado una sola vez en
+  `AppServiceProvider::registerAccentInsensitiveSearchMacro()`, que usa
+  `translate(lower(columna), 'áéíóúñü', 'aeiounu')` en ambos lados del
+  `LIKE` — `translate()` es una función nativa de PostgreSQL (sin la
+  extensión `unaccent`, mismo motivo por el que
+  `CaseAccentInsensitiveUnique` tampoco depende de ella), así que no hace
+  falta instalar nada ni en Neon ni en local.
 - **`UserForm::blocksRoleRemoval()`: no se puede quitar Docente o Líder a
   alguien con trabajo pendiente bajo ese rol.** Quitar Docente a alguien
   con evidencias que no estén en `Approved`/`Exempt` (mismo criterio que

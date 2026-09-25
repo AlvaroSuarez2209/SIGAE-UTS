@@ -49,8 +49,8 @@ class UserIndex extends Component
             ->with('roles')
             ->when($this->search, fn ($query) => $query
                 ->where(fn ($q) => $q
-                    ->where('name', 'ilike', "%{$this->search}%")
-                    ->orWhere('email', 'ilike', "%{$this->search}%")
+                    ->whereAccentInsensitive('name', $this->search)
+                    ->orWhere(fn ($q) => $q->whereAccentInsensitive('email', $this->search))
                 )
             )
             ->when($this->roleFilter, fn ($query) => $query
