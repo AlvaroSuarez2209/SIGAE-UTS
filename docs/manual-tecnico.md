@@ -1049,6 +1049,38 @@ sección toca `.env` ni la configuración local.
   `--database=pgsql_migrate`): son `INSERT` simples vía `firstOrCreate()`,
   no DDL, así que no tienen el problema de transacciones que sí tenía
   `migrate`.
+- **`CACHE_STORE=file`, no `database` — mismo bug del pooler que las
+  migraciones, esta vez en el rate limiter de login**: confirmado con un
+  log real de Render (`SQLSTATE[25P02]: current transaction is aborted`
+  en un `UPDATE` sobre la tabla `cache`, al fallar un intento de login).
+  `RateLimiter::hit()` (usado por `Login::login()` y
+  `ForgotPassword::sendResetLink()` — solo se llama cuando el intento
+  falla, por eso el síntoma era "solo la contraseña incorrecta da error
+  500") hace un `increment()` atómico que `Illuminate\Cache\DatabaseStore`
+  implementa como una transacción explícita (`SELECT ... FOR UPDATE`
+  seguido de `UPDATE`, ambos dentro de la misma transacción) — la misma
+  forma que rompía `migrate` con el pooler de Neon. Aquí la solución no
+  es la conexión directa (`pgsql_migrate`): el caché se usa en cada
+  request, sacarlo del pooler por completo no resuelve nada. En vez de
+  eso, `CACHE_STORE=file` saca el caché de Postgres del todo — correcto
+  para este despliegue de una sola instancia, donde no hay otro
+  contenedor con el que compartir el caché de todas formas.
+  **Descartado explícitamente que `cache_locks` fuera la causa**: se
+  revisó el código fuente de `Illuminate\Cache\RateLimiter` — ninguno de
+  sus métodos (`tooManyAttempts`, `hit`, `attempts`, `clear`) usa
+  `Cache::lock()`; esa tabla es para locks atómicos, un mecanismo
+  distinto que este proyecto no usa en ningún punto.
+  **`SESSION_DRIVER=database` no tiene este problema** (se queda igual):
+  `Illuminate\Session\DatabaseSessionHandler::write()` hace un `SELECT`
+  y, en una llamada aparte, un solo `INSERT` o `UPDATE` — nunca envuelve
+  ambos en una transacción explícita, así que no depende de que el
+  pooler mantenga la misma sesión de backend entre dos sentencias.
+  **Riesgo latente sin confirmar todavía en `queue:work` (`/cron/process-queue`)**:
+  `Illuminate\Queue\DatabaseQueue::pop()` tiene la misma forma exacta
+  (`SELECT ... FOR UPDATE` + `UPDATE`, misma transacción) — en principio
+  igual de vulnerable al pooler, aunque todavía no se ha visto fallar en
+  un log real. Pendiente de decidir si `config/queue.php` también debe
+  apuntar a `pgsql_migrate` para la conexión de la cola.
 - **Sin worker de colas persistente**: el plan gratuito de Render no
   ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
   `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
