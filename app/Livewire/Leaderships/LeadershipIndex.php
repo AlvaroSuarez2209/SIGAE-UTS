@@ -47,7 +47,7 @@ class LeadershipIndex extends Component
         $leaderships = Leadership::query()
             ->with(['user', 'activity.component', 'programUnit', 'academicPeriod'])
             ->when($this->search, fn ($query) => $query
-                ->whereHas('user', fn ($q) => $q->where('name', 'ilike', "%{$this->search}%"))
+                ->whereHas('user', fn ($q) => $q->whereAccentInsensitive('name', $this->search))
             )
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('starts_at')

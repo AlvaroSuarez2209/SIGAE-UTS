@@ -40,7 +40,7 @@ class AssignmentIndex extends Component
         $assignments = TeacherAssignment::query()
             ->with(['user', 'academicPeriod', 'activity.component', 'activity.subcomponent', 'programUnit'])
             ->when($this->search, fn ($query) => $query
-                ->whereHas('user', fn ($q) => $q->where('name', 'ilike', "%{$this->search}%"))
+                ->whereHas('user', fn ($q) => $q->whereAccentInsensitive('name', $this->search))
             )
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByDesc('created_at')

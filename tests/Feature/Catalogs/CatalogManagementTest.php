@@ -378,6 +378,19 @@ class CatalogManagementTest extends TestCase
                 && $activities->first()->name === 'Clases teóricas');
     }
 
+    public function test_activity_search_is_accent_insensitive(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->create(['name' => 'Clases teóricas']);
+        Activity::factory()->create(['name' => 'Dirección de trabajos de grado']);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('search', 'teoricas')
+            ->assertViewHas('activities', fn ($activities) => $activities->count() === 1
+                && $activities->first()->name === 'Clases teóricas');
+    }
+
     public function test_activity_index_paginates_at_25_per_page(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -406,5 +419,18 @@ class CatalogManagementTest extends TestCase
             ->set('search', 'OACA')
             ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->count() === 1
                 && $subcomponents->first()->name === 'Procesos OACA');
+    }
+
+    public function test_subcomponent_search_is_accent_insensitive(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Subcomponent::factory()->create(['name' => 'Inducción docente']);
+        Subcomponent::factory()->create(['name' => 'Procesos ODA']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->set('search', 'induccion')
+            ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->count() === 1
+                && $subcomponents->first()->name === 'Inducción docente');
     }
 }

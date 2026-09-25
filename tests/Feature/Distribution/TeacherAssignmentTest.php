@@ -5,6 +5,7 @@ namespace Tests\Feature\Distribution;
 use App\Enums\AcademicPeriodStatus;
 use App\Enums\RoleName;
 use App\Livewire\Distribution\AssignmentForm;
+use App\Livewire\Distribution\AssignmentIndex;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\ProgramUnit;
@@ -211,5 +212,20 @@ class TeacherAssignmentTest extends TestCase
             $assignment->assigned_hours,
             $assignment->fresh()->assigned_hours
         );
+    }
+
+    public function test_assignment_search_is_accent_insensitive(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->teacher();
+        $teacher->update(['name' => 'Andrés Peña']);
+        TeacherAssignment::factory()->create(['user_id' => $teacher->id]);
+
+        Livewire::actingAs($admin)
+            ->test(AssignmentIndex::class)
+            ->set('periodFilter', null)
+            ->set('search', 'andres pena')
+            ->assertViewHas('assignments', fn ($assignments) => $assignments->total() === 1
+                && $assignments->first()->user->name === 'Andrés Peña');
     }
 }

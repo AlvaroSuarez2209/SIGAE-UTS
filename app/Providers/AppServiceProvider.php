@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Transport;
@@ -25,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerReadableDateMacro();
         $this->registerBrevoApiMailTransport();
+        $this->registerAccentInsensitiveSearchMacro();
     }
 
     /**
@@ -82,6 +84,32 @@ class AppServiceProvider extends ServiceProvider
                 'brevo+api://%s@default',
                 rawurlencode((string) config('services.brevo.key'))
             ));
+        });
+    }
+
+    /**
+     * $query->whereAccentInsensitive('name', $this->search) — para que
+     * buscar "distribucion" también encuentre "Distribución". A
+     * diferencia de App\Rules\CaseAccentInsensitiveUnique (que compara en
+     * PHP, porque los catálogos que valida son minúsculos), esto se
+     * resuelve en SQL: los buscadores con <x-search-input> viven
+     * justamente en las tablas de mayor volumen (Usuarios, Liderazgos,
+     * Distribución docente, Actividades) — traer todas las filas a PHP
+     * para filtrar anularía la paginación que ya tienen. translate() es
+     * una función nativa de PostgreSQL (sin la extensión unaccent, así
+     * que no hace falta instalarla ni en Neon ni en local — mismo motivo
+     * por el que CaseAccentInsensitiveUnique tampoco depende de ella):
+     * reemplaza cada vocal acentuada/ñ/ü por su equivalente sin tilde,
+     * carácter por carácter, sin afectar los comodines `%` de LIKE.
+     */
+    private function registerAccentInsensitiveSearchMacro(): void
+    {
+        Builder::macro('whereAccentInsensitive', function (string $column, string $value) {
+            /** @var Builder $this */
+            return $this->whereRaw(
+                "translate(lower({$column}), 'áéíóúñü', 'aeiounu') like translate(lower(?), 'áéíóúñü', 'aeiounu')",
+                ["%{$value}%"]
+            );
         });
     }
 }

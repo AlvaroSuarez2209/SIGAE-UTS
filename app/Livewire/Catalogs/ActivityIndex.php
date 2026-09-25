@@ -109,7 +109,7 @@ class ActivityIndex extends LivewireComponent
     {
         return view('livewire.catalogs.activity-index', [
             'activities' => Activity::with(['component', 'subcomponent'])
-                ->when($this->search, fn ($query) => $query->where('name', 'ilike', "%{$this->search}%"))
+                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->orderBy('name')
                 ->paginate(self::PER_PAGE),
             'components' => Component::orderBy('name')->get(),
