@@ -55,6 +55,13 @@ class EvidenceWorkspace extends Component
     {
         $this->resetErrorBag('newFiles');
 
+        if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
+            $this->addError('newFiles', $this->periodBlockedMessage());
+            $this->newFiles = [];
+
+            return;
+        }
+
         $rules = $this->fileValidationRules();
         $validFiles = [];
 
@@ -71,6 +78,19 @@ class EvidenceWorkspace extends Component
         }
 
         $this->newFiles = $validFiles;
+    }
+
+    /**
+     * "No es posible cargar evidencias mientras el periodo académico esté
+     * en planeación." — con el estado real en vez de un texto genérico,
+     * para que también sirva sin cambios cuando el bloqueo es por
+     * "cerrado" o "archivado" (ver Deliverable::acceptsEvidenceSubmissions()).
+     */
+    private function periodBlockedMessage(): string
+    {
+        $status = $this->evidence->deliverable->academicPeriod->status->label();
+
+        return "No es posible cargar evidencias mientras el periodo académico esté en estado \"{$status}\". Solo se permite mientras el periodo está Activo.";
     }
 
     private function allowedTypes(): array
@@ -100,6 +120,12 @@ class EvidenceWorkspace extends Component
 
         if (! $this->evidence->status->isEditable()) {
             $this->submissionError = 'Esta evidencia ya fue enviada y no admite ediciones directas.';
+
+            return false;
+        }
+
+        if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
+            $this->submissionError = $this->periodBlockedMessage();
 
             return false;
         }
@@ -160,6 +186,12 @@ class EvidenceWorkspace extends Component
         Gate::authorize('update', $this->evidence);
 
         if (! $this->evidence->status->isEditable()) {
+            return;
+        }
+
+        if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
+            $this->addError('newLinkUrl', $this->periodBlockedMessage());
+
             return;
         }
 

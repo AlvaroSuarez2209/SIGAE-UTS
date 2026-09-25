@@ -22,6 +22,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class EvidenceWorkspaceTest extends TestCase
@@ -44,10 +45,20 @@ class EvidenceWorkspaceTest extends TestCase
         return $user;
     }
 
+    /**
+     * Periodo Activo por defecto — AcademicPeriodFactory por defecto crea
+     * uno en Planeación, que ahora bloquea todas las acciones de escritura
+     * (ver Deliverable::acceptsEvidenceSubmissions() y los tests de más
+     * abajo sobre el bloqueo por estado de periodo); las pruebas de este
+     * archivo ejercitan ese flujo de escritura, así que necesitan un
+     * periodo operativo salvo que prueben justamente el bloqueo.
+     */
     private function evidenceFor(array $deliverableAttributes = []): Evidence
     {
         $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
         $deliverable = Deliverable::factory()->create(array_merge([
+            'academic_period_id' => $period->id,
             'allowed_evidence_types' => [EvidenceType::File->value],
             'allowed_file_types' => ['pdf'],
             'max_files' => 1,
@@ -450,5 +461,95 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->call('removeExemption')
             ->assertForbidden();
+    }
+
+    public static function nonActivePeriodStatuses(): array
+    {
+        return [
+            'en planeación' => [AcademicPeriodStatus::Planning],
+            'cerrado' => [AcademicPeriodStatus::Closed],
+            'archivado' => [AcademicPeriodStatus::Archived],
+        ];
+    }
+
+    /**
+     * RF-009 nombra 4 estados de periodo; el documento solo detalla
+     * "cerrado". Se resolvió que un docente solo puede guardar borrador,
+     * adjuntar archivos o enviar mientras el periodo está Activo — en
+     * cualquier otro estado (planeación, cerrado, archivado) se bloquea.
+     */
+    #[DataProvider('nonActivePeriodStatuses')]
+    public function test_cannot_save_draft_when_period_is_not_active(AcademicPeriodStatus $status): void
+    {
+        $period = AcademicPeriod::factory()->create(['status' => $status]);
+        $evidence = $this->evidenceFor(['academic_period_id' => $period->id]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('saveDraft')
+            ->assertSet('submissionError', fn ($message) => str_contains($message, 'No es posible cargar evidencias'));
+
+        $this->assertNull($evidence->fresh()->current_version_id);
+    }
+
+    public function test_cannot_submit_when_period_is_in_planning(): void
+    {
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Planning]);
+        $evidence = $this->evidenceFor([
+            'academic_period_id' => $period->id,
+            'allowed_evidence_types' => [EvidenceType::Text->value],
+        ]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Contenido de prueba')
+            ->call('submit');
+
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
+    }
+
+    public function test_cannot_attach_a_file_when_period_is_in_planning(): void
+    {
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Planning]);
+        $evidence = $this->evidenceFor(['academic_period_id' => $period->id]);
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->assertHasErrors('newFiles')
+            ->assertSet('newFiles', []);
+    }
+
+    public function test_cannot_add_a_link_when_period_is_in_planning(): void
+    {
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Planning]);
+        $evidence = $this->evidenceFor([
+            'academic_period_id' => $period->id,
+            'allowed_evidence_types' => [EvidenceType::Link->value],
+        ]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com')
+            ->call('addLink')
+            ->assertHasErrors('newLinkUrl');
+
+        $this->assertNull($evidence->fresh()->current_version_id);
+    }
+
+    public function test_saving_a_draft_and_submitting_works_normally_when_period_is_active(): void
+    {
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $evidence = $this->evidenceFor(['academic_period_id' => $period->id]);
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
 }
