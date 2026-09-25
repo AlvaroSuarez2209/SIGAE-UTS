@@ -121,7 +121,7 @@
                 </select>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="space-y-4">
                 <div>
                     <label class="field-label">Apertura</label>
                     <input type="datetime-local" wire:model="opens_at" class="field-input" @if ($periodLocked) disabled @endif>
