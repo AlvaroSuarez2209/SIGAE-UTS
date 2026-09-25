@@ -182,6 +182,51 @@ class DashboardTest extends TestCase
             });
     }
 
+    public function test_due_label_marks_today_and_tomorrow_as_warning(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $component = Livewire::actingAs($teacher)->test(Dashboard::class)->instance();
+
+        $this->assertSame(['label' => 'Vence hoy', 'warning' => true], $component->dueLabel(now()));
+        $this->assertSame(['label' => 'Vence mañana', 'warning' => true], $component->dueLabel(now()->addDay()));
+        $this->assertSame(['label' => 'Vence en 5 días', 'warning' => false], $component->dueLabel(now()->addDays(5)));
+    }
+
+    public function test_upcoming_deadlines_section_title_no_longer_shows_the_day_window(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'due_at' => now()->addDays(3)]);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Pending]);
+
+        Livewire::actingAs($teacher)->test(Dashboard::class)
+            ->assertSee('Próximos vencimientos')
+            ->assertDontSee('Próximos vencimientos (14 días)');
+    }
+
+    public function test_teacher_panel_shows_the_days_remaining_badge_per_row(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'due_at' => now()->addDays(3)]);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Pending]);
+
+        Livewire::actingAs($teacher)->test(Dashboard::class)
+            ->assertSee('Vence en 3 días');
+    }
+
+    public function test_coordination_panel_shows_a_warning_badge_for_a_deliverable_due_tomorrow(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        Deliverable::factory()->create(['academic_period_id' => $period->id, 'due_at' => now()->addDay()]);
+
+        $html = Livewire::actingAs($admin)->test(Dashboard::class)->html();
+
+        $this->assertStringContainsString('Vence mañana', $html);
+        $this->assertStringContainsString('bg-status-warning-subtle text-status-warning', $html);
+    }
+
     public function test_switching_the_period_filter_updates_all_panels(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);

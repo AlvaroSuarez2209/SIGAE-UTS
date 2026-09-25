@@ -46,13 +46,24 @@
             @endif
 
             <div class="table-shell">
-                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <tbody class="divide-y divide-border-subtle">
                         @forelse ($teacherPanel['upcoming'] as $evidence)
+                            @php $due = $this->dueLabel($evidence->deliverable->due_at); @endphp
                             <tr class="table-row">
                                 <td class="table-cell">{{ $evidence->deliverable->name }}</td>
                                 <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->toReadable() }}</td>
+                                <td class="table-cell">
+                                    <span @class([
+                                        'badge',
+                                        'bg-status-warning-subtle text-status-warning' => $due['warning'],
+                                        'bg-surface-muted text-text-secondary' => ! $due['warning'],
+                                    ])>
+                                        <x-icon name="clock" class="h-3.5 w-3.5" />
+                                        {{ $due['label'] }}
+                                    </span>
+                                </td>
                                 <td class="table-cell text-right">
                                     <a href="{{ route('my-deliverables.show', $evidence) }}" class="btn-text">Ver</a>
                                 </td>
@@ -158,19 +169,23 @@
             </div>
 
             <div class="table-shell mt-6">
-                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos (14 días)</div>
+                <div class="border-b border-border-subtle px-5 py-4 text-lg font-semibold text-text-primary">Próximos vencimientos</div>
                 <table class="min-w-full divide-y divide-border-subtle">
                     <thead>
                         <tr>
                             <th class="table-header-cell">Entregable</th>
                             <th class="table-header-cell">Ámbito</th>
                             <th class="table-header-cell">Fecha límite</th>
+                            <th class="table-header-cell">Vence</th>
                             <th class="table-header-cell text-right">Estado</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border-subtle">
                         @forelse ($coordinationPanel['upcoming'] as $row)
-                            @php $deliverable = $row['deliverable']; @endphp
+                            @php
+                                $deliverable = $row['deliverable'];
+                                $due = $this->dueLabel($deliverable->due_at);
+                            @endphp
                             <tr class="table-row">
                                 <td class="table-cell">{{ $deliverable->name }}</td>
                                 <td class="table-cell text-text-secondary">
@@ -184,6 +199,16 @@
                                     @endif
                                 </td>
                                 <td class="table-cell text-text-secondary">{{ $deliverable->due_at->toReadable() }}</td>
+                                <td class="table-cell">
+                                    <span @class([
+                                        'badge',
+                                        'bg-status-warning-subtle text-status-warning' => $due['warning'],
+                                        'bg-surface-muted text-text-secondary' => ! $due['warning'],
+                                    ])>
+                                        <x-icon name="clock" class="h-3.5 w-3.5" />
+                                        {{ $due['label'] }}
+                                    </span>
+                                </td>
                                 <td class="table-cell text-right">
                                     @if ($row['pending'] === 0)
                                         <span class="badge bg-status-success-subtle text-status-success">
@@ -200,7 +225,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4">
+                                <td colspan="5">
                                     <x-empty-state icon="check-circle" title="No hay vencimientos en los próximos 14 días" description="Todo lo asignado para este periodo está fuera de esa ventana o ya se completó." />
                                 </td>
                             </tr>
