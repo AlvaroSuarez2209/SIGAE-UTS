@@ -17,6 +17,7 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -225,6 +226,88 @@ class DashboardTest extends TestCase
 
         $this->assertStringContainsString('Vence mañana', $html);
         $this->assertStringContainsString('bg-status-warning-subtle text-status-warning', $html);
+    }
+
+    /**
+     * Antes, coordinationPanel() hacía 2 consultas nuevas POR docente
+     * (Deliverable::where(...)->get() + la consulta interna de
+     * ComplianceCalculator::forUser()) — con 10 docentes, ~22 consultas.
+     * Ahora el número de consultas es constante, sin importar cuántos
+     * docentes haya. El umbral (10) es generoso a propósito: lo que
+     * importa es que NO crezca con la cantidad de docentes, no un número
+     * exacto frágil ante cualquier cambio menor.
+     */
+    public function test_coordination_panel_query_count_does_not_grow_with_teacher_count(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        for ($i = 0; $i < 10; $i++) {
+            $teacher = $this->userWithRole(RoleName::Teacher);
+            $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'is_mandatory' => true]);
+            $deliverable->recipients()->attach($teacher->id);
+            Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Pending]);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        Livewire::actingAs($admin)->test(Dashboard::class);
+
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // Umbral generoso: cubre el render() completo del Dashboard (mount,
+        // el <select> de periodos, y los 3 chequeos de rol), no solo
+        // coordinationPanel() aislado — lo que importa es que no escale con
+        // la cantidad de docentes, no un número exacto y frágil.
+        $this->assertLessThan(15, $queryCount, "Se esperaban menos de 15 consultas independientemente del número de docentes, hubo {$queryCount}.");
+    }
+
+    /**
+     * Mismo caso que arriba, para leaderPanel(): antes, por cada docente
+     * único bajo el ámbito del líder, se hacían 2 consultas nuevas más las
+     * de pendingReviewCount (isReviewableBy() en memoria).
+     */
+    public function test_leader_panel_query_count_does_not_grow_with_teacher_count(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        for ($i = 0; $i < 10; $i++) {
+            $teacher = $this->userWithRole(RoleName::Teacher);
+            $activity = Activity::factory()->create();
+
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+                'program_unit_id' => $programUnit->id,
+            ]);
+
+            $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id, 'is_mandatory' => true]);
+            Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Submitted]);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        Livewire::actingAs($leader)->test(Dashboard::class);
+
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertLessThan(15, $queryCount, "Se esperaban menos de 15 consultas independientemente del número de docentes, hubo {$queryCount}.");
     }
 
     public function test_switching_the_period_filter_updates_all_panels(): void

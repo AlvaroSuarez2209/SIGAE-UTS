@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\EvidenceStatus;
 use App\Models\Deliverable;
+use App\Models\Evidence;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
@@ -22,9 +23,14 @@ class ComplianceCalculator
 {
     /**
      * @param  Collection<int, Deliverable>  $deliverables
+     * @param  Collection<int, Evidence>|null  $evidences  Evidencias de $user ya cargadas
+     *                                                     (cualquier subconjunto que incluya las de $deliverables sirve) — evita una consulta
+     *                                                     nueva por cada llamada cuando el caller ya las tiene (ver Dashboard::coordinationPanel()/
+     *                                                     leaderPanel(), que antes disparaban una consulta aquí por cada docente listado).
+     *                                                     Si se omite, se consulta como antes.
      * @return array{percentage: ?float, approved: int, total: int}
      */
-    public static function forUser(User $user, Collection $deliverables): array
+    public static function forUser(User $user, Collection $deliverables, ?Collection $evidences = null): array
     {
         $mandatory = $deliverables->where('is_mandatory', true);
 
@@ -32,9 +38,7 @@ class ComplianceCalculator
             return ['percentage' => null, 'approved' => 0, 'total' => 0];
         }
 
-        $evidenceByDeliverable = $user->evidences()
-            ->whereIn('deliverable_id', $mandatory->pluck('id'))
-            ->get()
+        $evidenceByDeliverable = ($evidences ?? $user->evidences()->whereIn('deliverable_id', $mandatory->pluck('id'))->get())
             ->keyBy('deliverable_id');
 
         $isApproved = fn (Deliverable $deliverable) => $evidenceByDeliverable

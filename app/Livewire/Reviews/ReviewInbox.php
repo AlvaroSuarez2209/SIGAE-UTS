@@ -23,13 +23,13 @@ class ReviewInbox extends Component
     public function render()
     {
         $pending = Evidence::query()
-            ->where('status', EvidenceStatus::Submitted)
+            ->where('evidences.status', EvidenceStatus::Submitted)
+            ->reviewableBy(auth()->user())
             ->with(['deliverable.activity.component', 'deliverable.crossCuttingCommitment', 'user', 'currentVersion'])
             ->when($this->periodFilter, fn ($query) => $query
                 ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
             )
             ->get()
-            ->filter(fn (Evidence $evidence) => $evidence->isReviewableBy(auth()->user()))
             ->sortBy(fn (Evidence $evidence) => $evidence->currentVersion?->submitted_at)
             ->values();
 

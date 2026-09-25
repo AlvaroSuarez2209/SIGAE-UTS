@@ -5,6 +5,7 @@ namespace App\Providers;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Mailer\Transport;
@@ -27,6 +28,13 @@ class AppServiceProvider extends ServiceProvider
         $this->registerReadableDateMacro();
         $this->registerBrevoApiMailTransport();
         $this->registerAccentInsensitiveSearchMacro();
+
+        // Red de seguridad preventiva contra N+1 nuevos: lanza una excepción
+        // en vez de disparar una consulta silenciosa al acceder a una
+        // relación no cargada. Solo en local (nunca en producción/testing):
+        // el objetivo es que aparezca en el desarrollo diario, no que un
+        // caso límite no previsto tumbe una request real en Render.
+        Model::preventLazyLoading($this->app->isLocal());
     }
 
     /**

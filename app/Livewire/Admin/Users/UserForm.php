@@ -135,26 +135,20 @@ class UserForm extends Component
     }
 
     /**
-     * Mismo criterio de alcance que User::canLeadAssignment()/
-     * Evidence::isReviewableBy() (período + programa + actividad-o-null,
-     * dentro de starts_at/ends_at) — pero sin el atajo de
-     * Administrador/Coordinación de isReviewableBy(), porque aquí interesa
+     * Evidence::scopeReviewableBy() con onlyViaLeaderRole: true — mismo
+     * criterio de alcance que User::canLeadAssignment() (período +
+     * programa + actividad-o-null, dentro de starts_at/ends_at), sin el
+     * atajo de Administrador/Coordinación, porque aquí interesa
      * específicamente lo que depende del rol Líder, no todo lo que este
-     * usuario podría revisar por cualquier otro motivo.
+     * usuario podría revisar por cualquier otro motivo. Antes esto se
+     * calculaba trayendo TODAS las evidencias "Submitted" del sistema (de
+     * cualquier periodo) y filtrando en PHP evidencia por evidencia, con 2
+     * consultas nuevas por fila; ahora es una sola consulta con JOIN.
      */
     private function pendingReviewCountForLeader(User $leader): int
     {
-        return Evidence::where('status', EvidenceStatus::Submitted)
-            ->get()
-            ->filter(function (Evidence $evidence) use ($leader) {
-                if ($evidence->user_id === $leader->id) {
-                    return false;
-                }
-
-                $assignment = $evidence->matchingTeacherAssignment();
-
-                return $assignment && $leader->canLeadAssignment($assignment);
-            })
+        return Evidence::where('evidences.status', EvidenceStatus::Submitted)
+            ->reviewableBy($leader, onlyViaLeaderRole: true)
             ->count();
     }
 
