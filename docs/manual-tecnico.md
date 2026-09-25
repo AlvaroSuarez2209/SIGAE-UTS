@@ -233,6 +233,18 @@ una ruta de página completa (`routes/web.php`).
   porque PostgreSQL trata cada `NULL` como distinto en un índice único
   normal) — los otros 5 catálogos ya tenían su índice único exacto desde
   antes.
+- **`UserForm::blocksRoleRemoval()`: no se puede quitar Docente o Líder a
+  alguien con trabajo pendiente bajo ese rol.** Quitar Docente a alguien
+  con evidencias que no estén en `Approved`/`Exempt` (mismo criterio que
+  `EvidencePolicy::markExempt()`), o quitar Líder a alguien con
+  evidencias `Submitted` dentro de su ámbito de liderazgo vigente (mismo
+  criterio de alcance que `User::canLeadAssignment()`), se **bloquea**
+  con un error indicando cuántas evidencias/revisiones tiene pendientes
+  — no es solo una advertencia. Agregar un rol nunca se bloquea (el
+  chequeo solo mira roles que desaparecen de la selección), y se omite
+  por completo si el mismo guardado desactiva la cuenta (`is_active` en
+  falso) — desactivar ya es el flujo separado para retirar a alguien por
+  completo (`UserIndex::toggleActive()`, que no toca roles).
 
 ### 5.4 Almacenamiento de archivos
 
