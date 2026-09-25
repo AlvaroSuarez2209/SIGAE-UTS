@@ -34,26 +34,30 @@ class EvidenceFile extends Model
     /**
      * Tamaño legible ("245 KB", "1.2 MB") — único punto de formato para no
      * repetir la conversión de bytes en cada vista que liste archivos.
+     * Estático porque también lo usa EvidenceWorkspace para los archivos
+     * recién adjuntados (TemporaryUploadedFile), que no tienen este
+     * accessor por no ser un EvidenceFile persistido todavía.
      */
+    public static function formatReadableSize(int $bytes): string
+    {
+        if ($bytes < 1024) {
+            return "{$bytes} B";
+        }
+
+        $units = ['KB', 'MB', 'GB'];
+        $value = $bytes / 1024;
+
+        foreach ($units as $unit) {
+            if ($value < 1024 || $unit === end($units)) {
+                return round($value, 1).' '.$unit;
+            }
+
+            $value /= 1024;
+        }
+    }
+
     protected function readableSize(): Attribute
     {
-        return Attribute::get(function () {
-            $bytes = $this->size_bytes;
-
-            if ($bytes < 1024) {
-                return "{$bytes} B";
-            }
-
-            $units = ['KB', 'MB', 'GB'];
-            $value = $bytes / 1024;
-
-            foreach ($units as $unit) {
-                if ($value < 1024 || $unit === end($units)) {
-                    return round($value, 1).' '.$unit;
-                }
-
-                $value /= 1024;
-            }
-        });
+        return Attribute::get(fn () => static::formatReadableSize($this->size_bytes));
     }
 }

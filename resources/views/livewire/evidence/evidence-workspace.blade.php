@@ -102,6 +102,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        @if (! empty($newFiles))
+                            <ul class="mt-2 space-y-1">
+                                @foreach ($newFiles as $index => $file)
+                                    <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                                        <div class="flex min-w-0 items-center gap-2">
+                                            <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                            <span class="truncate text-base text-text-primary">{{ $file->getClientOriginalName() }}</span>
+                                            <span class="shrink-0 text-sm text-text-secondary">({{ $this->formatFileSize($file->getSize()) }})</span>
+                                        </div>
+                                        <div class="flex shrink-0 items-center gap-3">
+                                            <button
+                                                type="button"
+                                                wire:click="removeNewFile({{ $index }})"
+                                                class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                            >
+                                                <x-icon name="trash" class="h-4 w-4" />
+                                                Quitar
+                                            </button>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
                     @else
                         <p class="field-help">
                             Ya alcanzaste el máximo de {{ $deliverable->max_files }} archivo(s) permitido(s). Quita el actual para poder subir uno nuevo.
