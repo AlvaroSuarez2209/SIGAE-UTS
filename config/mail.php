@@ -49,6 +49,16 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        // API HTTP de Brevo (no SMTP) — necesario en Render, cuyo plan
+        // gratuito bloquea los puertos SMTP salientes (25/465/587) desde
+        // septiembre de 2025. El transporte "brevo" lo registra
+        // AppServiceProvider::registerBrevoApiMailTransport() vía
+        // Mail::extend(). En local se sigue usando el mailer "smtp" de
+        // arriba, sin ningún cambio. Ver docs/manual-tecnico.md §8.1.
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
