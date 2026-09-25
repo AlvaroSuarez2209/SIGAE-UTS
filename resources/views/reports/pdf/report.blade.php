@@ -244,7 +244,7 @@
     </header>
 
     <footer>
-        SIGAE-UTS · Unidades Tecnológicas de Santander
+        SIGAE-UTS · Institución Universitaria Tecnológica de Santander
     </footer>
 
     <h1>{{ $title }}</h1>
