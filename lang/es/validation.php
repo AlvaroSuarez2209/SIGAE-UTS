@@ -160,15 +160,66 @@ return [
         //
     ],
 
+    /**
+     * Barrido completo de los campos usados en reglas de validación de
+     * todos los componentes Livewire (`grep -rn "validate(" app/Livewire`)
+     * — para que ningún mensaje de error muestre el nombre técnico de una
+     * columna ("assigned hours") en vez de su nombre en español natural
+     * ("horas asignadas"). Donde el campo ya tenía una traducción en
+     * App\Services\Audit\AuditLogPresenter::FIELD_LABELS (usado para la
+     * bitácora de auditoría, no para validación), se reutiliza la misma
+     * palabra en minúscula, para no tener dos redacciones distintas del
+     * mismo campo en la aplicación.
+     */
     'attributes' => [
         'name' => 'nombre',
         'email' => 'correo electrónico',
         'password' => 'contraseña',
+        'current_password' => 'contraseña actual',
         'document_number' => 'número de documento',
         'is_active' => 'estado activo',
         'selectedRoles' => 'roles',
         'selectedRoles.*' => 'rol',
         'remember' => 'recordarme',
+
+        'component_id' => 'componente',
+        'subcomponent_id' => 'subcomponente',
+        'activity_id' => 'actividad',
+        'program_unit_id' => 'programa',
+        'academic_period_id' => 'periodo académico',
+        'cross_cutting_commitment_id' => 'compromiso transversal',
+        'user_id' => 'usuario',
+        'scope_type' => 'tipo de alcance',
+
+        'description' => 'descripción',
+        'instructions' => 'instrucciones',
+        'completion_criteria' => 'criterio de cumplimiento',
+        'is_mandatory' => 'obligatorio',
+        'periodicity_type' => 'periodicidad',
+        'opens_at' => 'fecha de apertura',
+        'due_at' => 'fecha límite',
+        'closes_at' => 'fecha de cierre',
+        'max_files' => 'máximo de archivos',
+        'max_file_size_mb' => 'tamaño máximo de archivo (MB)',
+        'weight_percentage' => 'peso porcentual',
+        'allowed_evidence_types' => 'tipos de evidencia permitidos',
+        'allowed_evidence_types.*' => 'tipo de evidencia',
+        'allowed_file_types' => 'tipos de archivo permitidos',
+
+        'assigned_hours' => 'horas asignadas',
+        'notes' => 'notas',
+
+        'starts_at' => 'vigente desde',
+        'ends_at' => 'vigente hasta',
+        'start_date' => 'fecha de inicio',
+        'end_date' => 'fecha de fin',
+
+        'newLinkUrl' => 'URL del enlace',
+        'newLinkLabel' => 'etiqueta del enlace',
+        'newFiles' => 'archivos',
+        'newFiles.*' => 'archivo',
+        'exemptionJustification' => 'justificación de la exención',
+        'observation' => 'observación',
     ],
 
 ];
