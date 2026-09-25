@@ -10,6 +10,7 @@ use App\Models\Evidence;
 use App\Models\TeacherAssignment;
 use App\Models\User;
 use App\Services\ComplianceCalculator;
+use Carbon\Carbon;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -152,6 +153,27 @@ class Dashboard extends Component
             ]);
 
         return compact('counts', 'teacherRows', 'upcoming');
+    }
+
+    /**
+     * Etiqueta de tiempo restante para una fila de "Próximos vencimientos"
+     * (el filtro de 14 días sigue viviendo en teacherPanel()/
+     * coordinationPanel(); esto solo formatea, por fila, cuánto falta).
+     * Hoy y mañana se marcan como advertencia — mismo tono ámbar que
+     * "Requiere ajustes" — porque son los únicos casos donde ya no queda
+     * margen real para reaccionar.
+     *
+     * @return array{label: string, warning: bool}
+     */
+    public function dueLabel(Carbon $dueAt): array
+    {
+        $days = (int) now()->startOfDay()->diffInDays($dueAt->copy()->startOfDay());
+
+        return match ($days) {
+            0 => ['label' => 'Vence hoy', 'warning' => true],
+            1 => ['label' => 'Vence mañana', 'warning' => true],
+            default => ['label' => "Vence en {$days} días", 'warning' => false],
+        };
     }
 
     public function render()
