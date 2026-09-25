@@ -55,9 +55,9 @@
       <td align="center">
         <table border="0" cellpadding="0" cellspacing="0" role="presentation">
           <tr>
-            <td style="border-radius: 8px; background: linear-gradient(135deg, #00447e, #0a7a45);">
+            <td bgcolor="#00447e" style="border-radius: 8px; background-color: #00447e; background: linear-gradient(135deg, #00447e, #0a7a45);">
               <a href="{{ $resetUrl }}" class="button button-primary" target="_blank" rel="noopener" style="-webkit-text-size-adjust: none; border-radius: 8px; color: #ffffff; display: inline-block; overflow: hidden; text-decoration: none; font-size: 15px; font-weight: 600; padding: 13px 28px;">
-                Restablecer contraseña
+                <font color="#ffffff">Restablecer contraseña</font>
               </a>
             </td>
           </tr>
