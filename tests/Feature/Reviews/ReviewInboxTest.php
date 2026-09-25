@@ -114,16 +114,38 @@ class ReviewInboxTest extends TestCase
                 && $pending->first()->id === $ownEvidence->id);
     }
 
-    public function test_administrator_sees_all_submitted_evidence(): void
+    /**
+     * RS-005/RF-027/RF-056 a RF-059: Administrador ya no ve evidencias de
+     * actividad en la bandeja (eso es exclusivo del líder asignado) — solo
+     * ve compromisos transversales, la única categoría sin líder posible.
+     */
+    public function test_administrator_only_sees_cross_cutting_evidence(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $teacher = $this->userWithRole(RoleName::Teacher);
         $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
-        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id]);
-        $this->submitEvidence($teacher, $deliverable);
+
+        $activityDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id]);
+        $crossCuttingDeliverable = Deliverable::factory()->crossCutting()->create(['academic_period_id' => $period->id]);
+
+        $this->submitEvidence($teacher, $activityDeliverable);
+        $crossCuttingEvidence = $this->submitEvidence($teacher, $crossCuttingDeliverable);
 
         Livewire::actingAs($admin)->test(ReviewInbox::class)
-            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1);
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1
+                && $pending->first()->id === $crossCuttingEvidence->id);
+    }
+
+    public function test_coordination_sees_nothing_in_the_review_inbox(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $deliverable = Deliverable::factory()->crossCutting()->create(['academic_period_id' => $period->id]);
+        $this->submitEvidence($teacher, $deliverable);
+
+        Livewire::actingAs($coordination)->test(ReviewInbox::class)
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 0);
     }
 
     public function test_query_count_does_not_grow_with_submitted_evidence_count(): void

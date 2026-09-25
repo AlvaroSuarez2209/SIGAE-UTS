@@ -26,11 +26,17 @@ class EvidencePolicy
 
     /**
      * "Permiso especial" para reabrir una evidencia ya aprobada — exige
-     * quedar registrado en la bitácora de auditoría (módulo 10).
+     * quedar registrado en la bitácora de auditoría (módulo 10). El chequeo
+     * de estado vive aquí (no solo en ReviewShow::reopen()) para que
+     * Gate::denies('reopen', ...) refleje la regla completa — lo necesita
+     * ReviewShow::mount(), que autoriza la página si el usuario puede
+     * revisar O reabrir, y antes dejaba pasar a un Administrador que en
+     * realidad no podía hacer nada útil ahí (reopen() sobre una evidencia
+     * no aprobada no hacía nada, pero la policy por sí sola no lo reflejaba).
      */
     public function reopen(User $user, Evidence $evidence): bool
     {
-        return $user->hasRole(RoleName::Administrator);
+        return $user->hasRole(RoleName::Administrator) && $evidence->status === EvidenceStatus::Approved;
     }
 
     /**
