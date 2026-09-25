@@ -280,6 +280,24 @@ una ruta de página completa (`routes/web.php`).
   `'en'` de `config/app.php`) — se agregaron ahí también, igual que en
   `.env` y `.env.render.example`, porque sin esto ningún test podía
   verificar el idioma real de un mensaje de error.
+- **`App\Models\Concerns\OrdersNewestFirst`: los 5 catálogos "planos"
+  (Componentes, Subcomponentes, Actividades, Programas, Compromisos
+  transversales) listan lo más reciente primero, no alfabético.** Antes
+  cada Livewire Index ordenaba su tabla principal a mano con
+  `->orderBy('name')` — en el uso real, lo que Administración/
+  Coordinación acaba de crear o editar es justo lo que quiere confirmar
+  arriba de la lista. El trait agrega `scopeNewestFirst()`
+  (`->orderByDesc('id')`, no `created_at`: `id` es estrictamente
+  monótono y único, así que el orden queda determinista incluso si
+  varias filas comparten el mismo `created_at` por un seeder o una
+  factory en un bucle rápido). Los `<select>` de un catálogo dentro del
+  formulario de otro (ej. el desplegable de Componentes en el formulario
+  de Actividades) siguen ordenados por nombre a propósito — ahí ayuda
+  ubicar una opción conocida, no ver la más reciente primero.
+  **Periodos académicos queda fuera**: ya ordenaba por `start_date`
+  descendente (fecha de inicio del periodo), un criterio más correcto
+  para un periodo académico que "más reciente creado" — cambiarlo habría
+  sido una regresión, no una mejora.
 
 ### 5.4 Almacenamiento de archivos
 

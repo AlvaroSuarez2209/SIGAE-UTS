@@ -73,7 +73,7 @@ class CrossCuttingCommitmentIndex extends Component
     public function render()
     {
         return view('livewire.catalogs.cross-cutting-commitment-index', [
-            'commitments' => CrossCuttingCommitment::orderBy('name')->get(),
+            'commitments' => CrossCuttingCommitment::newestFirst()->get(),
         ]);
     }
 }

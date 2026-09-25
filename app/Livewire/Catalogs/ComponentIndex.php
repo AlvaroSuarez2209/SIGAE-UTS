@@ -73,7 +73,7 @@ class ComponentIndex extends LivewireComponent
     public function render()
     {
         return view('livewire.catalogs.component-index', [
-            'components' => Component::orderBy('name')->get(),
+            'components' => Component::newestFirst()->get(),
         ]);
     }
 }

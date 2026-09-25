@@ -85,7 +85,7 @@ class SubcomponentIndex extends LivewireComponent
         return view('livewire.catalogs.subcomponent-index', [
             'subcomponents' => Subcomponent::with('component')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->orderBy('name')
+                ->newestFirst()
                 ->get(),
             'components' => Component::orderBy('name')->get(),
         ]);

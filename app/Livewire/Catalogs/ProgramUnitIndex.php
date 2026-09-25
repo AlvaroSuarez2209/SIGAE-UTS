@@ -73,7 +73,7 @@ class ProgramUnitIndex extends Component
     public function render()
     {
         return view('livewire.catalogs.program-unit-index', [
-            'programUnits' => ProgramUnit::orderBy('name')->get(),
+            'programUnits' => ProgramUnit::newestFirst()->get(),
         ]);
     }
 }
