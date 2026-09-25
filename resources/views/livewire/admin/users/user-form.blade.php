@@ -27,7 +27,7 @@
                 Contraseña
                 @if ($user) <span class="font-normal text-text-secondary">(dejar en blanco para no cambiarla)</span> @endif
             </label>
-            <input type="password" wire:model="password" class="field-input">
+            <x-password-input wire:model="password" autocomplete="new-password" />
             @error('password') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 

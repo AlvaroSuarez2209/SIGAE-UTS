@@ -66,7 +66,7 @@ class UserManagementTest extends TestCase
             ->test(UserForm::class)
             ->set('name', 'Nuevo Docente')
             ->set('email', 'nuevo.docente@sigae.local')
-            ->set('password', 'Password123')
+            ->set('password', 'Password123!')
             ->set('selectedRoles', [RoleName::Teacher->value])
             ->call('save')
             ->assertRedirect(route('admin.users.index'));
@@ -85,7 +85,7 @@ class UserManagementTest extends TestCase
             ->test(UserForm::class)
             ->set('name', 'Sin Rol')
             ->set('email', 'sinrol@sigae.local')
-            ->set('password', 'Password123')
+            ->set('password', 'Password123!')
             ->set('selectedRoles', [])
             ->call('save')
             ->assertHasErrors('selectedRoles');
