@@ -1075,12 +1075,20 @@ sección toca `.env` ni la configuración local.
   y, en una llamada aparte, un solo `INSERT` o `UPDATE` — nunca envuelve
   ambos en una transacción explícita, así que no depende de que el
   pooler mantenga la misma sesión de backend entre dos sentencias.
-  **Riesgo latente sin confirmar todavía en `queue:work` (`/cron/process-queue`)**:
-  `Illuminate\Queue\DatabaseQueue::pop()` tiene la misma forma exacta
-  (`SELECT ... FOR UPDATE` + `UPDATE`, misma transacción) — en principio
-  igual de vulnerable al pooler, aunque todavía no se ha visto fallar en
-  un log real. Pendiente de decidir si `config/queue.php` también debe
-  apuntar a `pgsql_migrate` para la conexión de la cola.
+  **`queue:work` (`/cron/process-queue`) corregido preventivamente, sin
+  esperar a verlo fallar**: `Illuminate\Queue\DatabaseQueue::pop()`
+  (lo que `queue:work` corre en cada job) tiene la misma forma exacta
+  que el `increment()` del caché — `SELECT ... FOR UPDATE` + `UPDATE`
+  dentro de una única transacción — así que el mismo riesgo con el
+  pooler aplica en principio, aunque nunca llegó a fallar en un log
+  real. `config/queue.php` ya soporta apuntar la conexión "database" de
+  colas a otra conexión de base de datos de forma nativa
+  (`'connection' => env('DB_QUEUE_CONNECTION')`), así que no hizo falta
+  ningún cambio de código — solo `DB_QUEUE_CONNECTION=pgsql_migrate` en
+  el entorno. Verificado en local que la cola queda usando
+  `pgsql_migrate` internamente mientras el resto de la app (`DB::connection()`
+  por defecto) sigue en `pgsql` sin cruzarse, y que un job real se puede
+  encolar y procesar de punta a punta por esa conexión.
 - **Sin worker de colas persistente**: el plan gratuito de Render no
   ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
   `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
