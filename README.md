@@ -1,7 +1,7 @@
 # SIGAE-UTS
 
 Sistema de Información para la Gestión de Actividades y Evidencias
-Docentes — Unidades Tecnológicas de Santander.
+Docentes — Institución Universitaria Tecnológica de Santander.
 
 Permite a un docente registrar y enviar evidencia del cumplimiento de sus
 actividades (clases, tutorías, investigación, extensión, compromisos

@@ -38,7 +38,7 @@
             {{ $slot }}
         </div>
 
-        <p class="mt-6 text-xs text-text-secondary">Unidades Tecnológicas de Santander</p>
+        <p class="mt-6 text-xs text-text-secondary">Institución Universitaria Tecnológica de Santander</p>
     </div>
 
     @livewireScripts
