@@ -331,6 +331,29 @@ tipo "Archivo"/"Múltiples archivos" y no se configuró explícitamente
 ninguna extensión. La regla `mimes:` de Laravel valida el tipo real del
 contenido (vía `finfo`), no solo la extensión del nombre de archivo.
 
+**Dos gotchas de `WithFileUploads` (Livewire) en `updatedNewFiles()`,
+confirmados leyendo el código fuente de Livewire, no por hipótesis:**
+
+- **`resetErrorBag('newFiles')` no limpiaba un error de una subida
+  fallida en el propio endpoint de Livewire.** Cuando el archivo excede
+  el límite de subida de Livewire (`/livewire/upload-file`, antes de que
+  `newFiles` llegue a asignarse), `WithFileUploads::_uploadErrored()`
+  guarda el mensaje bajo la key indexada `newFiles.0`, no `newFiles`
+  — y `HandlesValidation::resetErrorBag()` de Livewire compara con
+  `Str::is($patrón, $key)`: sin un `*` en el patrón que pasamos, exige
+  coincidencia exacta, así que `newFiles.0` sobrevivía al reset y seguía
+  visible al adjuntar un archivo válido después. Se cambió a
+  `resetErrorBag(['newFiles', 'newFiles.*'])`.
+- **`Validator::make(['file' => $file], ['file' => $rules])` mostraba
+  "El campo file..." en vez de "El campo archivo...".** La key ad hoc
+  `'file'` no tiene entrada en `lang/es/validation.php` (solo `newFiles`/
+  `newFiles.*` la tienen). Se cambió a
+  `Validator::make(['newFiles' => [$file]], ['newFiles.*' => $rules])`
+  para reutilizar la traducción existente, en vez de agregar una entrada
+  nueva y genérica `'file'` que podría aplicar sin querer a algún otro
+  `Validator::make()` futuro. De paso, unifica la key de validación con
+  la que ya usa `saveDraft()` para esto mismo.
+
 ### 5.5 Zona horaria
 
 **Toda la aplicación corre en una sola zona horaria: `America/Bogota`

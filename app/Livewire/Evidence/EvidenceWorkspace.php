@@ -53,7 +53,13 @@ class EvidenceWorkspace extends Component
      */
     public function updatedNewFiles(): void
     {
-        $this->resetErrorBag('newFiles');
+        // 'newFiles' (sin comodín) NO limpia 'newFiles.0' — WithFileUploads
+        // ::_uploadErrored() deja el error de una subida fallida (ej. el
+        // archivo excede el límite del propio Livewire, antes de que este
+        // hook siquiera se dispare) bajo una key indexada, y
+        // resetErrorBag() de Livewire hace match por Str::is($patrón,
+        // $key): sin '*' en el patrón, exige coincidencia exacta.
+        $this->resetErrorBag(['newFiles', 'newFiles.*']);
 
         if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
             $this->addError('newFiles', $this->periodBlockedMessage());
@@ -66,10 +72,14 @@ class EvidenceWorkspace extends Component
         $validFiles = [];
 
         foreach ($this->newFiles as $file) {
-            $validator = Validator::make(['file' => $file], ['file' => $rules]);
+            // 'newFiles' => [$file] con la regla 'newFiles.*' (no 'file')
+            // para que :attribute en el mensaje resuelva a la traducción
+            // que ya existe en lang/es/validation.php, la misma que usa
+            // saveDraft() para esta misma validación.
+            $validator = Validator::make(['newFiles' => [$file]], ['newFiles.*' => $rules]);
 
             if ($validator->fails()) {
-                $this->addError('newFiles', $validator->errors()->first('file'));
+                $this->addError('newFiles', $validator->errors()->first('newFiles.*'));
 
                 continue;
             }

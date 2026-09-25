@@ -552,4 +552,50 @@ class EvidenceWorkspaceTest extends TestCase
 
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
+
+    /**
+     * Reproduce el error real reportado: la subida falla en el endpoint
+     * interno de Livewire (/livewire/upload-file, ej. el archivo excede el
+     * límite propio de Livewire) ANTES de que newFiles llegue a asignarse
+     * — WithFileUploads::_uploadErrored() deja el mensaje bajo la key
+     * indexada 'newFiles.0' (nunca pasa por nuestro updatedNewFiles()).
+     * Sin el fix, resetErrorBag('newFiles') no limpia esa key y el
+     * mensaje seguía visible al adjuntar un archivo válido después.
+     */
+    public function test_upload_endpoint_error_clears_when_a_valid_file_is_attached_afterward(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => ['pdf']]);
+
+        $errorsInJson = json_encode([
+            'message' => 'The files.0 field failed to upload.',
+            'errors' => ['files.0' => ['No se pudo subir el archivo del campo files.0.']],
+        ]);
+
+        $test = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('_uploadErrored', 'newFiles', $errorsInJson, true);
+
+        $test->assertHasErrors('newFiles.0');
+
+        $valid = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        $test->set('newFiles', [$valid])
+            ->assertHasNoErrors()
+            ->assertSee('propuesta.pdf');
+    }
+
+    public function test_mimes_validation_message_names_the_field_in_spanish_not_the_literal_key(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => ['pdf']]);
+        $file = UploadedFile::fake()->create('documento.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+        $test = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file]);
+
+        $this->assertSame(
+            'El campo archivo debe ser un archivo de tipo: pdf.',
+            $test->instance()->getErrorBag()->first('newFiles')
+        );
+    }
 }
