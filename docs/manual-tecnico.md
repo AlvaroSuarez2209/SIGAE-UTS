@@ -212,6 +212,27 @@ una ruta de página completa (`routes/web.php`).
   creación/edición en los modelos administrativos en `audit_logs`, sin
   instrumentar cada componente a mano. Se desactiva únicamente durante
   `db:seed` (para no llenar la bitácora de datos de demostración).
+- **`App\Rules\CaseAccentInsensitiveUnique`: unicidad de nombre insensible
+  a mayúsculas y tildes** en los 6 catálogos (Componentes, Subcomponentes,
+  Actividades, Programas, Periodos, Compromisos transversales) —
+  "Inducción", "induccion" e "INDUCCIÓN" cuentan como el mismo nombre.
+  `Rule::unique()` de Laravel compara bytes exactos en PostgreSQL, así que
+  esas 3 variantes pasaban antes como registros distintos. Compara en PHP
+  vía `Str::ascii()` (transliteración a ASCII ya incluida en Laravel) en
+  vez de la extensión `unaccent` de PostgreSQL, para no depender de
+  instalarla ni en Neon ni en el Postgres local — estos catálogos son
+  pequeños, así que comparar contra todas las filas del alcance en PHP es
+  un costo trivial. API fluida (`->where()->ignore()`) a propósito
+  parecida a `Rule::unique()`, para ser un reemplazo casi directo.
+  Actividades es la única de las 6 con alcance compuesto
+  (`component_id` + `subcomponent_id`, ya que antes no tenía ninguna
+  validación de unicidad); las otras 5 mantienen el mismo alcance que ya
+  tenían (Subcomponentes por `component_id`, las demás solo por nombre).
+  Actividades también suma dos índices únicos de respaldo en BD (uno para
+  cuando hay subcomponente, un índice parcial para cuando no lo hay,
+  porque PostgreSQL trata cada `NULL` como distinto en un índice único
+  normal) — los otros 5 catálogos ya tenían su índice único exacto desde
+  antes.
 
 ### 5.4 Almacenamiento de archivos
 

@@ -4,7 +4,7 @@ namespace App\Livewire\Catalogs;
 
 use App\Models\Component;
 use App\Models\Subcomponent;
-use Illuminate\Validation\Rule;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
@@ -60,7 +60,7 @@ class SubcomponentIndex extends LivewireComponent
         $data = $this->validate([
             'name' => [
                 'required', 'string', 'max:255',
-                Rule::unique('subcomponents', 'name')->where('component_id', $this->component_id)->ignore($this->editing),
+                (new CaseAccentInsensitiveUnique('subcomponents'))->where('component_id', $this->component_id)->ignore($this->editing),
             ],
             'component_id' => ['required', 'exists:components,id'],
             'is_active' => ['boolean'],

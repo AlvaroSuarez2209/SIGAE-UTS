@@ -5,6 +5,7 @@ namespace App\Livewire\Catalogs;
 use App\Models\Activity;
 use App\Models\Component;
 use App\Models\Subcomponent;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -69,7 +70,13 @@ class ActivityIndex extends LivewireComponent
     public function save(): void
     {
         $data = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required', 'string', 'max:255',
+                (new CaseAccentInsensitiveUnique('activities'))
+                    ->where('component_id', $this->component_id)
+                    ->where('subcomponent_id', $this->subcomponent_id)
+                    ->ignore($this->editing),
+            ],
             'component_id' => ['required', 'exists:components,id'],
             'subcomponent_id' => ['nullable', Rule::exists('subcomponents', 'id')->where('component_id', $this->component_id)],
             'is_active' => ['boolean'],

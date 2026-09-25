@@ -3,7 +3,7 @@
 namespace App\Livewire\Catalogs;
 
 use App\Models\CrossCuttingCommitment;
-use Illuminate\Validation\Rule;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -52,7 +52,7 @@ class CrossCuttingCommitmentIndex extends Component
     public function save(): void
     {
         $data = $this->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('cross_cutting_commitments', 'name')->ignore($this->editing)],
+            'name' => ['required', 'string', 'max:255', (new CaseAccentInsensitiveUnique('cross_cutting_commitments'))->ignore($this->editing)],
             'is_active' => ['boolean'],
         ]);
 

@@ -4,7 +4,7 @@ namespace App\Livewire\Periods;
 
 use App\Enums\AcademicPeriodStatus;
 use App\Models\AcademicPeriod;
-use Illuminate\Validation\Rule;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -57,7 +57,7 @@ class PeriodIndex extends Component
         $editingIsLocked = $this->editing && $this->editing->status !== AcademicPeriodStatus::Planning;
 
         $rules = [
-            'name' => ['required', 'string', 'max:255', Rule::unique('academic_periods', 'name')->ignore($this->editing)],
+            'name' => ['required', 'string', 'max:255', (new CaseAccentInsensitiveUnique('academic_periods'))->ignore($this->editing)],
         ];
 
         if (! $editingIsLocked) {
