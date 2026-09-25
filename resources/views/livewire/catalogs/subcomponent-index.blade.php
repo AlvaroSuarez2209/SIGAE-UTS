@@ -76,7 +76,7 @@
             aria-modal="true"
             aria-labelledby="subcomponent-modal-title"
         >
-            <div class="card w-full max-w-md p-6 shadow-lg" @click.outside="$wire.closeModal()">
+            <div class="card w-full max-w-md p-6 shadow-lg">
                 <h2 id="subcomponent-modal-title" class="mb-4 text-base font-semibold text-text-primary">
                     {{ $editing ? 'Editar subcomponente' : 'Nuevo subcomponente' }}
                 </h2>

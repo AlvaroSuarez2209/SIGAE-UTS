@@ -287,8 +287,11 @@ de forma consistente en los 10 módulos funcionales:
   Usa el mismo patrón visual que los modales de formulario existentes
   (overlay oscuro, tarjeta blanca centrada, sombra), el foco inicial va al
   botón "Cancelar" (no al de confirmar, para que un `Enter` accidental
-  nunca ejecute la acción), y se cierra con `Escape` o clic fuera — ambos
-  equivalentes a cancelar. Es accesible (`role="dialog"`,
+  nunca ejecute la acción), y se cierra solo con el botón "Cancelar" o
+  `Escape` — nunca con clic fuera del modal (un clic fuera de lugar no
+  debe cancelar en silencio una acción que el usuario ya decidió tomar;
+  mismo criterio en los 6 modales de formulario de catálogos, ver 5.x más
+  abajo). Es accesible (`role="dialog"`,
   `aria-modal="true"`, `aria-labelledby` apuntando al título). El color del
   botón de confirmación (`variant`) comunica el impacto real de la acción:
   ámbar para acciones de alto impacto pero reversibles (cerrar un periodo),

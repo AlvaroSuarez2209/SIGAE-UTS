@@ -50,7 +50,7 @@
     aria-modal="true"
     aria-labelledby="confirm-modal-title"
 >
-    <div class="card w-full max-w-md p-6 shadow-lg" @click.outside="open = false">
+    <div class="card w-full max-w-md p-6 shadow-lg">
         <h2 id="confirm-modal-title" class="mb-2 text-base font-semibold text-text-primary" x-text="title"></h2>
         <p class="mb-6 text-sm text-text-secondary" x-html="body"></p>
         <div class="flex items-center justify-end gap-3">
