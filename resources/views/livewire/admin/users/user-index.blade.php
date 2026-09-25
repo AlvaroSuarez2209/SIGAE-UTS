@@ -6,6 +6,13 @@
         </a>
     </div>
 
+    @if ($deactivationError)
+        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-error-subtle p-3 text-sm text-status-error">
+            <x-icon name="alert-circle" class="h-4 w-4 shrink-0" />
+            {{ $deactivationError }}
+        </div>
+    @endif
+
     <div class="mb-4 flex flex-wrap gap-4">
         <x-search-input
             wire:model.live.debounce.300ms="search"

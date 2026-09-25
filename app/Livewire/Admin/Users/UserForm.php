@@ -2,12 +2,11 @@
 
 namespace App\Livewire\Admin\Users;
 
-use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
-use App\Models\Evidence;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PasswordPolicy;
+use App\Services\PendingWorkChecker;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -96,19 +95,20 @@ class UserForm extends Component
     /**
      * Quitar Docente o Líder a alguien con trabajo pendiente bajo ese rol
      * dejaría evidencias/revisiones huérfanas sin nadie responsable — se
-     * bloquea, no solo se advierte. Solo aplica al quitar un rol existente
-     * (nunca al agregar uno) y se omite si este mismo guardado además
-     * desactiva la cuenta (toggleActive(), en UserIndex, ya es el flujo
-     * separado para desactivar por completo, y no toca roles).
+     * bloquea, no solo se advierte (mismo criterio que
+     * UserIndex::toggleActive(), que aplica esta misma regla al
+     * desactivar la cuenta por completo — ambas comparten el conteo vía
+     * PendingWorkChecker). Solo aplica al quitar un rol existente (nunca
+     * al agregar uno) y se omite si este mismo guardado además desactiva
+     * la cuenta (no toca roles, así que toggleActive() ya cubre ese caso
+     * por su cuenta).
      */
     private function blocksRoleRemoval(array $selectedRoleNames): bool
     {
         $removedRoleNames = array_diff($this->user->roles()->pluck('name')->all(), $selectedRoleNames);
 
         if (in_array(RoleName::Teacher->value, $removedRoleNames, true)) {
-            $pendingCount = $this->user->evidences()
-                ->whereNotIn('status', [EvidenceStatus::Approved, EvidenceStatus::Exempt])
-                ->count();
+            $pendingCount = PendingWorkChecker::pendingEvidenceCountAsTeacher($this->user);
 
             if ($pendingCount > 0) {
                 $this->addError('selectedRoles', $pendingCount === 1
@@ -120,7 +120,7 @@ class UserForm extends Component
         }
 
         if (in_array(RoleName::Leader->value, $removedRoleNames, true)) {
-            $pendingCount = $this->pendingReviewCountForLeader($this->user);
+            $pendingCount = PendingWorkChecker::pendingReviewCountAsLeader($this->user);
 
             if ($pendingCount > 0) {
                 $this->addError('selectedRoles', $pendingCount === 1
@@ -132,24 +132,6 @@ class UserForm extends Component
         }
 
         return false;
-    }
-
-    /**
-     * Evidence::scopeReviewableBy() con onlyViaLeaderRole: true — mismo
-     * criterio de alcance que User::canLeadAssignment() (período +
-     * programa + actividad-o-null, dentro de starts_at/ends_at), sin el
-     * atajo de Administrador/Coordinación, porque aquí interesa
-     * específicamente lo que depende del rol Líder, no todo lo que este
-     * usuario podría revisar por cualquier otro motivo. Antes esto se
-     * calculaba trayendo TODAS las evidencias "Submitted" del sistema (de
-     * cualquier periodo) y filtrando en PHP evidencia por evidencia, con 2
-     * consultas nuevas por fila; ahora es una sola consulta con JOIN.
-     */
-    private function pendingReviewCountForLeader(User $leader): int
-    {
-        return Evidence::where('evidences.status', EvidenceStatus::Submitted)
-            ->reviewableBy($leader, onlyViaLeaderRole: true)
-            ->count();
     }
 
     public function render()

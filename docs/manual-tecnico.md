@@ -250,18 +250,27 @@ una ruta de página completa (`routes/web.php`).
   extensión `unaccent`, mismo motivo por el que
   `CaseAccentInsensitiveUnique` tampoco depende de ella), así que no hace
   falta instalar nada ni en Neon ni en local.
-- **`UserForm::blocksRoleRemoval()`: no se puede quitar Docente o Líder a
-  alguien con trabajo pendiente bajo ese rol.** Quitar Docente a alguien
-  con evidencias que no estén en `Approved`/`Exempt` (mismo criterio que
-  `EvidencePolicy::markExempt()`), o quitar Líder a alguien con
-  evidencias `Submitted` dentro de su ámbito de liderazgo vigente (mismo
-  criterio de alcance que `User::canLeadAssignment()`), se **bloquea**
-  con un error indicando cuántas evidencias/revisiones tiene pendientes
-  — no es solo una advertencia. Agregar un rol nunca se bloquea (el
-  chequeo solo mira roles que desaparecen de la selección), y se omite
-  por completo si el mismo guardado desactiva la cuenta (`is_active` en
-  falso) — desactivar ya es el flujo separado para retirar a alguien por
-  completo (`UserIndex::toggleActive()`, que no toca roles).
+- **`App\Services\PendingWorkChecker`: cuánto trabajo pendiente depende de
+  un usuario por su rol de Docente o de Líder — compartido por
+  `UserForm::blocksRoleRemoval()` (quitar un rol) y
+  `UserIndex::toggleActive()` (desactivar la cuenta por completo), la
+  misma regla aplicada a los dos flujos que pueden dejar a alguien sin la
+  capacidad de resolver su propio trabajo.** Quitar Docente (o
+  desactivar a alguien que lo es) a quien tiene evidencias que no estén
+  en `Approved`/`Exempt` (mismo criterio que `EvidencePolicy::markExempt()`),
+  o quitar Líder (o desactivar) a quien tiene evidencias `Submitted`
+  dentro de su ámbito de liderazgo vigente (mismo criterio de alcance que
+  `User::canLeadAssignment()`), se **bloquea** con un error indicando
+  cuántas evidencias/revisiones tiene pendientes — no es solo una
+  advertencia. En `UserForm`, agregar un rol nunca se bloquea (el chequeo
+  solo mira roles que desaparecen de la selección), y se omite por
+  completo si el mismo guardado desactiva la cuenta (`is_active` en
+  falso) — ese caso ya lo cubre `toggleActive()` por su cuenta. En
+  `UserIndex`, el chequeo mira los roles que el usuario **ya tiene**
+  (desactivar quita toda capacidad, no un rol puntual) y nunca aplica al
+  reactivar. El mensaje se muestra en `$deactivationError`, con el mismo
+  bloque visual (`bg-status-error-subtle`) que ya usa
+  `EvidenceWorkspace::$submissionError`.
 - **`lang/es/validation.php`: mensajes de validación en español natural,
   sin nombres técnicos de columna.** El archivo base (todas las reglas
   estándar de Laravel: `required`, `max`, `unique`, `email`...) ya estaba
