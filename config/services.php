@@ -28,6 +28,15 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    // API Key de Brevo (no la clave SMTP) — usada solo por el mailer
+    // "brevo" (ver AppServiceProvider::registerBrevoApiMailTransport()),
+    // necesario en Render porque el plan gratuito bloquea los puertos
+    // SMTP salientes. Ver "Despliegue en entorno de pruebas" en
+    // docs/manual-tecnico.md.
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

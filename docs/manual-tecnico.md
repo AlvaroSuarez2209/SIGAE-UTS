@@ -960,7 +960,10 @@ automático, es responsabilidad de quien despliegue revisarlo:
   si el sitio ya sirve por HTTPS.
 - **`MAIL_MAILER` y credenciales de correo**, apuntando a un proveedor
   real (relay SMTP institucional, Amazon SES, Mailgun, Postmark...) en
-  vez de Mailpit — ver 3, "Correo local".
+  vez de Mailpit — ver 3, "Correo local". **Ojo con plataformas que
+  bloquean puertos SMTP salientes** (Render free lo hace desde
+  septiembre de 2025, ver 8.1) — en esos casos hace falta la API HTTP
+  del proveedor, no SMTP, sin importar cuál sea.
 - El cron del sistema operativo apuntando a `schedule:run` cada minuto
   (`evidences:mark-overdue` no se dispara solo sin esto) — ver 5.7.
 - Un proceso supervisado (Supervisor, systemd, etc.) corriendo
@@ -970,8 +973,8 @@ automático, es responsabilidad de quien despliegue revisarlo:
 ## 8. Despliegue en entorno de pruebas (Render + Neon + Brevo)
 
 Este es un despliegue de **pruebas**, no de producción real — usa
-servicios gratuitos (Render, Neon Postgres, Brevo SMTP) que tienen
-límites propios (Render free no ofrece un worker de colas persistente,
+servicios gratuitos (Render, Neon Postgres, Brevo vía su API HTTP) que
+tienen límites propios (Render free no ofrece un worker de colas persistente,
 ver más abajo). No reemplaza el entorno local de desarrollo (Mailpit,
 PostgreSQL local), que sigue funcionando exactamente igual — nada de esta
 sección toca `.env` ni la configuración local.
@@ -1089,6 +1092,49 @@ sección toca `.env` ni la configuración local.
   `pgsql_migrate` internamente mientras el resto de la app (`DB::connection()`
   por defecto) sigue en `pgsql` sin cruzarse, y que un job real se puede
   encolar y procesar de punta a punta por esa conexión.
+- **`MAIL_MAILER=brevo` (API HTTP), no `smtp` — Render bloquea los
+  puertos SMTP salientes en su plan gratuito**: confirmado con el log
+  real de un intento de "olvidé mi contraseña" en Render, que fallaba
+  con error 500 mientras el mismo flujo funcionaba sin problema en
+  local. La causa no es un bug de configuración ni de credenciales: es
+  una política de la plataforma, documentada en el changelog oficial de
+  Render — desde septiembre de 2025, el plan gratuito bloquea todo
+  tráfico saliente por los puertos 25, 465 y 587 (los que usa SMTP), sin
+  excepción por proveedor. Brevo por SMTP nunca iba a funcionar ahí,
+  sin importar qué credenciales se probaran.
+
+  La solución es la API HTTP de Brevo, que corre por HTTPS (puerto 443,
+  no bloqueado). Symfony Mailer (la librería que Laravel usa por debajo)
+  ya trae soporte para esto vía el paquete oficial
+  `symfony/brevo-mailer`: `Symfony\Component\Mailer\Transport` mantiene
+  una lista de fábricas de transporte conocidas (`BrevoTransportFactory`
+  entre ellas) que detecta automáticamente con `class_exists()` — con
+  solo instalar el paquete, `Transport::fromDsn('brevo+api://API_KEY@default')`
+  ya sabe resolver ese DSN al transporte correcto
+  (`BrevoApiTransport`), sin ningún registro manual adicional. También
+  hizo falta instalar `symfony/http-client` aparte (`BrevoApiTransport`
+  lo requiere para hacer las peticiones HTTP; no estaba instalado por
+  ningún otro paquete del proyecto).
+
+  Del lado de Laravel, `AppServiceProvider::registerBrevoApiMailTransport()`
+  conecta ese DSN con el sistema de mailers vía `Mail::extend('brevo',
+  ...)` — `MailManager::createSymfonyTransport()` consulta esa lista de
+  transportes personalizados antes que sus transportes nativos
+  (`smtp`, `ses`, `postmark`...). `config/mail.php` define el mailer
+  `brevo` (`'transport' => 'brevo'`) y `config/services.php` guarda la
+  API Key (`BREVO_API_KEY`, **no** la clave SMTP que se generó antes —
+  son credenciales distintas dentro del mismo panel de Brevo, en
+  "SMTP & API" → pestaña "API Keys").
+
+  **Verificado de punta a punta sin tocar el entorno local**: con una
+  API Key de prueba (inválida a propósito), un envío real a través del
+  mailer `brevo` llegó hasta la API real de Brevo y volvió con
+  `HttpTransportException: "Unable to send an email: Key not found
+  (code 401)"` — confirma que DNS, TLS y el formato de la petición HTTP
+  funcionan correctamente; lo único que falta para un envío real es una
+  API Key válida. El mailer `smtp` (Mailpit) sigue intacto en
+  `config/mail.php`, y el `.env` local sigue en `MAIL_MAILER=smtp` sin
+  ningún cambio — este fix es exclusivo del entorno de Render.
 - **Sin worker de colas persistente**: el plan gratuito de Render no
   ofrece un proceso de fondo aparte del propio servicio web. En su lugar,
   `GET /cron/process-queue` (`App\Http\Controllers\Cron\ProcessQueueController`,
@@ -1129,9 +1175,10 @@ no ir y venir entre paneles:
    `-pooler` en el host — `DB_HOST` es el primero (pooled, para toda la
    app); `DB_HOST_MIGRATE` es el segundo (directo, solo para
    `migrate --force`, ver 8.1).
-2. **Brevo**: crear la cuenta y una clave SMTP — de ahí salen
-   `MAIL_USERNAME` y `MAIL_PASSWORD` (`MAIL_HOST=smtp-relay.brevo.com`,
-   `MAIL_PORT=587` ya son fijos).
+2. **Brevo**: crear la cuenta y, en "SMTP & API" → pestaña **"API
+   Keys"** (aparte de la pestaña "SMTP" — son credenciales distintas),
+   generar una nueva API Key — de ahí sale `BREVO_API_KEY`. **No** la
+   clave SMTP: Render bloquea esos puertos, ver 8.1.
 3. **`APP_KEY`**: generar uno nuevo en local con `php artisan key:generate
    --show` (no reutilizar el de `.env` local) y pegarlo tal cual.
 4. **`CRON_SECRET`**: generar un valor aleatorio largo (ej. `php artisan
