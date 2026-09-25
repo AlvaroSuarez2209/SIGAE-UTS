@@ -194,6 +194,22 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertDontSee('virus.exe');
     }
 
+    public function test_error_clears_after_retrying_with_a_valid_file_in_the_same_session(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_file_types' => ['pdf']]);
+        $invalid = UploadedFile::fake()->create('virus.exe', 100, 'application/x-msdownload');
+        $valid = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        $test = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$invalid])
+            ->assertHasErrors('newFiles');
+
+        $test->set('newFiles', [$valid])
+            ->assertHasNoErrors()
+            ->assertSee('propuesta.pdf');
+    }
+
     public function test_valid_file_appears_in_the_pending_list_immediately_after_attaching(): void
     {
         $evidence = $this->evidenceFor();
