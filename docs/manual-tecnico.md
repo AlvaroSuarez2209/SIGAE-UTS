@@ -611,7 +611,7 @@ la app cambia, hay que actualizarla también aquí (ver §2 de
   `resources/views/vendor/livewire/tailwind.blade.php` (no
   `vendor/pagination/` — ver el comentario del propio archivo: Livewire
   pisa la vista por defecto de Laravel en cualquier componente con
-  `WithPagination`, que es el caso de los 5 listados paginados de esta
+  `WithPagination`, que es el caso de los 6 listados paginados de esta
   app). Traducida a español y con los tokens de marca; incluye un
   spinner (`wire:loading`, con `wire:loading.delay` para no parpadear en
   respuestas muy rápidas) junto al resumen "Mostrando X a Y de Z

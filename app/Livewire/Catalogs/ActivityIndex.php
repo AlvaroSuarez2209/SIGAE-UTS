@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Catalogs;
 
+use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\Activity;
 use App\Models\Component;
 use App\Models\Subcomponent;
@@ -10,11 +11,14 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Actividades')]
 class ActivityIndex extends LivewireComponent
 {
+    use HasStandardPagination, WithPagination;
+
     public bool $showModal = false;
 
     public ?Activity $editing = null;
@@ -34,6 +38,11 @@ class ActivityIndex extends LivewireComponent
         if (! $this->editing || $this->editing->component_id !== $this->component_id) {
             $this->subcomponent_id = null;
         }
+    }
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
     }
 
     public function openCreate(): void
@@ -102,7 +111,7 @@ class ActivityIndex extends LivewireComponent
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->when($this->search, fn ($query) => $query->where('name', 'ilike', "%{$this->search}%"))
                 ->orderBy('name')
-                ->get(),
+                ->paginate(self::PER_PAGE),
             'components' => Component::orderBy('name')->get(),
             'availableSubcomponents' => $this->component_id
                 ? Subcomponent::where('component_id', $this->component_id)->orderBy('name')->get()

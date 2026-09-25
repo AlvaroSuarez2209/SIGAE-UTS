@@ -66,6 +66,10 @@
         </table>
     </div>
 
+    <div class="mt-4">
+        {{ $activities->links() }}
+    </div>
+
     @if ($showModal)
         <div
             class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4"
