@@ -108,7 +108,7 @@
 
             <div class="mt-auto shrink-0 border-t border-border-subtle p-5">
                 <livewire:user-name key="sidebar-desktop-user-name" />
-                <p class="mb-3 truncate text-sm text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
+                <p class="mb-3 text-sm text-text-secondary">{{ $user->roles->pluck('label')->join(', ') }}</p>
                 <a href="{{ route('profile') }}" class="mb-2 flex items-center gap-2 text-base font-medium text-text-secondary hover:text-text-primary hover:underline">
                     <x-icon name="user" class="h-5 w-5" />
                     Mi perfil
