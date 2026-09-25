@@ -262,6 +262,24 @@ una ruta de página completa (`routes/web.php`).
   por completo si el mismo guardado desactiva la cuenta (`is_active` en
   falso) — desactivar ya es el flujo separado para retirar a alguien por
   completo (`UserIndex::toggleActive()`, que no toca roles).
+- **`lang/es/validation.php`: mensajes de validación en español natural,
+  sin nombres técnicos de columna.** El archivo base (todas las reglas
+  estándar de Laravel: `required`, `max`, `unique`, `email`...) ya estaba
+  publicado y `APP_LOCALE=es` ya hacía que Laravel lo usara — lo que
+  faltaba era la sección `'attributes'`, que traduce el nombre del campo
+  que Laravel interpola en `:attribute`. Sin una entrada ahí, Laravel
+  muestra el nombre crudo de la propiedad Livewire/columna
+  (`assigned_hours`) en vez de su nombre natural ("horas asignadas").
+  Se hizo un barrido de todas las reglas de validación de
+  `app/Livewire/**` (`grep -rn "validate(\|protected \$rules\|function rules()\|\$rules\["`)
+  y se completaron unas 35 entradas que faltaban — donde el campo ya
+  tenía traducción en `AuditLogPresenter::FIELD_LABELS` (usado para la
+  bitácora, no para validación) se reutilizó la misma palabra en
+  minúscula, para no tener dos redacciones distintas del mismo campo.
+  `.env.testing` no tenía `APP_LOCALE`/`APP_FALLBACK_LOCALE` (caía al
+  `'en'` de `config/app.php`) — se agregaron ahí también, igual que en
+  `.env` y `.env.render.example`, porque sin esto ningún test podía
+  verificar el idioma real de un mensaje de error.
 
 ### 5.4 Almacenamiento de archivos
 
