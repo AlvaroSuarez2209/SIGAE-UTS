@@ -214,6 +214,144 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Bienestar y desarrollo humano');
     }
 
+    public function test_component_name_is_rejected_regardless_of_case_or_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Component::factory()->create(['name' => 'Inducción']);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->set('name', 'INDUCCION')
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
+    public function test_editing_a_component_does_not_flag_its_own_unchanged_name(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create(['name' => 'Inducción']);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->call('openEdit', $component)
+            ->set('is_active', false)
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    public function test_program_unit_name_is_rejected_regardless_of_case_or_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        Livewire::actingAs($admin)
+            ->test(ProgramUnitIndex::class)
+            ->set('name', 'ingenieria de sistemas')
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
+    public function test_cross_cutting_commitment_name_is_rejected_regardless_of_case_or_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        CrossCuttingCommitment::factory()->create(['name' => 'Bienestar y desarrollo humano']);
+
+        Livewire::actingAs($admin)
+            ->test(CrossCuttingCommitmentIndex::class)
+            ->set('name', 'BIENESTAR Y DESARROLLO HUMANO')
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
+    public function test_subcomponent_name_is_rejected_regardless_of_case_or_accents_within_the_same_component(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $component->id, 'name' => 'Procesos OACA']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->set('name', 'procesos oaca')
+            ->set('component_id', $component->id)
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
+    public function test_subcomponent_name_is_allowed_to_repeat_under_a_different_component(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $componentA = Component::factory()->create();
+        $componentB = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $componentA->id, 'name' => 'Procesos OACA']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
+            ->set('name', 'Procesos OACA')
+            ->set('component_id', $componentB->id)
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    public function test_activity_name_is_rejected_regardless_of_case_or_accents_within_the_same_scope(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+        $subcomponent = Subcomponent::factory()->create(['component_id' => $component->id]);
+        Activity::factory()->create([
+            'component_id' => $component->id,
+            'subcomponent_id' => $subcomponent->id,
+            'name' => 'Inducción docente',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('name', 'INDUCCION DOCENTE')
+            ->set('component_id', $component->id)
+            ->set('subcomponent_id', $subcomponent->id)
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
+    public function test_activity_name_is_allowed_to_repeat_under_a_different_subcomponent(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+        $subcomponentA = Subcomponent::factory()->create(['component_id' => $component->id]);
+        $subcomponentB = Subcomponent::factory()->create(['component_id' => $component->id]);
+        Activity::factory()->create([
+            'component_id' => $component->id,
+            'subcomponent_id' => $subcomponentA->id,
+            'name' => 'Inducción docente',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('name', 'Inducción docente')
+            ->set('component_id', $component->id)
+            ->set('subcomponent_id', $subcomponentB->id)
+            ->call('save')
+            ->assertHasNoErrors();
+    }
+
+    public function test_activity_name_without_a_subcomponent_is_rejected_regardless_of_case_when_repeated(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+        Activity::factory()->create([
+            'component_id' => $component->id,
+            'subcomponent_id' => null,
+            'name' => 'Clases teóricas',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('name', 'CLASES TEORICAS')
+            ->set('component_id', $component->id)
+            ->set('subcomponent_id', null)
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
     public function test_closing_the_component_modal_resets_the_form(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

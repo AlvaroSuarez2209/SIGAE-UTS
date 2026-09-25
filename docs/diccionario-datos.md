@@ -136,7 +136,7 @@ opcionalmente a un subcomponente.
 |---|---|
 | `component_id` | FK a `components`, `restrictOnDelete` |
 | `subcomponent_id` | FK a `subcomponents`, nulo si no aplica, `nullOnDelete` |
-| `name` | |
+| `name` | único junto con `component_id` + `subcomponent_id` (ver 5.3) |
 | `is_active` | se desactiva, nunca se borra |
 
 ### `academic_periods`

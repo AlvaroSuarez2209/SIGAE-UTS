@@ -62,6 +62,20 @@ class AcademicPeriodTest extends TestCase
         $this->assertEquals(AcademicPeriodStatus::Planning, $period->status);
     }
 
+    public function test_period_name_is_rejected_regardless_of_case_or_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        AcademicPeriod::factory()->create(['name' => 'Periodo Intersemestral']);
+
+        Livewire::actingAs($admin)
+            ->test(PeriodIndex::class)
+            ->set('name', 'PERIODO INTERSEMESTRAL')
+            ->set('start_date', '2026-07-15')
+            ->set('end_date', '2026-12-05')
+            ->call('save')
+            ->assertHasErrors('name');
+    }
+
     public function test_end_date_must_not_be_before_start_date(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

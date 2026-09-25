@@ -3,7 +3,7 @@
 namespace App\Livewire\Catalogs;
 
 use App\Models\ProgramUnit;
-use Illuminate\Validation\Rule;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -52,7 +52,7 @@ class ProgramUnitIndex extends Component
     public function save(): void
     {
         $data = $this->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('program_units', 'name')->ignore($this->editing)],
+            'name' => ['required', 'string', 'max:255', (new CaseAccentInsensitiveUnique('program_units'))->ignore($this->editing)],
             'is_active' => ['boolean'],
         ]);
 
