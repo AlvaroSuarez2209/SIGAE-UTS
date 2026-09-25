@@ -70,6 +70,17 @@ class ResetPassword extends Component
     }
 
     /**
+     * Mismo criterio que el `symbols()` de PasswordPolicy::rules()
+     * (`preg_match('/\p{Z}|\p{S}|\p{P}/u', ...)` — separador, símbolo o
+     * puntuación Unicode, exactamente la misma clase de carácter que usa
+     * Illuminate\Validation\Rules\Password internamente).
+     */
+    public function hasSymbol(): bool
+    {
+        return (bool) preg_match('/\p{Z}|\p{S}|\p{P}/u', $this->password);
+    }
+
+    /**
      * @return array<int, array{label: string, met: bool}>
      */
     public function passwordRequirements(): array
@@ -79,6 +90,7 @@ class ResetPassword extends Component
             ['label' => 'Una letra mayúscula', 'met' => $this->hasUppercase()],
             ['label' => 'Una letra minúscula', 'met' => $this->hasLowercase()],
             ['label' => 'Un número', 'met' => $this->hasNumber()],
+            ['label' => 'Un símbolo (ej. !@#$%)', 'met' => $this->hasSymbol()],
         ];
     }
 

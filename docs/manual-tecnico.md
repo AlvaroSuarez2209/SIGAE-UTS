@@ -205,9 +205,9 @@ una ruta de página completa (`routes/web.php`).
   una devolución genera una versión nueva; la versión enviada queda
   protegida).
 - `App\Services\PasswordPolicy`: única definición de la complejidad mínima
-  de contraseña (8 caracteres, mayúscula, minúscula, número), compartida
-  por "Mi perfil", "Usuarios" (Administrador) y "olvidé mi contraseña" —
-  antes cada ruta mantenía su propia regla por separado.
+  de contraseña (8 caracteres, mayúscula, minúscula, número, símbolo),
+  compartida por "Mi perfil", "Usuarios" (Administrador) y "olvidé mi
+  contraseña" — antes cada ruta mantenía su propia regla por separado.
 - `App\Models\Concerns\Auditable` (trait): registra automáticamente
   creación/edición en los modelos administrativos en `audit_logs`, sin
   instrumentar cada componente a mano. Se desactiva únicamente durante
@@ -753,7 +753,7 @@ por rol.
   cambian una contraseña —aquí, "Editar usuario" (un Administrador
   fijando la de otra persona) y `ResetPassword` (restablecimiento por
   correo)— exigen exactamente la misma regla:
-  `Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()`.
+  `Illuminate\Validation\Rules\Password::min(8)->mixedCase()->numbers()->symbols()`.
   Antes cada una tenía su propia definición por separado —"Editar
   usuario" solo pedía `min:8`, y `ResetPassword` una implementación
   manual ligeramente distinta (número **o símbolo**, en vez de número

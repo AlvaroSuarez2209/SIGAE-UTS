@@ -124,8 +124,8 @@ class ProfileTest extends TestCase
 
         Livewire::actingAs($user)->test(Profile::class)
             ->set('current_password', 'clave-equivocada')
-            ->set('password', 'ClaveNueva123')
-            ->set('password_confirmation', 'ClaveNueva123')
+            ->set('password', 'ClaveNueva123!')
+            ->set('password_confirmation', 'ClaveNueva123!')
             ->call('savePassword')
             ->assertHasErrors('current_password');
 
@@ -150,7 +150,7 @@ class ProfileTest extends TestCase
 
         Livewire::actingAs($user)->test(Profile::class)
             ->set('current_password', 'clave-original-A1')
-            ->set('password', 'ClaveNueva123')
+            ->set('password', 'ClaveNueva123!')
             ->set('password_confirmation', 'no-coincide')
             ->call('savePassword')
             ->assertHasErrors('password');
@@ -162,15 +162,15 @@ class ProfileTest extends TestCase
 
         Livewire::actingAs($user)->test(Profile::class)
             ->set('current_password', 'clave-original-A1')
-            ->set('password', 'ClaveNueva123')
-            ->set('password_confirmation', 'ClaveNueva123')
+            ->set('password', 'ClaveNueva123!')
+            ->set('password_confirmation', 'ClaveNueva123!')
             ->call('savePassword')
             ->assertHasNoErrors()
             ->assertSet('current_password', '')
             ->assertSet('password', '')
             ->assertSet('password_confirmation', '');
 
-        $this->assertTrue(Hash::check('ClaveNueva123', $user->fresh()->password));
+        $this->assertTrue(Hash::check('ClaveNueva123!', $user->fresh()->password));
     }
 
     public function test_updating_password_does_not_affect_the_profile_information_form_state(): void
@@ -183,8 +183,8 @@ class ProfileTest extends TestCase
         $component = Livewire::actingAs($user)->test(Profile::class)
             ->set('name', 'Nombre Sin Guardar')
             ->set('current_password', 'clave-original-A1')
-            ->set('password', 'ClaveNueva123')
-            ->set('password_confirmation', 'ClaveNueva123')
+            ->set('password', 'ClaveNueva123!')
+            ->set('password_confirmation', 'ClaveNueva123!')
             ->call('savePassword')
             ->assertHasNoErrors();
 

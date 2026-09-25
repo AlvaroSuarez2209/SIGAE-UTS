@@ -17,6 +17,6 @@ class PasswordPolicy
 {
     public static function rules(): Password
     {
-        return Password::min(8)->mixedCase()->numbers();
+        return Password::min(8)->mixedCase()->numbers()->symbols();
     }
 }

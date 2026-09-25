@@ -148,7 +148,8 @@ class PasswordResetTest extends TestCase
         $this->assertFalse($requirements[0]['met']); // 8 caracteres
         $this->assertFalse($requirements[1]['met']); // mayúscula
         $this->assertTrue($requirements[2]['met']);  // minúscula
-        $this->assertFalse($requirements[3]['met']); // número o símbolo
+        $this->assertFalse($requirements[3]['met']); // número
+        $this->assertFalse($requirements[4]['met']); // símbolo
 
         $component->set('password', self::VALID_PASSWORD);
         $this->assertTrue($component->instance()->meetsAllRequirements());
