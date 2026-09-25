@@ -236,16 +236,27 @@ class Evidence extends Model
         return false;
     }
 
+    /**
+     * Solo el Líder asignado revisa (RS-005, RF-027, RF-056 a RF-059 del
+     * documento de alcance: siempre "el líder deberá...", nunca
+     * Coordinación ni Administrador — Coordinación "supervisa
+     * cumplimiento" y "obtiene informes", no revisa evidencias). Única
+     * excepción: los compromisos transversales no tienen actividad, así
+     * que estructuralmente nunca pueden tener un líder que los cubra
+     * (matchingTeacherAssignment() siempre null para ellos) — para que no
+     * queden sin nadie que los apruebe/devuelva, Administrador los revisa
+     * (Coordinación sigue sin poder, ni siquiera ahí).
+     */
     public function isReviewableBy(User $user): bool
     {
         // Nadie revisa su propia evidencia, incluso si también tiene rol de
-        // líder o coordinación sobre su propio ámbito (conflicto de interés).
+        // líder (conflicto de interés).
         if ($user->id === $this->user_id) {
             return false;
         }
 
-        if ($user->hasAnyRole([RoleName::Administrator, RoleName::Coordination])) {
-            return true;
+        if ($this->deliverable->isCrossCutting()) {
+            return $user->hasRole(RoleName::Administrator);
         }
 
         if ($user->hasRole(RoleName::Leader)) {
@@ -305,40 +316,45 @@ class Evidence extends Model
      * cual para el chequeo de una sola evidencia (EvidencePolicy::review()),
      * donde no tiene sentido montar un JOIN para una fila.
      *
-     * El JOIN reproduce exactamente matchingTeacherAssignment() (empareja
-     * por user_id + activity_id + academic_period_id) y
-     * canLeadAssignment() (liderazgo vigente: mismo período + programa,
-     * actividad-o-null, dentro de starts_at/ends_at) — si esa regla
-     * cambia, hay que actualizar ambos lugares.
+     * Los LEFT JOIN (no INNER) son necesarios porque hay dos caminos
+     * independientes para que una fila cuente como revisable — liderazgo
+     * vigente (empareja por user_id + activity_id + academic_period_id vía
+     * teacher_assignments, luego liderazgo vigente en leaderships: mismo
+     * período + programa, actividad-o-null, dentro de starts_at/ends_at) o
+     * ser Administrador sobre un compromiso transversal — y ambos deben
+     * poder ser ciertos a la vez para alguien con los dos roles (si fueran
+     * INNER JOIN, una fila que no matchea el camino de liderazgo se
+     * descartaría antes de llegar al WHERE, sin darle chance al camino de
+     * Administrador). Si esta regla cambia, hay que actualizar también
+     * isReviewableBy().
      *
-     * $onlyViaLeaderRole: true omite el atajo de Administrador/
-     * Coordinación (que ve todo) y el resultado "nada" para quien no es
-     * Líder — para cuando interesa específicamente lo que depende del rol
-     * Líder de $user, no todo lo que podría revisar por cualquier otro
-     * motivo (ver UserForm::pendingReviewCountForLeader(), que bloquea
-     * quitar el rol Líder a alguien con revisiones pendientes bajo ESE
-     * rol, aunque también sea Administrador/Coordinación).
+     * $onlyViaLeaderRole: true excluye el camino de Administrador (aunque
+     * $user lo sea) — para cuando interesa específicamente lo que depende
+     * del rol Líder de $user, no todo lo que podría revisar por cualquier
+     * otro motivo. Dashboard::leaderPanel() lo usa para su contador "en tu
+     * ámbito" (no debe mezclar compromisos transversales ahí aunque el
+     * líder también sea Administrador), y
+     * UserForm::pendingReviewCountForLeader() lo usa para no bloquear
+     * quitar el rol Líder por evidencias que en realidad dependen del rol
+     * Administrador de esa misma persona.
      */
     public function scopeReviewableBy(Builder $query, User $user, bool $onlyViaLeaderRole = false): Builder
     {
-        if (! $onlyViaLeaderRole) {
-            if ($user->hasAnyRole([RoleName::Administrator, RoleName::Coordination])) {
-                return $query->where('evidences.user_id', '!=', $user->id);
-            }
+        $viaLeader = $user->hasRole(RoleName::Leader);
+        $viaAdminOnCrossCutting = ! $onlyViaLeaderRole && $user->hasRole(RoleName::Administrator);
 
-            if (! $user->hasRole(RoleName::Leader)) {
-                return $query->whereRaw('1 = 0');
-            }
+        if (! $viaLeader && ! $viaAdminOnCrossCutting) {
+            return $query->whereRaw('1 = 0');
         }
 
         return $query
-            ->join('deliverables', 'deliverables.id', '=', 'evidences.deliverable_id')
-            ->join('teacher_assignments', function ($join) {
+            ->leftJoin('deliverables', 'deliverables.id', '=', 'evidences.deliverable_id')
+            ->leftJoin('teacher_assignments', function ($join) {
                 $join->on('teacher_assignments.user_id', '=', 'evidences.user_id')
                     ->on('teacher_assignments.activity_id', '=', 'deliverables.activity_id')
                     ->on('teacher_assignments.academic_period_id', '=', 'deliverables.academic_period_id');
             })
-            ->join('leaderships', function ($join) use ($user) {
+            ->leftJoin('leaderships', function ($join) use ($user) {
                 $join->on('leaderships.academic_period_id', '=', 'teacher_assignments.academic_period_id')
                     ->on('leaderships.program_unit_id', '=', 'teacher_assignments.program_unit_id')
                     ->where(function ($q) {
@@ -350,6 +366,15 @@ class Evidence extends Model
                     ->where(function ($q) {
                         $q->whereNull('leaderships.ends_at')->orWhere('leaderships.ends_at', '>=', now());
                     });
+            })
+            ->where(function ($query) use ($viaLeader, $viaAdminOnCrossCutting) {
+                if ($viaLeader) {
+                    $query->orWhereNotNull('leaderships.id');
+                }
+
+                if ($viaAdminOnCrossCutting) {
+                    $query->orWhereNull('deliverables.activity_id');
+                }
             })
             ->where('evidences.user_id', '!=', $user->id)
             ->select('evidences.*')

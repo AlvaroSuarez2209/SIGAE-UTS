@@ -111,9 +111,12 @@ class Dashboard extends Component
             ),
         ]);
 
+        // onlyViaLeaderRole: true — este contador es "en tu ámbito [de
+        // liderazgo]"; no debe sumar compromisos transversales que este
+        // usuario pudiera revisar solo porque también es Administrador.
         $pendingReviewCount = Evidence::where('evidences.status', EvidenceStatus::Submitted)
             ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
-            ->reviewableBy($user)
+            ->reviewableBy($user, onlyViaLeaderRole: true)
             ->count();
 
         return ['rows' => $rows->values(), 'pendingReviewCount' => $pendingReviewCount];

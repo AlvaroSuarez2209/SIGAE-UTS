@@ -154,17 +154,69 @@ class ReviewShowTest extends TestCase
         $this->actingAs($teacher)->get('/reviews/'.$evidence->id)->assertForbidden();
     }
 
-    public function test_administrator_can_review_evidence_outside_any_leadership_scope(): void
+    /**
+     * RS-005/RF-027/RF-056 a RF-059 del documento de alcance: solo el
+     * líder asignado revisa — Administrador ya no tiene un atajo general
+     * para evidencias de actividad, ni siquiera cuando ningún líder cubre
+     * ese ámbito. Ver test_administrator_can_review_a_cross_cutting_evidence()
+     * para la única excepción real (compromisos transversales).
+     */
+    public function test_administrator_cannot_review_evidence_outside_any_leadership_scope(): void
     {
         [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: false);
         $admin = $this->userWithRole(RoleName::Administrator);
 
+        $this->actingAs($admin)->get('/reviews/'.$evidence->id)->assertForbidden();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * Los compromisos transversales no tienen actividad, así que
+     * estructuralmente nunca pueden tener un líder que los cubra — sin
+     * esta excepción quedarían sin nadie que los apruebe/devuelva.
+     * Coordinación sigue sin poder, ni siquiera aquí (ver
+     * test_coordination_cannot_review_a_cross_cutting_evidence()).
+     */
+    public function test_administrator_can_review_a_cross_cutting_evidence(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->crossCutting()->create();
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => $deliverable->id,
+        ]);
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $version->update(['description' => 'Contenido de prueba']);
+        $evidence->submitCurrentVersion();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+
         Livewire::actingAs($admin)
-            ->test(ReviewShow::class, ['evidence' => $evidence])
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
             ->call('approve')
             ->assertHasNoErrors();
 
         $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
+    }
+
+    public function test_coordination_cannot_review_a_cross_cutting_evidence(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->crossCutting()->create();
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => $deliverable->id,
+        ]);
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $version->update(['description' => 'Contenido de prueba']);
+        $evidence->submitCurrentVersion();
+
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->fresh()->id)->assertForbidden();
     }
 
     public function test_cannot_act_on_an_evidence_that_is_no_longer_pending_review(): void

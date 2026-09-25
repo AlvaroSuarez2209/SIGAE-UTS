@@ -19,9 +19,19 @@ class ReviewShow extends Component
     {
         // El módulo /reviews es la bandeja del revisor: solo entra quien
         // realmente puede decidir sobre esta evidencia (nunca su propio
-        // dueño, y un líder solo dentro de su ámbito). Ver tu propia
-        // evidencia ya está cubierto por /my-deliverables.
-        Gate::authorize('review', $evidence);
+        // dueño, un líder solo dentro de su ámbito, Administrador solo
+        // para compromisos transversales — ver Evidence::isReviewableBy()).
+        // Ver tu propia evidencia ya está cubierto por /my-deliverables.
+        //
+        // La página también sirve reopen() (reabrir una ya aprobada,
+        // exclusivo de Administrador sin importar el ámbito de liderazgo)
+        // — sin este segundo chequeo, un Administrador que solo puede
+        // reabrir (no revisar, porque la evidencia es de una actividad
+        // fuera de cualquier ámbito de liderazgo) se quedaría sin poder
+        // ni siquiera entrar a la página.
+        if (Gate::denies('review', $evidence) && Gate::denies('reopen', $evidence)) {
+            Gate::authorize('review', $evidence);
+        }
 
         $this->evidence = $evidence;
     }
@@ -77,11 +87,9 @@ class ReviewShow extends Component
 
     public function reopen(): void
     {
+        // EvidencePolicy::reopen() ya exige Administrador + estado
+        // Approved — no hace falta repetir el chequeo de estado aquí.
         Gate::authorize('reopen', $this->evidence);
-
-        if ($this->evidence->status !== EvidenceStatus::Approved) {
-            return;
-        }
 
         // Excepcional: reabrir una evidencia aprobada. Debe quedar
         // registrado en la bitácora de auditoría cuando el módulo 10 esté
