@@ -110,4 +110,71 @@ class ComplianceCalculatorTest extends TestCase
         // no 90% (el peso individual del entregable no se usa a medias).
         $this->assertEquals(50.0, $result['percentage']);
     }
+
+    /**
+     * Prioridad 6, punto 8: comportamiento ACTUAL documentado, no asumido.
+     * El entregable sigue siendo "obligatorio" (is_mandatory no cambia
+     * según el estado de la evidencia) y la única condición para contar
+     * como cumplido es status === Approved — Vencido no lo es, así que
+     * cuenta en el denominador pero no en el numerador, igual que
+     * Pendiente/Enviado/Requiere ajustes. Esto parece el comportamiento
+     * correcto: la fecha límite pasó sin una evidencia aprobada, así que
+     * debería arrastrar el % hacia abajo.
+     */
+    public function test_expired_evidence_counts_against_compliance_same_as_pending(): void
+    {
+        $user = User::factory()->create();
+        $deliverable = Deliverable::factory()->create(['is_mandatory' => true, 'weight_percentage' => null]);
+        $this->evidenceFor($user, $deliverable, EvidenceStatus::Expired);
+
+        $result = ComplianceCalculator::forUser($user, new Collection([$deliverable]));
+
+        $this->assertEquals(0.0, $result['percentage']);
+        $this->assertEquals(0, $result['approved']);
+        $this->assertEquals(1, $result['total']);
+    }
+
+    /**
+     * Bug real encontrado en la Prioridad 6 y corregido: "Exento" significa
+     * que el docente fue eximido explícitamente de cumplir este entregable
+     * (EvidencePolicy::markExempt) — antes, la fórmula seguía sumándolo al
+     * denominador ($total) sin nunca sumarlo al numerador ($approved),
+     * bajando el % de avance exactamente igual que si nunca hubiera
+     * entregado nada. Ahora se excluye del cálculo por completo, igual que
+     * un entregable opcional: con un solo entregable obligatorio y ese
+     * exento, no queda nada que medir (null), no 0%.
+     */
+    public function test_exempt_evidence_is_excluded_from_compliance_entirely(): void
+    {
+        $user = User::factory()->create();
+        $deliverable = Deliverable::factory()->create(['is_mandatory' => true, 'weight_percentage' => null]);
+        $this->evidenceFor($user, $deliverable, EvidenceStatus::Exempt);
+
+        $result = ComplianceCalculator::forUser($user, new Collection([$deliverable]));
+
+        $this->assertNull($result['percentage']);
+        $this->assertEquals(0, $result['approved']);
+        $this->assertEquals(0, $result['total']);
+    }
+
+    /**
+     * Caso mixto: un exento no debe arrastrar hacia abajo el % de los
+     * demás obligatorios que sí aplican — el docente queda evaluado solo
+     * sobre lo que de verdad le corresponde (1 de 1, no 1 de 2).
+     */
+    public function test_exempt_evidence_does_not_drag_down_compliance_of_other_mandatory_deliverables(): void
+    {
+        $user = User::factory()->create();
+        $exempt = Deliverable::factory()->create(['is_mandatory' => true, 'weight_percentage' => null]);
+        $applicable = Deliverable::factory()->create(['is_mandatory' => true, 'weight_percentage' => null]);
+
+        $this->evidenceFor($user, $exempt, EvidenceStatus::Exempt);
+        $this->evidenceFor($user, $applicable, EvidenceStatus::Approved);
+
+        $result = ComplianceCalculator::forUser($user, new Collection([$exempt, $applicable]));
+
+        $this->assertEquals(100.0, $result['percentage']);
+        $this->assertEquals(1, $result['approved']);
+        $this->assertEquals(1, $result['total']);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceStatus;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
@@ -9,9 +10,11 @@ use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\Evidence;
 use App\Models\Leadership;
+use App\Models\ProgramUnit;
 use App\Models\TeacherAssignment;
 use App\Models\User;
 use App\Services\ComplianceCalculator;
+use App\Services\LeadershipScope;
 
 /**
  * Arma los 4 informes mínimos del módulo 9. Cada informe se devuelve como
@@ -42,7 +45,7 @@ use App\Services\ComplianceCalculator;
  */
 class ReportBuilder
 {
-    public static function teacher(User $teacher, AcademicPeriod $period): array
+    public static function teacher(User $teacher, AcademicPeriod $period, ?EvidenceStatus $statusFilter = null): array
     {
         $assignments = TeacherAssignment::where('user_id', $teacher->id)
             ->where('academic_period_id', $period->id)
@@ -56,21 +59,29 @@ class ReportBuilder
             self::formatHours($a->assigned_hours),
         ])->all();
 
+        // Sin filtrar por estado: es la base real de "cuántos entregables
+        // obligatorios tiene este docente" — el % de avance (más abajo)
+        // nunca debe depender de qué estado se esté mirando en la tabla.
         $evidences = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $period->id))
             ->with(['deliverable.activity.component', 'deliverable.crossCuttingCommitment', 'currentVersion'])
             ->get();
 
-        $evidenceRows = $evidences->map(fn (Evidence $e) => [
+        // El filtro de estado solo acota qué filas se listan en la tabla,
+        // nunca lo que entra a ComplianceCalculator (ver comentario arriba).
+        $displayEvidences = $statusFilter ? $evidences->where('status', $statusFilter) : $evidences;
+
+        $evidenceRows = $displayEvidences->map(fn (Evidence $e) => [
             $e->deliverable->name,
             self::scopeLabel($e->deliverable),
             $e->deliverable->is_mandatory ? 'Sí' : 'No',
             $e->deliverable->due_at->toReadable(),
             $e->status->label(),
             $e->currentVersion?->submitted_at?->toReadable() ?? '—',
+            self::exemptionReasonColumn($e),
         ])->all();
 
-        $compliance = ComplianceCalculator::forUser($teacher, $evidences->pluck('deliverable')->unique('id'));
+        $compliance = ComplianceCalculator::forUser($teacher, $evidences->pluck('deliverable')->unique('id'), $evidences);
 
         return [
             'title' => "Informe individual — {$teacher->name} ({$period->name})",
@@ -86,7 +97,7 @@ class ReportBuilder
                 ],
                 [
                     'title' => 'Entregables y evidencias',
-                    'headings' => ['Entregable', 'Ámbito', 'Obligatorio', 'Fecha límite', 'Estado', 'Enviado el'],
+                    'headings' => ['Entregable', 'Ámbito', 'Obligatorio', 'Fecha límite', 'Estado', 'Enviado el', 'Motivo (si Exento)'],
                     'rows' => $evidenceRows,
                 ],
             ],
@@ -94,7 +105,17 @@ class ReportBuilder
         ];
     }
 
-    public static function activity(Activity $activity, AcademicPeriod $period): array
+    /**
+     * Revisión del estado Exento: a diferencia de teacher(), crossCutting()
+     * y consolidated(), ninguna sección de este informe tiene una fila por
+     * evidencia individual — "Cumplimiento por docente" es por docente
+     * (agregado) y "Entregables de la actividad" es por entregable
+     * (conteos). Agregar el motivo de exención aquí obligaría a rediseñar
+     * el informe (una sección nueva, fila por evidencia, que hoy no
+     * existe) — fuera del alcance de "agregar la razón solo donde ya
+     * exista una fila por evidencia".
+     */
+    public static function activity(Activity $activity, AcademicPeriod $period, ?EvidenceStatus $statusFilter = null): array
     {
         $assignments = TeacherAssignment::where('activity_id', $activity->id)
             ->where('academic_period_id', $period->id)
@@ -104,6 +125,7 @@ class ReportBuilder
 
         $deliverables = Deliverable::where('activity_id', $activity->id)
             ->where('academic_period_id', $period->id)
+            ->where('status', DeliverableStatus::Published)
             ->get();
 
         $assignmentRows = $assignments->map(fn (TeacherAssignment $a) => [
@@ -112,8 +134,20 @@ class ReportBuilder
             $a->programUnit->name,
         ])->all();
 
-        $complianceRows = $assignments->map(function (TeacherAssignment $a) use ($deliverables) {
-            $compliance = ComplianceCalculator::forUser($a->user, $deliverables);
+        // 1 sola consulta para toda la actividad (antes era 1 por
+        // entregable, dentro del map() de abajo) — agrupada por docente
+        // para "Cumplimiento por docente" (sin filtro de estado: el % de
+        // avance nunca debe depender de qué estado se esté mirando) y por
+        // entregable para "Entregables de la actividad" (esa sí respeta el
+        // filtro de estado, es un conteo visible, no una entrada a
+        // ComplianceCalculator).
+        $allEvidences = Evidence::whereIn('deliverable_id', $deliverables->pluck('id'))->get();
+        $evidencesByUser = $allEvidences->groupBy('user_id');
+        $displayEvidencesByDeliverable = ($statusFilter ? $allEvidences->where('status', $statusFilter) : $allEvidences)
+            ->groupBy('deliverable_id');
+
+        $complianceRows = $assignments->map(function (TeacherAssignment $a) use ($deliverables, $evidencesByUser) {
+            $compliance = ComplianceCalculator::forUser($a->user, $deliverables, $evidencesByUser->get($a->user_id, collect()));
 
             return [
                 $a->user->name,
@@ -123,8 +157,8 @@ class ReportBuilder
             ];
         })->all();
 
-        $deliverableRows = $deliverables->map(function (Deliverable $d) {
-            $evidences = Evidence::where('deliverable_id', $d->id)->get();
+        $deliverableRows = $deliverables->map(function (Deliverable $d) use ($displayEvidencesByDeliverable) {
+            $evidences = $displayEvidencesByDeliverable->get($d->id, collect());
 
             return [
                 $d->name,
@@ -162,16 +196,27 @@ class ReportBuilder
         ];
     }
 
-    public static function crossCutting(AcademicPeriod $period, ?CrossCuttingCommitment $commitment = null): array
+    public static function crossCutting(AcademicPeriod $period, ?CrossCuttingCommitment $commitment = null, ?EvidenceStatus $statusFilter = null): array
     {
         $deliverables = Deliverable::whereNotNull('cross_cutting_commitment_id')
             ->where('academic_period_id', $period->id)
+            ->where('status', DeliverableStatus::Published)
             ->when($commitment, fn ($q) => $q->where('cross_cutting_commitment_id', $commitment->id))
             ->with('crossCuttingCommitment')
             ->get();
 
-        $deliverableRows = $deliverables->map(function (Deliverable $d) {
-            $evidences = Evidence::where('deliverable_id', $d->id)->get();
+        // 1 sola consulta para todos los entregables transversales (antes
+        // eran 2: una por entregable dentro del map() de abajo, más esta
+        // misma whereIn aparte para $detailRows) — el filtro de estado solo
+        // acota qué se lista, este informe no calcula ningún % de avance.
+        $allEvidences = Evidence::whereIn('deliverable_id', $deliverables->pluck('id'))
+            ->with(['user', 'deliverable.crossCuttingCommitment', 'currentVersion'])
+            ->get();
+        $displayEvidences = $statusFilter ? $allEvidences->where('status', $statusFilter) : $allEvidences;
+        $displayEvidencesByDeliverable = $displayEvidences->groupBy('deliverable_id');
+
+        $deliverableRows = $deliverables->map(function (Deliverable $d) use ($displayEvidencesByDeliverable) {
+            $evidences = $displayEvidencesByDeliverable->get($d->id, collect());
 
             return [
                 $d->crossCuttingCommitment->name,
@@ -183,15 +228,14 @@ class ReportBuilder
             ];
         })->all();
 
-        $detailRows = Evidence::whereIn('deliverable_id', $deliverables->pluck('id'))
-            ->with(['user', 'deliverable.crossCuttingCommitment', 'currentVersion'])
-            ->get()
+        $detailRows = $displayEvidences
             ->map(fn (Evidence $e) => [
                 $e->deliverable->crossCuttingCommitment->name,
                 $e->deliverable->name,
                 $e->user->name,
                 $e->status->label(),
                 $e->currentVersion?->submitted_at?->toReadable() ?? '—',
+                self::exemptionReasonColumn($e),
             ])->all();
 
         return [
@@ -207,20 +251,40 @@ class ReportBuilder
                 ],
                 [
                     'title' => 'Detalle por docente',
-                    'headings' => ['Compromiso', 'Entregable', 'Docente', 'Estado', 'Enviado el'],
+                    'headings' => ['Compromiso', 'Entregable', 'Docente', 'Estado', 'Enviado el', 'Motivo (si Exento)'],
                     'rows' => $detailRows,
                 ],
             ],
         ];
     }
 
-    public static function consolidated(AcademicPeriod $period): array
-    {
-        $evidences = Evidence::whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $period->id))
+    public static function consolidated(
+        AcademicPeriod $period,
+        ?ProgramUnit $program = null,
+        ?User $teacher = null,
+        ?Activity $activity = null,
+        ?User $leader = null,
+        ?EvidenceStatus $statusFilter = null,
+    ): array {
+        $ledTeacherIds = $leader ? LeadershipScope::teacherIdsLedBy($leader, $period) : null;
+
+        // programa/docente/actividad/líder acotan la POBLACIÓN (qué
+        // evidencias entran aquí); el filtro de estado se aplica aparte
+        // (ver $displayEvidences más abajo) para que nunca afecte el % de
+        // avance de "Resumen por docente" — solo qué se lista.
+        $evidences = Evidence::whereHas('deliverable', fn ($q) => $q
+            ->where('academic_period_id', $period->id)
+            ->when($activity, fn ($aq) => $aq->where('activity_id', $activity->id))
+        )
+            ->when($teacher, fn ($q) => $q->where('user_id', $teacher->id))
+            ->when($program, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('program_unit_id', $program->id)))
+            ->when($ledTeacherIds !== null, fn ($q) => $q->whereIn('user_id', $ledTeacherIds))
             ->with(['user', 'deliverable.activity.component', 'deliverable.crossCuttingCommitment'])
             ->get();
 
-        $consolidatedRows = $evidences->map(function (Evidence $e) use ($period) {
+        $displayEvidences = $statusFilter ? $evidences->where('status', $statusFilter) : $evidences;
+
+        $consolidatedRows = $displayEvidences->map(function (Evidence $e) use ($period) {
             $deliverable = $e->deliverable;
 
             if ($deliverable->isCrossCutting()) {
@@ -241,19 +305,26 @@ class ReportBuilder
                 $deliverable->name,
                 $deliverable->is_mandatory ? 'Sí' : 'No',
                 $e->status->label(),
+                self::exemptionReasonColumn($e),
             ];
         })->all();
 
         $statusRows = collect(EvidenceStatus::cases())->map(fn ($status) => [
             $status->label(),
-            $evidences->where('status', $status)->count(),
+            $displayEvidences->where('status', $status)->count(),
         ])->all();
 
-        $teacherRows = $evidences->pluck('user')->unique('id')->map(function (User $teacher) use ($period) {
+        // $evidences (sin filtrar por estado), nunca $displayEvidences: el
+        // % de avance de cada docente no debe cambiar según qué estado se
+        // esté mirando en las otras 2 secciones.
+        $evidencesByUser = $evidences->groupBy('user_id');
+
+        $teacherRows = $evidences->pluck('user')->unique('id')->map(function (User $teacher) use ($period, $evidencesByUser) {
             $deliverables = Deliverable::where('academic_period_id', $period->id)
+                ->where('status', DeliverableStatus::Published)
                 ->whereHas('recipients', fn ($q) => $q->where('user_id', $teacher->id))
                 ->get();
-            $compliance = ComplianceCalculator::forUser($teacher, $deliverables);
+            $compliance = ComplianceCalculator::forUser($teacher, $deliverables, $evidencesByUser->get($teacher->id, collect()));
 
             return [$teacher->name, $compliance['approved'], $compliance['total'], self::percentageLabel($compliance['percentage'])];
         })->all();
@@ -265,7 +336,7 @@ class ReportBuilder
             'sections' => [
                 [
                     'title' => 'Consolidado por docente / componente / actividad / líder / estado',
-                    'headings' => ['Docente', 'Componente', 'Actividad / Transversal', 'Líder(es)', 'Entregable', 'Obligatorio', 'Estado'],
+                    'headings' => ['Docente', 'Componente', 'Actividad / Transversal', 'Líder(es)', 'Entregable', 'Obligatorio', 'Estado', 'Motivo (si Exento)'],
                     'rows' => $consolidatedRows,
                 ],
                 [
@@ -306,6 +377,19 @@ class ReportBuilder
         return $deliverable->isCrossCutting()
             ? 'Transversal: '.$deliverable->crossCuttingCommitment->name
             : $deliverable->activity->component->name.' — '.$deliverable->activity->name;
+    }
+
+    /**
+     * Revisión del estado Exento: '—' para cualquier fila que no esté
+     * Exenta (igual convención que el resto de columnas "no aplica" de
+     * estos informes, ej. "Enviado el"), y el motivo real solo cuando sí
+     * lo está. No se agrega a activity() — ver el comentario en ese
+     * método — porque ninguna de sus secciones tiene una fila por
+     * evidencia individual.
+     */
+    private static function exemptionReasonColumn(Evidence $e): string
+    {
+        return $e->status === EvidenceStatus::Exempt ? ($e->exemption_reason ?? '—') : '—';
     }
 
     private static function formatHours(mixed $hours): string

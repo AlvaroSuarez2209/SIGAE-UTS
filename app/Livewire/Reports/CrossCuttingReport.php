@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reports;
 
+use App\Enums\EvidenceStatus;
 use App\Models\AcademicPeriod;
 use App\Models\CrossCuttingCommitment;
 use App\Services\Reports\ReportBuilder;
@@ -17,6 +18,8 @@ class CrossCuttingReport extends Component
 
     public string $commitmentFilter = '';
 
+    public string $statusFilter = '';
+
     public function mount(): void
     {
         $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id')
@@ -30,7 +33,8 @@ class CrossCuttingReport extends Component
         if ($this->periodFilter) {
             $report = ReportBuilder::crossCutting(
                 AcademicPeriod::findOrFail($this->periodFilter),
-                $this->commitmentFilter ? CrossCuttingCommitment::find($this->commitmentFilter) : null
+                $this->commitmentFilter ? CrossCuttingCommitment::find($this->commitmentFilter) : null,
+                $this->statusFilter !== '' ? EvidenceStatus::from($this->statusFilter) : null,
             );
         }
 
@@ -38,6 +42,7 @@ class CrossCuttingReport extends Component
             'report' => $report,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
             'commitments' => CrossCuttingCommitment::orderBy('name')->get(),
+            'statusOptions' => EvidenceStatus::cases(),
         ]);
     }
 }

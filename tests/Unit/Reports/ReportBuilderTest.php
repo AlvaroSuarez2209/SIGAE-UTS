@@ -200,4 +200,88 @@ class ReportBuilderTest extends TestCase
         $this->assertEquals('—', $row[3]);
         $this->assertEquals('Transversal', $row[1]);
     }
+
+    /**
+     * Revisión del estado Exento: teacher(), crossCutting() y
+     * consolidated() son los 3 informes con una fila por evidencia
+     * individual — cada uno agrega una columna "Motivo (si Exento)" al
+     * final, con guion para cualquier fila que no esté Exenta.
+     */
+    public function test_teacher_report_shows_the_exemption_reason_only_for_exempt_rows(): void
+    {
+        $teacher = User::factory()->create();
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $exemptDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $pendingDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $exemptDeliverable->id,
+            'status' => EvidenceStatus::Exempt,
+            'exemption_reason' => 'Carga académica adicional.',
+        ]);
+        Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $pendingDeliverable->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        $report = ReportBuilder::teacher($teacher, $period);
+
+        $rows = collect($report['sections'][1]['rows'])->keyBy(0);
+        $this->assertEquals('Carga académica adicional.', $rows[$exemptDeliverable->name][6]);
+        $this->assertEquals('—', $rows[$pendingDeliverable->name][6]);
+        $this->assertEquals('Motivo (si Exento)', $report['sections'][1]['headings'][6]);
+    }
+
+    public function test_cross_cutting_report_shows_the_exemption_reason_only_for_exempt_rows(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $commitment = CrossCuttingCommitment::factory()->create();
+        $teacher = User::factory()->create();
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'cross_cutting_commitment_id' => $commitment->id,
+        ]);
+        Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $deliverable->id,
+            'status' => EvidenceStatus::Exempt,
+            'exemption_reason' => 'Un percance familiar.',
+        ]);
+
+        $report = ReportBuilder::crossCutting($period);
+
+        $row = $report['sections'][1]['rows'][0];
+        $this->assertEquals('Un percance familiar.', $row[5]);
+        $this->assertEquals('Motivo (si Exento)', $report['sections'][1]['headings'][5]);
+    }
+
+    public function test_consolidated_report_shows_the_exemption_reason_only_for_exempt_rows(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $teacher = User::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+        Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $deliverable->id,
+            'status' => EvidenceStatus::Exempt,
+            'exemption_reason' => 'Reasignación administrativa.',
+        ]);
+
+        $report = ReportBuilder::consolidated($period);
+
+        $row = $report['sections'][0]['rows'][0];
+        $this->assertEquals('Reasignación administrativa.', $row[7]);
+        $this->assertEquals('Motivo (si Exento)', $report['sections'][0]['headings'][7]);
+    }
 }

@@ -4,7 +4,7 @@
     <div class="mb-6 flex flex-wrap items-end gap-4">
         <div>
             <label class="field-label">Periodo</label>
-            <select wire:model.live="periodFilter" class="field-input">
+            <select wire:model.live="periodFilter" wire:loading.attr="disabled" class="field-input">
                 @foreach ($periods as $period)
                     <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
                 @endforeach
@@ -22,13 +22,25 @@
             />
         </div>
 
+        <div>
+            <label class="field-label">Estado <span class="font-normal text-text-secondary">(opcional)</span></label>
+            <select wire:model.live="statusFilter" wire:loading.attr="disabled" class="field-input">
+                <option value="">Todos</option>
+                @foreach ($statusOptions as $status)
+                    <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <x-loading-indicator />
+
         @if ($report)
             <div class="flex gap-2">
-                <a href="{{ route('reports.teacher.pdf', ['teacher' => $teacherFilter, 'period' => $periodFilter]) }}" class="btn-secondary">
+                <a href="{{ route('reports.teacher.pdf', ['teacher' => $teacherFilter, 'period' => $periodFilter, 'status' => $statusFilter ?: null]) }}" class="btn-secondary">
                     <x-icon name="document" class="h-4 w-4" />
                     Descargar PDF
                 </a>
-                <a href="{{ route('reports.teacher.excel', ['teacher' => $teacherFilter, 'period' => $periodFilter]) }}" class="btn-secondary">
+                <a href="{{ route('reports.teacher.excel', ['teacher' => $teacherFilter, 'period' => $periodFilter, 'status' => $statusFilter ?: null]) }}" class="btn-secondary">
                     <x-icon name="document" class="h-4 w-4" />
                     Descargar Excel
                 </a>
