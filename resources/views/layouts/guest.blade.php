@@ -13,11 +13,18 @@
     @livewireStyles
 </head>
 <body class="flex min-h-screen flex-col items-center justify-center bg-surface-muted px-4 py-10 font-sans">
+    @php $institution = \App\Models\InstitutionSettings::current(); @endphp
     <div class="flex w-full max-w-sm flex-col items-center">
-        {{-- Isotipo: usa el logo real si ya se colocó en public/images/logo/logo-full.png o .svg;
-             mientras tanto, placeholder rotado con las iniciales (ver public/images/logo/README.md).
-             Protagonista y grande en todos los tamaños de pantalla. --}}
-        @if (file_exists(public_path('images/logo/logo-full.svg')))
+        {{-- Isotipo: el logo configurado en Administración > Identidad
+             institucional tiene prioridad (Prioridad 3); si no hay uno,
+             cae al archivo estático real si ya se colocó en
+             public/images/logo/logo-full.png o .svg, y si tampoco, a un
+             placeholder rotado con las iniciales (ver
+             public/images/logo/README.md). Protagonista y grande en todos
+             los tamaños de pantalla. --}}
+        @if ($institution->loginLogoUrl())
+            <img src="{{ $institution->loginLogoUrl() }}" alt="{{ $institution->name }}" class="h-28 w-auto max-w-full sm:h-32 md:h-40">
+        @elseif (file_exists(public_path('images/logo/logo-full.svg')))
             <img src="{{ asset('images/logo/logo-full.svg') }}" alt="SIGAE-UTS" class="h-28 w-auto max-w-full sm:h-32 md:h-40">
         @elseif (file_exists(public_path('images/logo/logo-full.png')))
             <img src="{{ asset('images/logo/logo-full.png') }}" alt="SIGAE-UTS" class="h-28 w-auto max-w-full sm:h-32 md:h-40">
@@ -35,10 +42,11 @@
         </div>
 
         <div class="mt-9 w-full">
+            <x-flash-message />
             {{ $slot }}
         </div>
 
-        <p class="mt-6 text-xs text-text-secondary">Institución Universitaria Tecnológica de Santander</p>
+        <p class="mt-6 text-xs text-text-secondary">{{ $institution->name }}</p>
     </div>
 
     @livewireScripts

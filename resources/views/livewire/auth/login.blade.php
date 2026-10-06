@@ -1,13 +1,6 @@
 <div class="rounded-xl border border-border-subtle bg-surface p-6 shadow-sm">
     <h1 class="mb-5 text-lg font-medium text-text-primary">Iniciar sesión</h1>
 
-    @if (session('status'))
-        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-success-subtle p-3 text-sm text-status-success">
-            <x-icon name="check-circle" class="h-4 w-4 shrink-0" />
-            {{ session('status') }}
-        </div>
-    @endif
-
     {{-- Alerta genérica: credenciales incorrectas, cuenta inactiva o límite de
          intentos. Nunca señala un campo específico (ver Login::login()). --}}
     <x-auth-alert

@@ -1,10 +1,19 @@
 @props(['class' => 'h-9 w-9'])
 
 @php
-    // Misma resolución de archivo que antes vivía inline en layouts/app.blade.php:
-    // preferir un .svg "crisp" para tamaño de ícono si existe, el logo-mark
-    // original si no, o nada si aún no se ha colocado el logo real.
-    $logoMarkPath = collect([
+    // Prioridad 3: si Administración configuró un logo propio (ver
+    // App\Models\InstitutionSettings), se usa tal cual — un logo subido
+    // por el usuario puede venir a todo color, así que NUNCA se le aplica
+    // la máscara de degradado de marca de abajo (eso destruiría su color
+    // real, recortándolo a su silueta alfa y repintándolo). Solo el logo
+    // estático original del sistema recibe ese tratamiento.
+    $customLogoUrl = \App\Models\InstitutionSettings::current()->markLogoUrl();
+
+    // Sin logo personalizado: misma resolución de archivo que antes vivía
+    // inline en layouts/app.blade.php — preferir un .svg "crisp" para
+    // tamaño de ícono si existe, el logo-mark original si no, o nada si
+    // aún no se ha colocado el logo real.
+    $logoMarkPath = $customLogoUrl ? null : collect([
         'images/logo/logo-mark-icon.svg',
         'images/logo/logo-mark-icon.png',
         'images/logo/logo-mark.svg',
@@ -12,7 +21,13 @@
     ])->first(fn ($path) => file_exists(public_path($path)));
 @endphp
 
-@if ($logoMarkPath)
+@if ($customLogoUrl)
+    <img
+        src="{{ $customLogoUrl }}"
+        alt="Logo institucional"
+        {{ $attributes->merge(['class' => $class.' inline-block shrink-0 object-contain']) }}
+    >
+@elseif ($logoMarkPath)
     {{-- El archivo entregado no trae el degradado de marca aplicado; se
          recorta su silueta (canal alfa) como máscara CSS y se pinta detrás
          el mismo degradado azul→verde del isotipo de login — reservado a

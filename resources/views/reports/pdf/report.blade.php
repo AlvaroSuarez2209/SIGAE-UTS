@@ -244,11 +244,18 @@
     </header>
 
     <footer>
-        SIGAE-UTS · Institución Universitaria Tecnológica de Santander
+        SIGAE-UTS · {{ \App\Models\InstitutionSettings::current()->name }}
     </footer>
 
     <h1>{{ $title }}</h1>
     <p class="report-meta">Generado el {{ now()->toReadable() }}</p>
+
+    @if ($filtersSummary ?? null)
+        <p class="report-meta">
+            <strong>Filtros aplicados:</strong>
+            {{ collect($filtersSummary)->map(fn ($value, $label) => "{$label}: {$value}")->join(' · ') }}
+        </p>
+    @endif
 
     @if ($summary ?? null)
         @php

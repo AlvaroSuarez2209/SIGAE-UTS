@@ -2,12 +2,14 @@
 
 namespace App\Services\Reports;
 
+use App\Models\InstitutionSettings;
 use Barryvdh\DomPDF\PDF;
 use Dompdf\Css\Color;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
@@ -135,10 +137,20 @@ class ReportTheme
     /**
      * Isotipo pequeño ya usado en el sidebar — null si todavía no se ha
      * colocado (entornos nuevos sin el logo real), para que la plantilla
-     * PDF no rompa por un <img> con ruta inexistente.
+     * PDF no rompa por un <img> con ruta inexistente. El logo configurado
+     * en Administración > Identidad institucional (Prioridad 3) tiene
+     * prioridad; se usa su ruta real en disco (no una URL: dompdf incrusta
+     * por archivo, no por HTTP). Nota: si el logo subido es .svg, el
+     * soporte de dompdf para SVG es limitado — un logo PNG/JPG es más
+     * seguro para esta superficie específica, aunque la validación de la
+     * pantalla de administración acepta los 3 formatos por igual.
      */
     public static function logoPath(): ?string
     {
+        if ($customPath = InstitutionSettings::current()->markLogoDiskPath()) {
+            return $customPath;
+        }
+
         $path = public_path('images/logo/logo-mark-icon.png');
 
         return file_exists($path) ? $path : null;
@@ -146,12 +158,13 @@ class ReportTheme
 
     /**
      * Único punto de formato de una hoja de Excel: encabezado
-     * institucional (título del informe + título de la sección + resumen
-     * de % de avance si aplica), colores de marca en el encabezado de
-     * columnas, autofiltro, panes congelados, bordes sutiles, alineación
-     * numérica a la derecha y color de "Estado" coherente con la web y
-     * el PDF. Cualquier informe futuro que use ReportSectionSheet hereda
-     * este formato automáticamente, sin repetir la lógica de estilo.
+     * institucional (nombre configurable + logo si el formato lo permite,
+     * título del informe, título de la sección y resumen de % de avance si
+     * aplica), colores de marca en el encabezado de columnas, autofiltro,
+     * panes congelados, bordes sutiles, alineación numérica a la derecha y
+     * color de "Estado" coherente con la web y el PDF. Cualquier informe
+     * futuro que use ReportSectionSheet hereda este formato
+     * automáticamente, sin repetir la lógica de estilo.
      *
      * @param  array<int, string>  $headings
      * @param  array<int, array<int, mixed>>  $rows
@@ -168,37 +181,78 @@ class ReportTheme
         $columnCount = max(count($headings), 1);
         $lastColumn = Coordinate::stringFromColumnIndex($columnCount);
 
-        // --- Encabezado institucional: título del informe, título de la
-        // sección y, si aplica, el resumen de % de avance — todo antes de
-        // la tabla, para que el archivo nunca empiece directo en datos
-        // crudos sin contexto.
-        $extraRows = 2 + ($summary ? 1 : 0);
+        // --- Encabezado institucional: nombre de la institución (y su
+        // logo si hay uno con un formato que PhpSpreadsheet pueda
+        // incrustar), título del informe, título de la sección y, si
+        // aplica, el resumen de % de avance — todo antes de la tabla, para
+        // que el archivo nunca empiece directo en datos crudos sin
+        // contexto. Mismo criterio que el PDF (ReportTheme::logoPath()),
+        // para que ambos canales de exportación muestren la misma
+        // identidad configurable en Administración > Identidad
+        // institucional.
+        $extraRows = 4 + ($summary ? 1 : 0);
         $sheet->insertNewRowBefore(1, $extraRows);
 
-        $sheet->setCellValue('A1', $reportTitle);
+        $logoPath = self::logoPath();
+        $hasEmbeddableLogo = $logoPath && in_array(strtolower(pathinfo($logoPath, PATHINFO_EXTENSION)), ['png', 'jpg', 'jpeg'], true);
+
+        $sheet->setCellValue('A1', 'SIGAE-UTS — '.InstitutionSettings::current()->name);
         $sheet->mergeCells("A1:{$lastColumn}1");
-        $sheet->getRowDimension(1)->setRowHeight(24);
+        $sheet->getRowDimension(1)->setRowHeight($hasEmbeddableLogo ? 28 : 18);
         $sheet->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => self::rgb(self::SECONDARY)]],
+            'fill' => self::solidFill(self::SURFACE_MUTED),
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => $hasEmbeddableLogo ? 4 : 1],
+        ]);
+
+        // PhpSpreadsheet incrusta imágenes vía GD (Drawing), que no
+        // entiende SVG — si el logo configurado es .svg (formato que la
+        // pantalla de Identidad institucional sí acepta), se omite la
+        // imagen y el encabezado de texto queda igual de completo.
+        if ($hasEmbeddableLogo) {
+            $drawing = new Drawing;
+            $drawing->setPath($logoPath);
+            $drawing->setHeight(22);
+            $drawing->setCoordinates('A1');
+            $drawing->setOffsetX(4);
+            $drawing->setOffsetY(3);
+            $drawing->setWorksheet($sheet);
+        }
+
+        $sheet->setCellValue('A2', $reportTitle);
+        $sheet->mergeCells("A2:{$lastColumn}2");
+        $sheet->getRowDimension(2)->setRowHeight(24);
+        $sheet->getStyle('A2')->applyFromArray([
             'font' => ['bold' => true, 'size' => 13, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => self::solidFill(self::BRAND_PRIMARY),
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
         ]);
 
-        $sheet->setCellValue('A2', $sectionTitle);
-        $sheet->mergeCells("A2:{$lastColumn}2");
-        $sheet->getStyle('A2')->applyFromArray([
+        // Mismo formato ("Generado el ...") que ya usa el PDF
+        // (resources/views/reports/pdf/report.blade.php) — antes, el Excel
+        // no dejaba ningún rastro de cuándo se generó.
+        $sheet->setCellValue('A3', 'Generado el '.now()->toReadable());
+        $sheet->mergeCells("A3:{$lastColumn}3");
+        $sheet->getStyle('A3')->applyFromArray([
+            'font' => ['italic' => true, 'size' => 9, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
+            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+        ]);
+
+        $sheet->setCellValue('A4', $sectionTitle);
+        $sheet->mergeCells("A4:{$lastColumn}4");
+        $sheet->getStyle('A4')->applyFromArray([
             'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
             'fill' => self::solidFill(self::SURFACE_MUTED),
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
         ]);
 
-        $headerRow = 2;
+        $headerRow = 4;
 
         if ($summary) {
-            $headerRow = 3;
-            $sheet->setCellValue('A3', "{$summary['label']}: {$summary['value']} ({$summary['detail']})");
-            $sheet->mergeCells("A3:{$lastColumn}3");
-            $sheet->getStyle('A3')->applyFromArray([
+            $headerRow = 5;
+            $sheet->setCellValue('A5', "{$summary['label']}: {$summary['value']} ({$summary['detail']})");
+            $sheet->mergeCells("A5:{$lastColumn}5");
+            $sheet->getStyle('A5')->applyFromArray([
                 'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => self::rgb(self::BRAND_PRIMARY_DARK)]],
                 'fill' => self::solidFill(self::BRAND_PRIMARY_SUBTLE),
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],

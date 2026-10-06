@@ -47,6 +47,32 @@ return [
             'report' => false,
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | Logo institucional configurable (Prioridad 3)
+        |--------------------------------------------------------------------------
+        |
+        | Público a propósito, a diferencia del disco "local" (privado, usado
+        | por las evidencias): el logo lo necesita el login sin sesión, los
+        | correos salientes y el PDF — todos fuera de cualquier control de
+        | autenticación. root apunta directo dentro de public/, igual que ya
+        | sirven hoy los logos estáticos — así no depende de `storage:link`
+        | (que este proyecto no tiene configurado ni corre en Render).
+        */
+        'institution' => [
+            'driver' => 'local',
+            'root' => public_path('images/institution'),
+            // Absoluta, no relativa ("/images/institution"): los correos
+            // (reset-password, status-notification) necesitan una URL
+            // completa para que el logo cargue fuera de cualquier contexto
+            // de navegador — un cliente de correo no tiene "origen actual"
+            // contra el cual resolver una ruta relativa.
+            'url' => env('APP_URL').'/images/institution',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -25,9 +25,10 @@
 <!-- Header con marca: logo + degradado institucional -->
 <tr>
 <td class="header" style="padding: 32px 0 24px; text-align: center;">
-  <img src="{{ asset('images/logo/logo-mark.png') }}" alt="SIGAE-UTS" width="48" height="48" style="display: block; margin: 0 auto 12px;">
+  @php $institution = \App\Models\InstitutionSettings::current(); @endphp
+  <img src="{{ $institution->markLogoUrl() ?? asset('images/logo/logo-mark.png') }}" alt="SIGAE-UTS" width="48" height="48" style="display: block; margin: 0 auto 12px;">
   <div style="font-size: 20px; font-weight: 700; color: #1e293b; letter-spacing: -0.01em;">SIGAE-UTS</div>
-  <div style="font-size: 12px; color: #0a7a45; font-weight: 500; margin-top: 2px;">Institución Universitaria Tecnológica de Santander</div>
+  <div style="font-size: 12px; color: #0a7a45; font-weight: 500; margin-top: 2px;">{{ $institution->name }}</div>
 </td>
 </tr>
 
@@ -115,7 +116,7 @@
 <tr>
 <td class="content-cell" align="center" style="padding: 8px 32px 32px;">
   <p style="line-height: 1.6em; margin: 0; color: #a1a1aa; font-size: 12px; text-align: center;">
-    © {{ date('Y') }} SIGAE-UTS · Institución Universitaria Tecnológica de Santander<br>
+    © {{ date('Y') }} SIGAE-UTS · {{ $institution->name }}<br>
     Este es un mensaje automático, por favor no respondas a este correo.
   </p>
 </td>
