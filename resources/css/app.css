@@ -152,7 +152,7 @@
 
     /* Badge base (los colores por estado se aplican con clases utilitarias sobre esta base) */
     .badge {
-        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+        @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold;
     }
 }
 

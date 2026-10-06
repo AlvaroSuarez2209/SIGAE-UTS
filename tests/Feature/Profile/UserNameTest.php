@@ -65,4 +65,38 @@ class UserNameTest extends TestCase
         $component->dispatch('profile-updated')
             ->assertSet('name', 'Nombre Actualizado');
     }
+
+    /**
+     * Primera letra del primer nombre y del primer apellido — asume la
+     * convención "Nombre Apellido" (las dos primeras palabras).
+     */
+    public function test_mounts_with_the_initials_of_the_users_current_name(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher, ['name' => 'Claudia Acevedo']);
+
+        Livewire::actingAs($user)->test(UserName::class)
+            ->assertSet('initials', 'CA')
+            ->assertSee('CA');
+    }
+
+    public function test_initials_fall_back_to_a_single_letter_for_a_one_word_name(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher, ['name' => 'Administrador']);
+
+        Livewire::actingAs($user)->test(UserName::class)
+            ->assertSet('initials', 'A');
+    }
+
+    public function test_refreshes_the_initials_when_it_receives_the_profile_updated_event(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher, ['name' => 'Claudia Acevedo']);
+
+        $component = Livewire::actingAs($user)->test(UserName::class)
+            ->assertSet('initials', 'CA');
+
+        $user->update(['name' => 'Andrés López']);
+
+        $component->dispatch('profile-updated')
+            ->assertSet('initials', 'AL');
+    }
 }

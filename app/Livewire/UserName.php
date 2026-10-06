@@ -23,20 +23,44 @@ use Livewire\Component;
  * actualice su propio HTML — necesita vivir en su propio componente
  * Livewire, capaz de escuchar el evento `profile-updated` que dispara
  * `Profile::saveProfile()` (ver App\Livewire\Profile).
+ *
+ * `initials` vive aquí (no calculado aparte en el layout) por la misma
+ * razón que `name`: depende del nombre actual, así que debe refrescarse
+ * junto con él tras un cambio de perfil, no quedarse con las iniciales
+ * del nombre con el que se cargó la página.
  */
 class UserName extends Component
 {
     public string $name = '';
 
+    public string $initials = '';
+
     public function mount(): void
     {
         $this->name = Auth::user()->name;
+        $this->initials = $this->initialsFrom($this->name);
     }
 
     #[On('profile-updated')]
     public function refreshName(): void
     {
         $this->name = Auth::user()->name;
+        $this->initials = $this->initialsFrom($this->name);
+    }
+
+    /**
+     * Primera letra del primer nombre y del primer apellido — se asume la
+     * convención más común de "Nombre Apellido" (las dos primeras
+     * palabras); no hay un campo estructurado de nombre/apellido en
+     * `users` del cual partir con certeza para nombres compuestos.
+     */
+    private function initialsFrom(string $name): string
+    {
+        $words = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return mb_strtoupper(
+            collect($words)->take(2)->map(fn (string $word) => mb_substr($word, 0, 1))->implode('')
+        );
     }
 
     public function render()
