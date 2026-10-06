@@ -5,6 +5,7 @@ namespace App\Livewire\Audit;
 use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\Audit\AuditLogQuery;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -25,6 +26,8 @@ class AuditLogIndex extends Component
 
     public string $toFilter = '';
 
+    public ?int $selectedLogId = null;
+
     public function updating($property): void
     {
         if (in_array($property, ['userFilter', 'actionFilter', 'fromFilter', 'toFilter'], true)) {
@@ -32,19 +35,33 @@ class AuditLogIndex extends Component
         }
     }
 
+    public function showDetail(int $logId): void
+    {
+        $this->selectedLogId = $logId;
+    }
+
+    public function closeDetail(): void
+    {
+        $this->selectedLogId = null;
+    }
+
     public function render()
     {
-        $logs = AuditLog::query()
-            ->with(['user', 'auditable'])
-            ->when($this->userFilter, fn ($q) => $q->where('user_id', $this->userFilter))
-            ->when($this->actionFilter, fn ($q) => $q->where('action', $this->actionFilter))
-            ->when($this->fromFilter, fn ($q) => $q->where('created_at', '>=', $this->fromFilter))
-            ->when($this->toFilter, fn ($q) => $q->where('created_at', '<=', $this->toFilter.' 23:59:59'))
-            ->orderByDesc('created_at')
-            ->paginate(self::PER_PAGE);
+        $filters = [
+            'user' => $this->userFilter ?: null,
+            'action' => $this->actionFilter ?: null,
+            'from' => $this->fromFilter ?: null,
+            'to' => $this->toFilter ?: null,
+        ];
+
+        $logs = AuditLogQuery::filtered($filters)->paginate(self::PER_PAGE);
 
         return view('livewire.audit.audit-log-index', [
             'logs' => $logs,
+            'selectedLog' => $this->selectedLogId
+                ? AuditLog::with(['user', 'auditable'])->find($this->selectedLogId)
+                : null,
+            'exportFilters' => array_filter($filters, fn ($value) => $value !== null),
             'users' => User::orderBy('name')->get(),
             // El propio Livewire vuelve a ejecutar render() en cada interacción
             // de este componente, incluido un simple cambio de página — sin

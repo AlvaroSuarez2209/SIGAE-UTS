@@ -23,7 +23,14 @@ trait Auditable
                 return;
             }
 
-            AuditLog::record('created', $model);
+            // Solo el nombre (cuando el modelo tiene uno) — suficiente
+            // para que AuditLogPresenter arme "Componente 'X' creado" en
+            // vez de un Detalle vacío, sin guardar el resto de atributos
+            // (ni falta hace, ni hay por qué ampliar lo que queda en la
+            // bitácora más allá de lo necesario para describir el evento).
+            $name = $model->getAttribute('name');
+
+            AuditLog::record('created', $model, $name ? ['name' => $name] : []);
         });
 
         static::updated(function ($model) {
@@ -41,10 +48,23 @@ trait Auditable
             // Un cambio de contraseña sigue siendo una acción auditable —
             // solo se omite el valor en sí, nunca el hecho de que cambió.
             $redactedFields = $allChanges->keys()->intersect($sensitive)->values()->all();
-            $visibleChanges = $allChanges->except($sensitive)->all();
+            $visibleChanges = $allChanges->except($sensitive);
+
+            // $model->getOriginal() todavía no está sincronizado con los
+            // valores nuevos en este punto exacto: Eloquent dispara el
+            // evento 'updated' (performUpdate(), tras syncChanges()) ANTES
+            // de syncOriginal() (que corre en finishSave(), ya de vuelta en
+            // save()) — es la única ventana en la que el valor ANTERIOR
+            // real sigue disponible. Los registros ya existentes (antes de
+            // este cambio) simplemente no tendrán esta clave — ver
+            // AuditLogPresenter::describeFieldChange().
+            $previousValues = $visibleChanges->keys()
+                ->mapWithKeys(fn ($field) => [$field => $model->getOriginal($field)])
+                ->all();
 
             AuditLog::record('updated', $model, array_filter([
-                'changes' => $visibleChanges ?: null,
+                'changes' => $visibleChanges->all() ?: null,
+                'previous' => $previousValues ?: null,
                 'redacted_fields' => $redactedFields ?: null,
             ]));
         });

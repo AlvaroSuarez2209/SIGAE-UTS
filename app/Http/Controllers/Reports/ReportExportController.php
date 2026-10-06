@@ -2,119 +2,125 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Exports\ReportExport;
+use App\Enums\EvidenceStatus;
+use App\Http\Controllers\Concerns\ExportsTabularReport;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
+use App\Models\ProgramUnit;
 use App\Models\User;
 use App\Services\Reports\ReportBuilder;
-use App\Services\Reports\ReportTheme;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
 
 class ReportExportController extends Controller
 {
+    use ExportsTabularReport;
+
+    private function statusFromQuery(Request $request): ?EvidenceStatus
+    {
+        return $request->query('status') ? EvidenceStatus::from($request->query('status')) : null;
+    }
+
     public function teacherPdf(Request $request)
     {
-        $report = ReportBuilder::teacher(
-            User::findOrFail($request->query('teacher')),
-            AcademicPeriod::findOrFail($request->query('period'))
-        );
+        $teacher = User::findOrFail($request->query('teacher'));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
 
-        return $this->pdf($report);
+        return $this->safeExport('reports.teacher', $request->query(), fn () => $this->pdf(
+            ReportBuilder::teacher($teacher, $period, $this->statusFromQuery($request)),
+            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+        ));
     }
 
     public function teacherExcel(Request $request)
     {
-        $report = ReportBuilder::teacher(
-            User::findOrFail($request->query('teacher')),
-            AcademicPeriod::findOrFail($request->query('period'))
-        );
+        $teacher = User::findOrFail($request->query('teacher'));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
 
-        return $this->excel($report);
+        return $this->safeExport('reports.teacher', $request->query(), fn () => $this->excel(
+            ReportBuilder::teacher($teacher, $period, $this->statusFromQuery($request)),
+        ));
     }
 
     public function activityPdf(Request $request)
     {
-        $report = ReportBuilder::activity(
-            Activity::with('component')->findOrFail($request->query('activity')),
-            AcademicPeriod::findOrFail($request->query('period'))
-        );
+        $activity = Activity::with('component')->findOrFail($request->query('activity'));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
 
-        return $this->pdf($report);
+        return $this->safeExport('reports.activity', $request->query(), fn () => $this->pdf(
+            ReportBuilder::activity($activity, $period, $this->statusFromQuery($request)),
+            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+        ));
     }
 
     public function activityExcel(Request $request)
     {
-        $report = ReportBuilder::activity(
-            Activity::with('component')->findOrFail($request->query('activity')),
-            AcademicPeriod::findOrFail($request->query('period'))
-        );
+        $activity = Activity::with('component')->findOrFail($request->query('activity'));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
 
-        return $this->excel($report);
+        return $this->safeExport('reports.activity', $request->query(), fn () => $this->excel(
+            ReportBuilder::activity($activity, $period, $this->statusFromQuery($request)),
+        ));
     }
 
     public function crossCuttingPdf(Request $request)
     {
-        $report = ReportBuilder::crossCutting(
-            AcademicPeriod::findOrFail($request->query('period')),
-            $request->query('commitment') ? CrossCuttingCommitment::find($request->query('commitment')) : null
-        );
+        $period = AcademicPeriod::findOrFail($request->query('period'));
+        $commitment = $request->query('commitment') ? CrossCuttingCommitment::find($request->query('commitment')) : null;
 
-        return $this->pdf($report);
+        return $this->safeExport('reports.cross-cutting', $request->query(), fn () => $this->pdf(
+            ReportBuilder::crossCutting($period, $commitment, $this->statusFromQuery($request)),
+            $this->filtersSummary([
+                'Periodo' => $period->name,
+                'Compromiso' => $commitment?->name,
+                'Estado' => $this->statusFromQuery($request)?->label(),
+            ]),
+        ));
     }
 
     public function crossCuttingExcel(Request $request)
     {
-        $report = ReportBuilder::crossCutting(
-            AcademicPeriod::findOrFail($request->query('period')),
-            $request->query('commitment') ? CrossCuttingCommitment::find($request->query('commitment')) : null
-        );
+        $period = AcademicPeriod::findOrFail($request->query('period'));
+        $commitment = $request->query('commitment') ? CrossCuttingCommitment::find($request->query('commitment')) : null;
 
-        return $this->excel($report);
+        return $this->safeExport('reports.cross-cutting', $request->query(), fn () => $this->excel(
+            ReportBuilder::crossCutting($period, $commitment, $this->statusFromQuery($request)),
+        ));
     }
 
     public function consolidatedPdf(Request $request)
     {
-        $report = ReportBuilder::consolidated(AcademicPeriod::findOrFail($request->query('period')));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
+        $program = $request->query('program') ? ProgramUnit::find($request->query('program')) : null;
+        $teacher = $request->query('teacher') ? User::find($request->query('teacher')) : null;
+        $activity = $request->query('activity') ? Activity::with('component')->find($request->query('activity')) : null;
+        $leader = $request->query('leader') ? User::find($request->query('leader')) : null;
+        $statusFilter = $this->statusFromQuery($request);
 
-        return $this->pdf($report);
+        return $this->safeExport('reports.consolidated', $request->query(), fn () => $this->pdf(
+            ReportBuilder::consolidated($period, $program, $teacher, $activity, $leader, $statusFilter),
+            $this->filtersSummary([
+                'Periodo' => $period->name,
+                'Programa' => $program?->name,
+                'Docente' => $teacher?->name,
+                'Actividad' => $activity ? "{$activity->component->name} — {$activity->name}" : null,
+                'Líder' => $leader?->name,
+                'Estado' => $statusFilter?->label(),
+            ]),
+        ));
     }
 
     public function consolidatedExcel(Request $request)
     {
-        $report = ReportBuilder::consolidated(AcademicPeriod::findOrFail($request->query('period')));
+        $period = AcademicPeriod::findOrFail($request->query('period'));
+        $program = $request->query('program') ? ProgramUnit::find($request->query('program')) : null;
+        $teacher = $request->query('teacher') ? User::find($request->query('teacher')) : null;
+        $activity = $request->query('activity') ? Activity::with('component')->find($request->query('activity')) : null;
+        $leader = $request->query('leader') ? User::find($request->query('leader')) : null;
 
-        return $this->excel($report);
-    }
-
-    private function pdf(array $report)
-    {
-        $pdf = Pdf::loadView('reports.pdf.report', $report);
-
-        // Numeración de páginas vía canvas nativo de DomPDF, no CSS — ver
-        // ReportTheme::stampPageNumbers() para el motivo.
-        ReportTheme::stampPageNumbers($pdf);
-
-        return $pdf->download($this->fileName($report, 'pdf'));
-    }
-
-    private function excel(array $report)
-    {
-        return Excel::download(new ReportExport($report), $this->fileName($report, 'xlsx'));
-    }
-
-    /**
-     * El nombre del archivo se arma a partir de `file_identifier`, nunca de
-     * `title` — ver el docblock de ReportBuilder para el porqué (evitar que
-     * un dato personal como el nombre de un docente quede en el nombre del
-     * archivo, aunque sí aparezca con normalidad dentro del documento).
-     */
-    private function fileName(array $report, string $extension): string
-    {
-        return Str::slug($report['file_identifier']).'.'.$extension;
+        return $this->safeExport('reports.consolidated', $request->query(), fn () => $this->excel(
+            ReportBuilder::consolidated($period, $program, $teacher, $activity, $leader, $this->statusFromQuery($request)),
+        ));
     }
 }

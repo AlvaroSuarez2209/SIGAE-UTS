@@ -5,6 +5,7 @@ namespace Tests\Unit\Audit;
 use App\Models\AcademicPeriod;
 use App\Models\AuditLog;
 use App\Models\Component;
+use App\Models\Deliverable;
 use App\Models\Evidence;
 use App\Models\User;
 use App\Services\Audit\AuditLogPresenter;
@@ -109,6 +110,28 @@ class AuditLogPresenterTest extends TestCase
         $this->assertEquals('Estado cambió a Exento', AuditLogPresenter::describeChanges($log));
     }
 
+    /**
+     * Revisión del estado Exento: `evidence_marked_exempt` guarda
+     * `justification`, no `changes` — antes de esto, describeChanges()
+     * dejaba la columna "Detalle" vacía para esta acción, aunque la razón
+     * sí se guardaba en la fila de auditoría.
+     */
+    public function test_exemption_justification_is_shown_in_the_detail_column(): void
+    {
+        $log = AuditLog::create([
+            'action' => 'evidence_marked_exempt',
+            'auditable_type' => Evidence::class,
+            'metadata' => ['justification' => 'Licencia de maternidad.', 'previous_status' => 'pending'],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals('Motivo: Licencia de maternidad.', AuditLogPresenter::describeChanges($log));
+        $this->assertEquals(
+            [['label' => 'Motivo', 'after' => 'Licencia de maternidad.', 'before' => null]],
+            AuditLogPresenter::changeEntries($log)
+        );
+    }
+
     public function test_academic_period_status_enum_value_is_translated_using_its_own_enum(): void
     {
         $log = AuditLog::create([
@@ -123,10 +146,32 @@ class AuditLogPresenterTest extends TestCase
         $this->assertEquals('Estado cambió a Activo', AuditLogPresenter::describeChanges($log));
     }
 
-    public function test_review_decision_enum_value_is_translated(): void
+    /**
+     * Prioridad 5, punto 2 de la revisión de la directora: el nuevo campo
+     * `status` de Deliverable (Borrador/Publicado) debe traducirse igual
+     * que los demás "status" ambiguos entre modelos — sin este mapeo, el
+     * respaldo genérico mostraría el valor crudo en inglés ("draft").
+     */
+    public function test_deliverable_status_enum_value_is_translated_using_its_own_enum(): void
     {
         $log = AuditLog::create([
-            'action' => 'created',
+            'action' => 'updated',
+            'auditable_type' => Deliverable::class,
+            'metadata' => ['changes' => ['status' => 'draft']],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals('Estado cambió a Borrador', AuditLogPresenter::describeChanges($log));
+    }
+
+    public function test_review_decision_enum_value_is_translated(): void
+    {
+        // Prioridad 7: 'created' ahora tiene su propia rama en
+        // describeChanges() (ver describeCreation()), así que este caso
+        // genérico de traducción de enum se prueba con 'updated' — su
+        // intención real nunca fue probar el mensaje de creación.
+        $log = AuditLog::create([
+            'action' => 'updated',
             'metadata' => ['changes' => ['decision' => 'returned']],
             'created_at' => now(),
         ]);
