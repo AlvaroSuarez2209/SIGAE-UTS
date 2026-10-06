@@ -271,6 +271,29 @@ una ruta de página completa (`routes/web.php`).
   reactivar. El mensaje se muestra en `$deactivationError`, con el mismo
   bloque visual (`bg-status-error-subtle`) que ya usa
   `EvidenceWorkspace::$submissionError`.
+- **`document_type`/`program_unit_id` de `users`, editables desde
+  `UserForm` (antes solo los llenaba la importación masiva — ver
+  diagnóstico, "Usuarios" del Administrador):** obligatorios cuando
+  `selectedRoles` incluye Docente y/o Líder (mismo criterio que exige la
+  importación para esos roles, `TeacherImportService::DOCUMENT_TYPES`
+  reutilizado para la validación), opcionales para el resto. El checkbox
+  de roles usa `wire:model.live` (antes diferido) para que el
+  "(opcional)" junto a cada campo reaccione de inmediato al marcar o
+  desmarcar Docente/Líder, sin esperar a enviar el formulario. `App\Enums\
+  DocumentType` (CC/CE/TI/PA → su nombre completo) es el único lugar con
+  esa etiqueta — la reutilizan `UserForm`, "Mi perfil" (que antes
+  mostraba el código crudo) y `AuditLogPresenter::FIELD_ENUMS` (para que
+  el detalle de auditoría muestre "Cédula de ciudadanía" en vez de
+  "CC"); `users.document_type` sigue sin cast a este enum, a propósito,
+  para no romper la comparación de valores crudos que ya hace
+  `TeacherImportService::resolveAction()`. Cambiar `program_unit_id` no
+  toca la distribución ni los liderazgos reales de nadie (son tablas
+  independientes, ver la migración que creó la columna) — solo afecta el
+  filtro "Programa" y el desglose por programa del panel de Coordinación,
+  y el filtro de programa del informe Consolidado — por eso `UserForm`
+  muestra un aviso informativo (nunca bloqueante) cuando edita a alguien
+  con asignaciones o liderazgos vigentes en el periodo activo, aclarando
+  justo eso.
 - **`lang/es/validation.php`: mensajes de validación en español natural,
   sin nombres técnicos de columna.** El archivo base (todas las reglas
   estándar de Laravel: `required`, `max`, `unique`, `email`...) ya estaba
@@ -517,31 +540,84 @@ comando `evidences:mark-overdue`):
   `login_failed`): dejar `user_id` en null es exactamente lo que
   distingue "lo hizo el scheduler" de "lo hizo una persona".
 
-**Exención manual** (`Evidence::markExempt()` / `Evidence::removeExemption()`,
-expuestas en `EvidenceWorkspace` y la vista `evidence-workspace.blade.php`):
+**Exención** (`Evidence::markExempt()` / `Evidence::removeExemption()`,
+expuestas en `EvidenceWorkspace` y la vista `evidence-workspace.blade.php`)
+— revisión del estado Exento (aclaración de la directora): el docente la
+usa cuando otra prioridad le impide cumplir una entrega, y debe indicar
+por qué.
 
-- Restringida a Administrador y Coordinación
-  (`EvidencePolicy::markExempt`/`removeExemption`) — **deliberadamente
-  sin Líder**. Aprobar/devolver es una decisión de revisión de contenido
-  dentro de un ámbito de liderazgo; eximir es una decisión administrativa
-  institucional (licencia, reasignación, etc.) que no depende de qué
-  actividad lidera alguien. Es más restrictivo que "Aprobar/Devolver"
-  pero menos que "Reabrir" (solo Administrador) — un punto intermedio
-  consciente, documentado también en `docs/manual-diseno.md`.
-- No se puede eximir una evidencia `Aprobada` (el resultado ya es
-  definitivo) ni una ya `Exenta` (para eso está `removeExemption`).
-- Exige una justificación (`exemptionJustification`, obligatoria) y pasa
-  por `<x-confirm-modal>` antes de aplicarse — mismo patrón que "Cerrar
-  periodo" o "Finalizar liderazgo".
+- **Autorización** (`EvidencePolicy::markExempt`/`removeExemption`): el
+  **dueño de la evidencia** puede marcarla y quitarla él mismo —
+  Administrador y Coordinación mantienen la misma capacidad sobre
+  cualquier evidencia (ej. licencia gestionada administrativamente, sin
+  que el propio docente tenga que hacerlo). **Deliberadamente sin
+  Líder**: aprobar/devolver es una decisión de revisión de contenido
+  dentro de un ámbito de liderazgo; eximir es una decisión sobre si el
+  docente está obligado a presentar la entrega, no sobre el contenido de
+  lo que presentó.
+- **Bloqueado solo en `Enviada` y `Aprobada`** (y, por supuesto, `Exenta`
+  — para eso está `removeExemption`) — una evidencia `Enviada` ya tiene
+  una revisión en curso que debe resolverse primero (aprobar o devolver),
+  no eximirse por detrás; una `Aprobada` tiene un resultado ya definitivo.
+  Cualquier otro estado es elegible, incluyendo `Borrador` y `Vencida`.
+  `Vencida` es un valor real guardado en `evidences.status` (no
+  calculado a partir de la fecha límite): lo pone el comando diario
+  `evidences:mark-overdue` (`MarkOverdueEvidences`, ver §5.7 más arriba)
+  cuando una evidencia `Pendiente`/`Borrador` supera su fecha límite —
+  así que se verifica igual que cualquier otro estado, sin lógica de
+  fecha aparte. (Una evidencia `Pendiente` cuya fecha límite ya pasó pero
+  que el comando diario aún no procesó sigue siendo `Pendiente` en la
+  base de datos durante esa ventana — ya era elegible antes de este
+  ajuste y lo sigue siendo.) La vista muestra un aviso claro cuando el
+  estado actual no permite eximir, a quien tendría el rol para hacerlo.
+- `exemption_reason` (columna de `evidences`, texto, nullable) guarda el
+  motivo como dato real de la evidencia — antes de esta revisión, la
+  única justificación capturada vivía solo en
+  `audit_logs.metadata->justification` (ver migración
+  `2026_10_04_000000_add_exemption_reason_to_evidences_table`, que
+  también hace el backfill desde esa fila de auditoría para evidencias ya
+  exentas). Se limpia al quitar la exención — `removeExemption()` captura
+  el valor antes de limpiarlo para dejarlo en su propia fila de auditoría
+  y en el aviso al líder (ver más abajo).
+- Visible en `evidence-workspace.blade.php` para cualquiera que pueda ver
+  la evidencia (docente, líder en su ámbito, Coordinación/Administrador/
+  Auditor) mientras el estado es `Exento` — antes no se mostraba a nadie.
+- Exige una justificación (`exemptionJustification`, obligatoria,
+  `max:2000`) y pasa por `<x-confirm-modal>` antes de aplicarse — mismo
+  patrón que "Cerrar periodo" o "Finalizar liderazgo". El texto de la
+  justificación cambia según quién la escribe (primera persona para el
+  propio docente, tercera persona para Administración/Coordinación
+  actuando sobre otro) — ver `$isSelfExemption` en la vista.
 - Auditoría: además de la entrada automática de `Auditable` (que registra
-  el cambio de `status` pero no el porqué), `Evidence::markExempt()`
-  añade explícitamente `AuditLog::record('evidence_marked_exempt', ...)`
-  con la justificación y el estado anterior — dos entradas para una sola
-  acción es intencional, no una duplicación accidental: una es el diff
-  automático de campo, la otra es el evento de negocio con su motivo.
-  `removeExemption()` añade `evidence_exemption_removed`. Quitar una
-  exención nunca es "editar el campo status" — siempre pasa por este
-  método, así queda su propio rastro.
+  el cambio de `status`/`exemption_reason` pero no el porqué),
+  `Evidence::markExempt()` añade explícitamente
+  `AuditLog::record('evidence_marked_exempt', ...)` con la justificación
+  y el estado anterior — dos entradas para una sola acción es
+  intencional, no una duplicación accidental: una es el diff automático
+  de campo, la otra es el evento de negocio con su motivo.
+  `AuditLogPresenter::describeChanges()`/`changeEntries()` traducen esa
+  justificación a la columna "Detalle" y al modal de detalle (antes
+  quedaban vacíos para esta acción, porque su metadata no tiene
+  `changes`). `removeExemption()` añade `evidence_exemption_removed` con
+  el motivo que tenía (`previous_reason`). Quitar una exención nunca es
+  "editar el campo status" — siempre pasa por este método, así queda su
+  propio rastro.
+- Notificaciones: `EvidenceExemptedNotification` (al docente, ahora con
+  el motivo incluido), `EvidenceExemptionConfirmedNotification` (a quien
+  ejecutó la acción), y `EvidenceExemptedForLeaderNotification`/
+  `EvidenceExemptionRemovedForLeaderNotification` (al líder vigente del
+  ámbito, o Coordinación si nadie lo cubre ahora mismo — mismos
+  destinatarios que `reviewerRecipients()`) tanto al marcar como al
+  revertir. Antes, revertir una exención no notificaba a nadie.
+- Informes: `ReportBuilder` agrega una columna "Motivo (si Exento)" en
+  las 3 secciones que tienen una fila por evidencia individual —
+  "Entregables y evidencias" (`teacher()`), "Detalle por docente"
+  (`crossCutting()`) y "Consolidado..." (`consolidated()`) — con guion
+  para cualquier fila que no esté Exenta. `activity()` no tiene ninguna
+  sección por evidencia individual (solo agregados por docente/entregable),
+  así que no se le agregó la columna — hacerlo exigiría una sección
+  nueva, fuera del alcance de "agregar donde ya exista una fila por
+  evidencia".
 - **Alcanzable desde "Entregables"**: la columna "Destinatarios" ahora
   enlaza a una vista nueva (`DeliverableRecipients`,
   `/deliverables/{deliverable}/recipients`) que lista cada destinatario
@@ -550,6 +626,57 @@ expuestas en `EvidenceWorkspace` y la vista `evidence-workspace.blade.php`):
   Coordinación llegue a una evidencia que nunca pasó por la bandeja de
   revisión (pendiente, borrador, vencida), ya que `reviews.index` solo
   lista evidencia `Enviada`.
+- **Visibilidad en pantalla para el Líder**: antes de este punto, una
+  exención solo se avisaba por correo
+  (`EvidenceExemptedForLeaderNotification`, en cola) — en pantalla no
+  había ningún lugar donde verla, porque `reviews.index` solo lista
+  evidencia `Enviada`. Dos piezas nuevas:
+  - **Tarjeta "Exentas"** en `Dashboard::leaderPanel()` — el conteo se
+    calcula sobre `$evidencesByUser`/`$deliverablesByActivity` que
+    `leaderPanel()` ya cargaba (sin ninguna consulta nueva), acotando
+    por fila (docente + actividad de esa asignación específica) antes de
+    sumar, porque `$evidencesByUser` puede traer evidencias de OTRAS
+    actividades del mismo docente que este líder no lidera. Siempre
+    visible, también en 0, con `<x-kpi-card :url="...">` hacia el
+    listado — para que el líder sepa que la función existe aunque hoy no
+    tenga ninguna exenta.
+  - **Listado nuevo** (`App\Livewire\Reviews\ExemptEvidenceIndex`,
+    `/reviews/exempt`, mismo grupo de rutas
+    `role:administrator,coordination,leader` que `reviews.*`) — de solo
+    lectura, sin botones de acción. El alcance NO es el mismo para los
+    tres roles: para el Líder se acota con el mismo scope
+    `reviewableBy()` que ya usa `ReviewInbox` (mismo criterio de vigencia
+    que `User::canLeadAssignment()`); para Administrador y Coordinación
+    **no se aplica `reviewableBy()` en absoluto** — ven cualquier
+    evidencia `Exempt` de cualquier actividad o compromiso transversal,
+    sin acotar por ámbito. Es una decisión deliberada: en `ReviewInbox`,
+    Administrador solo respalda transversales y Coordinación no ve nada
+    (es una bandeja de ACCIÓN, pensada para que el Líder resuelva lo
+    suyo), pero este listado es de solo CONSULTA — Administrador y
+    Coordinación necesitan poder hacer seguimiento global de las
+    exenciones, no solo de los huecos puntuales que cubren en la
+    revisión. En código: `Evidence::query()->where('status', Exempt)->when(! $user->hasAnyRole([Administrator, Coordination]), fn ($q) => $q->reviewableBy($user))`.
+    Columnas: docente, entregable, actividad, fecha límite, "exenta
+    desde" (`evidence.updated_at` — `markExempt()` es la última escritura
+    real sobre una evidencia Exenta, así que no hace falta una consulta
+    aparte a `audit_logs` solo para esa fecha) y el motivo
+    (`exemption_reason`, truncado con `title` para el texto completo,
+    mismo patrón que la columna "Objeto" de Auditoría). Reutiliza
+    `.table-shell`, paginación (`HasStandardPagination`), `<x-empty-state>`
+    y el `<select>` de periodo de `ReviewInbox` tal cual — ningún estilo
+    nuevo.
+- **Enlace roto corregido**: la barra "Cumplimiento por actividad" del
+  panel del Líder enlazaba a `reports.activity`, pero `/reports/*`
+  requiere `role:administrator,coordination,auditor` — el Líder nunca
+  pudo abrirlo, era un 403 esperando a que alguien hiciera clic. Se quitó
+  el enlace **solo en ese panel** (`<x-bar-chart>` ya mostraba la fila
+  sin vínculo cuando `url` viene vacío; el panel de Coordinación sigue
+  enlazando a `reports.consolidated` sin cambios, porque ahí sí todos los
+  roles que lo ven tienen acceso). No se tocó la autorización de
+  `/reports/*`. `tests/Feature/DashboardLinksTest.php` recorre cada
+  `<a href>` real del Dashboard por rol y falla si alguno vuelve a
+  devolver 403, para que un enlace roto como este no pase inadvertido
+  otra vez.
 
 ### 5.8 Modal de creación/edición reutilizable (catálogos y Periodos)
 
@@ -919,6 +1046,17 @@ español, reutilizado tanto por la columna como por el filtro "Acción" de
     `logout`, que no tocan ningún modelo), la columna queda vacía —
     mismo comportamiento que antes de este cambio.
 
+Ver `docs/privacidad.md` para la base legal de la dirección IP que
+`AuditLog::record()` captura en cada entrada, y a qué roles está
+restringida la pantalla (`role:administrator,auditor` — mismo acceso de
+solo lectura que ya tienen Administrador y Auditor en Dashboard y
+Reportes). La pantalla también incluye un modal de detalle por registro
+y exportación a PDF/Excel que respeta los mismos 4 filtros (Usuario,
+Acción, Desde, Hasta) — ver `App\Http\Controllers\Audit\AuditLogExportController`
+y `App\Services\Audit\AuditLogExportBuilder`, que arman la bitácora
+filtrada en el mismo formato que usa `App\Services\Reports\ReportBuilder`
+para reutilizar tal cual la plantilla PDF y el Excel del módulo 9.
+
 ### 5.13 "Mi perfil"
 
 Autoservicio de cualquier usuario autenticado sobre su propia cuenta
@@ -1065,11 +1203,11 @@ envía uno o dos correos, usando Mailpit en local (ver 3, "Correo local")
 y quedando en cola (ver 3, "Las notificaciones de evidencias van en
 cola").
 
-**9 clases, una por combinación transición/destinatario**
+**11 clases, una por combinación transición/destinatario**
 (`App\Notifications\Evidence\*`), todas heredando de la base abstracta
 `EvidenceStatusNotification` (mismo principio que `ReportTheme` para
 PDF/Excel: un único lugar de identidad visual — logo, badge de estado,
-layout — en vez de repetirlo 9 veces):
+layout — en vez de repetirlo 11 veces):
 
 | Transición | Al docente/actor original | Al otro rol |
 |---|---|---|
@@ -1077,14 +1215,21 @@ layout — en vez de repetirlo 9 veces):
 | Requiere ajustes | `EvidenceReturnConfirmedNotification` (al revisor) | `EvidenceNeedsAdjustmentNotification` (al docente) |
 | Aprobado | `EvidenceApprovalConfirmedNotification` (al revisor) | `EvidenceApprovedNotification` (al docente) |
 | Vencido | — (automático) | `EvidenceOverdueNotification` — **un solo envío, dos destinatarios**: docente y Coordinación |
-| Exento | `EvidenceExemptionConfirmedNotification` (a quien la marcó) | `EvidenceExemptedNotification` (al docente) |
+| Exento | `EvidenceExemptionConfirmedNotification` (a quien ejecutó la acción) + `EvidenceExemptedNotification` (al docente, con el motivo) | `EvidenceExemptedForLeaderNotification` (líder o Coordinación, con el motivo) |
+| Exención removida | — (sin confirmación al actor) | `EvidenceExemptionRemovedForLeaderNotification` (líder o Coordinación, con el motivo que tenía) |
+
+Revisión del estado Exento: las últimas 2 notificaciones de líder son
+nuevas — antes, revertir una exención no avisaba a nadie, y marcarla solo
+avisaba al docente, nunca a quien tenía (o podía volver a tener) esa
+evidencia pendiente de revisar.
 
 **Enganchada exactamente donde ya ocurre cada transición, nunca por un
 observer genérico de cambios de estado:**
 
-- `Evidence::submitCurrentVersion()`, `Evidence::markExempt()`: el envío
-  vive dentro del propio método del modelo, junto al `update()` del
-  estado — igual patrón que el `AuditLog::record()` que ya hacían.
+- `Evidence::submitCurrentVersion()`, `Evidence::markExempt()`,
+  `Evidence::removeExemption()`: el envío vive dentro del propio método
+  del modelo, junto al `update()` del estado — igual patrón que el
+  `AuditLog::record()` que ya hacían.
 - `Evidence::approveCurrentReview()` / `returnCurrentReviewForAdjustment()`
   (nuevos): antes, `ReviewShow::approve()`/`returnForAdjustment()`
   actualizaban el estado directamente sobre el modelo (a diferencia de
@@ -1105,9 +1250,8 @@ una devolución real. Si la notificación se hubiera enganchado observando
 genéricamente "el estado pasó a NeedsAdjustment" en vez de en el punto
 exacto de `returnCurrentReviewForAdjustment()`, `reopen()` habría
 disparado por error el aviso de "tu evidencia requiere ajustes" — una
-acción sin `Review` asociada y fuera de los 5 escenarios pedidos. Es la
-razón concreta por la que este subsistema evita cualquier forma de
-observer de estado.
+acción sin `Review` asociada. Es la razón concreta por la que este
+subsistema evita cualquier forma de observer de estado.
 
 **Destinatario "líder" en Enviado/Vencido** (`Evidence::reviewerRecipients()`
 y `Evidence::coordinationUsers()`): un entregable transversal nunca tiene
@@ -1264,6 +1408,16 @@ sección toca `.env` ni la configuración local.
   `--database=pgsql_migrate`): son `INSERT` simples vía `firstOrCreate()`,
   no DDL, así que no tienen el problema de transacciones que sí tenía
   `migrate`.
+- **`ADMIN_INITIAL_PASSWORD` — obligatoria, sin valor por defecto (ver
+  auditoría de seguridad)**: la contraseña real de `admin@uts.edu.co`
+  vivió en texto plano en `UserSeeder.php`, este manual y `README.md`
+  (commit `36cd5cc` en adelante) — ya rotada en producción y retirada del
+  repositorio. `UserSeeder::run()` ahora la lee de
+  `config('seeding.admin_initial_password')` (`config/seeding.php` →
+  `env('ADMIN_INITIAL_PASSWORD')`) y **falla con una excepción clara** si
+  no está definida, en vez de caer a cualquier valor fijo. En Render va
+  en el panel de variables de entorno del servicio; en local, en tu
+  propio `.env` (nunca en `.env.example`, que solo trae la clave vacía).
 - **`CACHE_STORE=file`, no `database` — mismo bug del pooler que las
   migraciones, esta vez en el rate limiter de login**: confirmado con un
   log real de Render (`SQLSTATE[25P02]: current transaction is aborted`

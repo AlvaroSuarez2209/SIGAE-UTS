@@ -13,11 +13,11 @@ indicará y no podrás continuar, aunque la contraseña sea correcta.
 "Cerrar sesión") está disponible para cualquier persona autenticada,
 sin importar su rol: permite actualizar tu nombre, y por separado — con
 su propio botón "Guardar" — cambiar tu contraseña pidiendo primero la
-actual. El número de documento y el correo se muestran de solo
-lectura (fondo gris, no editables): si necesitas corregir alguno de
-los dos, debe hacerlo un Administrador desde "Usuarios". Tampoco
-incluye tus roles ni el estado de tu cuenta (activa/inactiva): eso
-también es exclusivo de un Administrador.
+actual. El número y tipo de documento, el correo y el programa de
+adscripción se muestran de solo lectura (fondo gris, no editables): si
+necesitas corregir alguno, debe hacerlo un Administrador desde
+"Usuarios". Tampoco incluye tus roles ni el estado de tu cuenta
+(activa/inactiva): eso también es exclusivo de un Administrador.
 
 ---
 
@@ -28,12 +28,22 @@ Coordinación, exclusivamente el Administrador puede:
 
 - **Usuarios** (menú "Usuarios"): crear cuentas, asignar uno o varios
   roles, y activar/desactivar cuentas sin borrar su historial. No puedes
-  desactivar tu propia cuenta.
+  desactivar tu propia cuenta. El formulario también incluye tipo de
+  documento y programa de adscripción — obligatorios si la cuenta tiene
+  rol Docente y/o Líder, opcionales para el resto. Si editas el programa
+  de alguien que ya tiene asignaciones o liderazgos vigentes en el
+  periodo activo, un aviso te recuerda que ese cambio solo afecta los
+  filtros de Coordinación e Informes, nunca su distribución ni sus
+  liderazgos reales.
 - **Auditoría** (menú "Auditoría"): consultar la bitácora de accesos,
   cargas, envíos, revisiones, aprobaciones, devoluciones y cambios
   administrativos, con filtros por usuario, acción y rango de fechas.
+  Cada registro tiene un botón "Ver detalle" con la información completa
+  (incluido el valor anterior y nuevo de cada campo modificado, cuando
+  esté disponible) y la lista filtrada se puede exportar a PDF o Excel.
   Es de solo lectura: ningún usuario puede editar o borrar estos
-  registros desde la aplicación.
+  registros desde la aplicación. El rol Auditor también tiene acceso a
+  esta pantalla (ver más abajo).
 - **Reabrir una evidencia aprobada**: dentro del detalle de una revisión
   ya decidida, el botón "Reabrir (permiso especial)" permite que el
   docente vuelva a ajustarla. Es una acción excepcional que queda
@@ -73,6 +83,12 @@ seguimiento. Desde el menú puede acceder a:
   Coordinación también puede aprobar o devolver cualquier evidencia
   enviada (respaldo cuando una actividad no tiene líder asignado, o para
   compromisos transversales, que no tienen un líder propio).
+- **Evidencias exentas** (menú "Revisión" → `/reviews/exempt`): a
+  diferencia del Líder, aquí Coordinación (y Administrador) ven **todas**
+  las evidencias exentas de cualquier actividad o compromiso
+  transversal, sin estar acotadas a un ámbito propio — pensado para hacer
+  seguimiento global de las exenciones, no solo de lo que cada uno
+  revisaría directamente.
 - **Panel de coordinación** (en el Dashboard): conteo de evidencias por
   estado y el % de avance de cada docente en el periodo seleccionado.
 
@@ -90,9 +106,17 @@ completo, para un periodo dado).
     debe ajustar el docente).
   Cada decisión queda en el histórico de revisiones de esa evidencia,
   visible tanto para el líder como para el propio docente.
+- **Evidencias exentas** (menú "Revisión" → tarjeta "Exentas" del
+  Dashboard, o directamente en `/reviews/exempt`): listado de solo
+  lectura (sin botones de acción) de las evidencias que quedaron exentas
+  dentro de su ámbito (a diferencia de Coordinación/Administrador, que
+  ven todas) — docente, entregable, actividad, fecha límite, desde
+  cuándo está exenta y el motivo. Antes, una exención solo se avisaba por
+  correo; ahora también queda visible en pantalla.
 - **Panel líder** (en el Dashboard): cuántas evidencias tiene pendientes
-  de revisar, y una tabla de cumplimiento por actividad — para cada
-  docente de su ámbito, cuántos entregables obligatorios tiene
+  de revisar, una tabla de cumplimiento por actividad, y la tarjeta
+  "Exentas" (siempre visible, también en 0) con el conteo de su ámbito —
+  para cada docente de su ámbito, cuántos entregables obligatorios tiene
   aprobados sobre el total.
 - Un líder **nunca puede revisar su propia evidencia**, aunque también
   tenga rol de docente sobre esa misma actividad.
@@ -117,6 +141,20 @@ completo, para un periodo dado).
     editarla — al reenviarla se crea una **versión nueva**, sin borrar
     la anterior. El docente ve el motivo de la devolución (la
     observación del líder) directamente en la pantalla del entregable.
+  - **Marcarse como exento**: si otra prioridad le impide cumplir esta
+    entrega (carga académica adicional, un percance, etc.), el propio
+    docente puede marcarla como exenta explicando por qué — ya no queda
+    obligado a enviarla ni cuenta en su % de avance. Disponible en
+    cualquier estado salvo **Enviado** y **Aprobado** (incluye Pendiente,
+    Borrador, Requiere ajustes y Vencido): si ya la envió, debe esperar a
+    que su líder la revise o la devuelva primero; una evidencia ya
+    aprobada no se puede eximir. El motivo
+    queda visible en la propia pantalla del entregable mientras dure la
+    exención, y se le avisa por correo al líder (o a Coordinación, si
+    nadie lidera ese ámbito en ese momento). El docente puede quitar su
+    propia exención en cualquier momento (vuelve a Pendiente). Un
+    Administrador o Coordinación también pueden marcar o quitar la
+    exención de un docente, con el mismo requisito de motivo.
 - **Panel docente** (en el Dashboard): conteo de sus entregables por
   estado, su % de avance (solo sobre los obligatorios), y sus próximos
   vencimientos de los siguientes 14 días.
@@ -127,13 +165,16 @@ Rol de solo consulta, pensado para revisión externa o institucional:
 
 - **Informes** (menú "Informes"): acceso a los cuatro informes mínimos
   y sus exportaciones a PDF/Excel, igual que Coordinación.
+- **Auditoría** (menú "Auditoría"): mismo acceso de solo lectura que
+  Administrador — consultar la bitácora con sus filtros, ver el detalle
+  de un registro y exportarla a PDF/Excel.
 - **Panel de coordinación** (en el Dashboard): el mismo consolidado por
   estado y por docente que ve Coordinación.
 - Puede consultar el detalle de cualquier evidencia entrando a su URL
   directa (por ejemplo, desde un enlace compartido en un informe), pero
   **no puede aprobarla, devolverla ni editarla** — solo verla.
 - No tiene acceso a los formularios de gestión (usuarios, catálogos,
-  distribución, líderes, entregables) ni a la bitácora de auditoría.
+  distribución, líderes, entregables).
 
 ---
 
