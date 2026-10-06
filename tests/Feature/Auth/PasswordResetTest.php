@@ -97,6 +97,29 @@ class PasswordResetTest extends TestCase
             ->assertRedirect(route('dashboard'));
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 5: el flash de éxito ya no vive
+     * en un bloque propio de login.blade.php — ahora depende de
+     * <x-flash-message /> registrado en layouts/guest.blade.php. Confirma
+     * con una petición real (no Livewire::test(), que no renderiza el
+     * layout) que el mensaje de verdad llega a la pantalla de login tras
+     * el redirect.
+     */
+    public function test_the_reset_confirmation_message_is_visible_on_the_real_login_page(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+        $token = Password::createToken($user);
+
+        Livewire::test(ResetPassword::class, ['token' => $token])
+            ->set('email', $user->email)
+            ->set('password', self::VALID_PASSWORD)
+            ->set('password_confirmation', self::VALID_PASSWORD)
+            ->call('resetPassword')
+            ->assertRedirect(route('login'));
+
+        $this->get(route('login'))->assertSee('Tu contraseña ha sido restablecida.');
+    }
+
     public function test_reset_fails_with_an_invalid_token_and_shows_a_generic_banner(): void
     {
         $user = User::factory()->create();

@@ -48,6 +48,22 @@ class TeacherAssignmentTest extends TestCase
         $this->actingAs($leader)->get('/distribution')->assertForbidden();
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: el botón "Guardar" no tenía
+     * ningún estado de carga — mismo patrón ya usado en
+     * Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    public function test_the_save_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        Livewire::actingAs($coordination)
+            ->test(AssignmentForm::class)
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="save"', false)
+            ->assertSee('Guardando...');
+    }
+
     public function test_coordination_can_register_a_teacher_assignment(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
@@ -64,7 +80,8 @@ class TeacherAssignmentTest extends TestCase
             ->set('program_unit_id', $programUnit->id)
             ->set('assigned_hours', '5')
             ->call('save')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertRedirect(route('distribution.index'));
 
         $this->assertDatabaseHas('teacher_assignments', [
             'user_id' => $teacher->id,
@@ -72,6 +89,12 @@ class TeacherAssignmentTest extends TestCase
             'activity_id' => $activity->id,
             'assigned_hours' => 5,
         ]);
+
+        // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
+        // redirigía a distribution.index, que no tenía ningún bloque que
+        // lo mostrara. Confirma con una petición real (no Livewire::test(),
+        // que no renderiza el layout) que ahora sí llega.
+        $this->actingAs($coordination)->get(route('distribution.index'))->assertSee('Asignación guardada correctamente.');
     }
 
     public function test_assigned_hours_do_not_create_any_deliverables(): void

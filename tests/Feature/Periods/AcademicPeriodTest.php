@@ -46,6 +46,23 @@ class AcademicPeriodTest extends TestCase
         $this->actingAs($teacher)->get('/periods')->assertForbidden();
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: el botón "Guardar" del modal
+     * de crear/editar periodo no tenía ningún estado de carga — mismo
+     * patrón ya usado en Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    public function test_the_save_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(PeriodIndex::class)
+            ->call('openCreate')
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="save"', false)
+            ->assertSee('Guardando...');
+    }
+
     public function test_creating_a_period_defaults_to_planning_status(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

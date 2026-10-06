@@ -76,8 +76,9 @@
 
         <div class="flex items-center gap-3 pt-2">
             @unless ($periodLocked)
-                <button type="submit" class="btn-primary">
-                    Guardar
+                <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
+                    <span wire:loading.remove wire:target="save">Guardar</span>
+                    <span wire:loading wire:target="save">Guardando...</span>
                 </button>
             @endunless
             <a href="{{ route('leaderships.index') }}" class="btn-text text-text-secondary">

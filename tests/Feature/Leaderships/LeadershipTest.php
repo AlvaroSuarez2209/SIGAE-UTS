@@ -44,6 +44,22 @@ class LeadershipTest extends TestCase
         $this->actingAs($teacher)->get('/leaderships')->assertForbidden();
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: el botón "Guardar" no tenía
+     * ningún estado de carga — mismo patrón ya usado en
+     * Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    public function test_the_save_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipForm::class)
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="save"', false)
+            ->assertSee('Guardando...');
+    }
+
     public function test_administrator_can_assign_a_leadership_over_a_whole_program_unit(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -59,13 +75,20 @@ class LeadershipTest extends TestCase
             ->set('activity_id', null)
             ->set('starts_at', now()->toDateString())
             ->call('save')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertRedirect(route('leaderships.index'));
 
         $this->assertDatabaseHas('leaderships', [
             'user_id' => $leader->id,
             'program_unit_id' => $programUnit->id,
             'activity_id' => null,
         ]);
+
+        // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
+        // redirigía a leaderships.index, que no tenía ningún bloque que lo
+        // mostrara. Confirma con una petición real (no Livewire::test(),
+        // que no renderiza el layout) que ahora sí llega.
+        $this->actingAs($admin)->get(route('leaderships.index'))->assertSee('Liderazgo guardado correctamente.');
     }
 
     public function test_cannot_create_leadership_for_a_closed_period(): void
