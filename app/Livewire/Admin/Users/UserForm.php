@@ -2,11 +2,16 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Enums\AcademicPeriodStatus;
+use App\Enums\DocumentType;
 use App\Enums\RoleName;
+use App\Models\AcademicPeriod;
+use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PasswordPolicy;
 use App\Services\PendingWorkChecker;
+use App\Services\TeacherImport\TeacherImportService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -30,6 +35,10 @@ class UserForm extends Component
 
     public array $selectedRoles = [];
 
+    public string $document_type = '';
+
+    public ?int $program_unit_id = null;
+
     public function mount(?User $user = null): void
     {
         // Livewire/the container can hand mount() a freshly instantiated,
@@ -46,12 +55,50 @@ class UserForm extends Component
             $this->email = $this->user->email;
             $this->is_active = $this->user->is_active;
             $this->selectedRoles = $this->user->roles->pluck('name')->all();
+            $this->document_type = (string) $this->user->document_type;
+            $this->program_unit_id = $this->user->program_unit_id;
         }
+    }
+
+    /**
+     * Mismo criterio que la importación masiva (Docente y/o Líder son los
+     * únicos roles para los que "tipo de documento"/"programa de
+     * adscripción" tienen sentido real) — Administrador/Coordinación/
+     * Auditor sin ninguno de esos dos roles no necesitan llenarlos.
+     */
+    public function requiresProgramInfo(): bool
+    {
+        return array_intersect($this->selectedRoles, [RoleName::Teacher->value, RoleName::Leader->value]) !== [];
+    }
+
+    /**
+     * Aviso informativo (nunca bloqueante, ver diagnóstico): cambiar
+     * `users.program_unit_id` no toca la distribución ni los liderazgos
+     * reales de nadie (son tablas independientes), pero un Administrador
+     * podría asumir lo contrario si esta persona ya tiene asignaciones o
+     * liderazgos vigentes en el periodo activo.
+     */
+    public function hasVigenteAssignmentsOrLeaderships(): bool
+    {
+        if (! $this->user) {
+            return false;
+        }
+
+        $activePeriodId = AcademicPeriod::where('status', AcademicPeriodStatus::Active)->value('id');
+
+        if (! $activePeriodId) {
+            return false;
+        }
+
+        return $this->user->teacherAssignments()->where('academic_period_id', $activePeriodId)->exists()
+            || $this->user->leaderships()->where('academic_period_id', $activePeriodId)->exists();
     }
 
     public function save(): void
     {
         Gate::authorize($this->user ? 'update' : 'create', $this->user ?? User::class);
+
+        $requiresProgramInfo = $this->requiresProgramInfo();
 
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -61,6 +108,8 @@ class UserForm extends Component
             'is_active' => ['boolean'],
             'selectedRoles' => ['required', 'array', 'min:1'],
             'selectedRoles.*' => ['exists:roles,name'],
+            'document_type' => [$requiresProgramInfo ? 'required' : 'nullable', Rule::in(TeacherImportService::DOCUMENT_TYPES)],
+            'program_unit_id' => [$requiresProgramInfo ? 'required' : 'nullable', 'exists:program_units,id'],
         ]);
 
         if ($this->user && $data['is_active'] && $this->blocksRoleRemoval($data['selectedRoles'])) {
@@ -72,6 +121,8 @@ class UserForm extends Component
             'document_number' => $data['document_number'] ?: null,
             'email' => $data['email'],
             'is_active' => $data['is_active'],
+            'document_type' => $data['document_type'] ?: null,
+            'program_unit_id' => $data['program_unit_id'] ?: null,
         ];
 
         if (! empty($data['password'])) {
@@ -138,6 +189,12 @@ class UserForm extends Component
     {
         return view('livewire.admin.users.user-form', [
             'roles' => Role::orderBy('label')->get(),
+            'programUnits' => ProgramUnit::where('is_active', true)
+                ->orWhere('id', $this->program_unit_id)
+                ->orderBy('name')
+                ->get(),
+            'documentTypeOptions' => collect(TeacherImportService::DOCUMENT_TYPES)
+                ->mapWithKeys(fn (string $code) => [$code => DocumentType::from($code)->label()]),
         ])->title($this->user ? 'Editar usuario' : 'Nuevo usuario');
     }
 }

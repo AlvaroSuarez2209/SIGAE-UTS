@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
 use App\Livewire\Admin\Users\UserForm;
@@ -69,6 +70,7 @@ class UserManagementTest extends TestCase
     public function test_administrator_can_create_a_user_with_roles(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
+        $programUnit = ProgramUnit::factory()->create();
 
         Livewire::actingAs($admin)
             ->test(UserForm::class)
@@ -76,13 +78,198 @@ class UserManagementTest extends TestCase
             ->set('email', 'nuevo.docente@sigae.local')
             ->set('password', 'Password123!')
             ->set('selectedRoles', [RoleName::Teacher->value])
+            ->set('document_type', 'CC')
+            ->set('program_unit_id', $programUnit->id)
             ->call('save')
             ->assertRedirect(route('admin.users.index'));
+
+        // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
+        // redirigía a admin.users.index, que no tenía ningún bloque que lo
+        // mostrara. Confirma con una petición real (no Livewire::test(),
+        // que no renderiza el layout) que ahora sí llega.
+        $this->actingAs($admin)->get(route('admin.users.index'))->assertSee('Usuario guardado correctamente.');
 
         $this->assertDatabaseHas('users', ['email' => 'nuevo.docente@sigae.local']);
 
         $created = User::where('email', 'nuevo.docente@sigae.local')->first();
         $this->assertTrue($created->hasRole(RoleName::Teacher));
+    }
+
+    /**
+     * Revisión del diagnóstico de document_type/program_unit_id: antes
+     * solo los llenaba la importación masiva — ahora UserForm también
+     * puede crearlos y editarlos, persistiendo ambos.
+     */
+    public function test_document_type_and_program_unit_are_saved_on_create_and_on_edit(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $programUnit = ProgramUnit::factory()->create();
+        $otherProgramUnit = ProgramUnit::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('name', 'Nuevo Docente')
+            ->set('email', 'nuevo.docente.datos@sigae.local')
+            ->set('password', 'Password123!')
+            ->set('selectedRoles', [RoleName::Teacher->value])
+            ->set('document_type', 'CC')
+            ->set('program_unit_id', $programUnit->id)
+            ->call('save')
+            ->assertRedirect(route('admin.users.index'));
+
+        $created = User::where('email', 'nuevo.docente.datos@sigae.local')->first();
+        $this->assertEquals('CC', $created->document_type);
+        $this->assertEquals($programUnit->id, $created->program_unit_id);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class, ['user' => $created])
+            ->set('document_type', 'CE')
+            ->set('program_unit_id', $otherProgramUnit->id)
+            ->call('save')
+            ->assertRedirect(route('admin.users.index'));
+
+        $created->refresh();
+        $this->assertEquals('CE', $created->document_type);
+        $this->assertEquals($otherProgramUnit->id, $created->program_unit_id);
+    }
+
+    public function test_document_type_and_program_unit_are_required_for_teacher_or_leader(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('name', 'Sin Datos De Programa')
+            ->set('email', 'sindatos@sigae.local')
+            ->set('password', 'Password123!')
+            ->set('selectedRoles', [RoleName::Leader->value])
+            ->call('save')
+            ->assertHasErrors(['document_type', 'program_unit_id']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'sindatos@sigae.local']);
+    }
+
+    /**
+     * A diferencia de Docente/Líder, un rol exclusivamente de gestión
+     * (Administrador, Coordinación, Auditor) no necesita tipo de
+     * documento ni programa de adscripción — "programa de adscripción"
+     * no tiene sentido real para esos roles (ver diagnóstico).
+     */
+    public function test_document_type_and_program_unit_are_optional_for_management_only_roles(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('name', 'Coordinadora Sin Programa')
+            ->set('email', 'coordinadora.sinprograma@sigae.local')
+            ->set('password', 'Password123!')
+            ->set('selectedRoles', [RoleName::Coordination->value])
+            ->call('save')
+            ->assertRedirect(route('admin.users.index'));
+
+        $created = User::where('email', 'coordinadora.sinprograma@sigae.local')->first();
+        $this->assertNull($created->document_type);
+        $this->assertNull($created->program_unit_id);
+    }
+
+    public function test_a_nonexistent_program_unit_is_rejected(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('name', 'Nuevo Docente')
+            ->set('email', 'programainexistente@sigae.local')
+            ->set('password', 'Password123!')
+            ->set('selectedRoles', [RoleName::Teacher->value])
+            ->set('document_type', 'CC')
+            ->set('program_unit_id', 999999)
+            ->call('save')
+            ->assertHasErrors('program_unit_id');
+
+        $this->assertDatabaseMissing('users', ['email' => 'programainexistente@sigae.local']);
+    }
+
+    /**
+     * Aviso informativo (nunca bloqueante): solo debe aparecer cuando
+     * editar a esta persona sí podría malinterpretarse como un cambio de
+     * distribución real — es decir, cuando ya tiene asignaciones o
+     * liderazgos vigentes en el periodo activo. Nunca al crear una cuenta
+     * nueva, ni al editar a alguien sin ninguno de los dos.
+     */
+    public function test_program_change_notice_appears_only_with_vigente_assignments_or_leaderships(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $teacherWithAssignment = $this->userWithRole(RoleName::Teacher, [
+            'document_type' => 'CC',
+            'program_unit_id' => $programUnit->id,
+        ]);
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacherWithAssignment->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        $teacherWithoutAssignment = $this->userWithRole(RoleName::Teacher, [
+            'document_type' => 'CC',
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class, ['user' => $teacherWithAssignment])
+            ->assertSee('no modifica su distribución ni sus liderazgos actuales');
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class, ['user' => $teacherWithoutAssignment])
+            ->assertDontSee('no modifica su distribución ni sus liderazgos actuales');
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->assertDontSee('no modifica su distribución ni sus liderazgos actuales');
+    }
+
+    /**
+     * Cambio de presentación (reordenar los campos): el "(opcional)" de
+     * Tipo de documento y Programa debe seguir reaccionando en vivo al
+     * marcar/desmarcar Docente o Líder — reordenar los campos no debe
+     * tocar el `wire:model.live` de los checkboxes de rol.
+     */
+    public function test_the_optional_hint_reacts_live_to_toggling_teacher_or_leader(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $component = Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('selectedRoles', [RoleName::Coordination->value])
+            ->assertSee('(opcional)');
+
+        $component->set('selectedRoles', [RoleName::Coordination->value, RoleName::Teacher->value])
+            ->assertDontSee('(opcional)');
+
+        $component->set('selectedRoles', [RoleName::Coordination->value])
+            ->assertSee('(opcional)');
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 7: el botón "Guardar" no tenía
+     * ningún estado de carga — mismo patrón ya usado en
+     * Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    public function test_the_save_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="save"', false)
+            ->assertSee('Guardando...');
     }
 
     public function test_creating_a_user_requires_at_least_one_role(): void
@@ -118,7 +305,10 @@ class UserManagementTest extends TestCase
     public function test_password_is_optional_when_editing_an_existing_user(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $existing = $this->userWithRole(RoleName::Teacher);
+        $existing = $this->userWithRole(RoleName::Teacher, [
+            'document_type' => 'CC',
+            'program_unit_id' => ProgramUnit::factory()->create()->id,
+        ]);
         $originalPassword = $existing->password;
 
         Livewire::actingAs($admin)
@@ -262,7 +452,10 @@ class UserManagementTest extends TestCase
     public function test_adding_a_role_is_never_blocked_by_pending_work(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher = $this->userWithRole(RoleName::Teacher, [
+            'document_type' => 'CC',
+            'program_unit_id' => ProgramUnit::factory()->create()->id,
+        ]);
         Evidence::factory()->create(['user_id' => $teacher->id, 'status' => EvidenceStatus::Submitted]);
 
         Livewire::actingAs($admin)
@@ -302,7 +495,8 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UserIndex::class)
             ->call('toggleActive', $teacher)
-            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 evidencia pendiente'));
+            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 evidencia pendiente'))
+            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 evidencia pendiente'));
 
         $this->assertTrue($teacher->fresh()->is_active);
     }
@@ -316,7 +510,8 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UserIndex::class)
             ->call('toggleActive', $teacher)
-            ->assertSet('deactivationError', '');
+            ->assertSet('deactivationError', '')
+            ->assertNotDispatched('confirm-modal');
 
         $this->assertFalse($teacher->fresh()->is_active);
     }
@@ -330,7 +525,8 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UserIndex::class)
             ->call('toggleActive', $leader)
-            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 revisión pendiente'));
+            ->assertSet('deactivationError', fn ($message) => str_contains($message, '1 revisión pendiente'))
+            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 revisión pendiente'));
 
         $this->assertTrue($leader->fresh()->is_active);
     }
@@ -345,7 +541,8 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UserIndex::class)
             ->call('toggleActive', $leader)
-            ->assertSet('deactivationError', '');
+            ->assertSet('deactivationError', '')
+            ->assertNotDispatched('confirm-modal');
 
         $this->assertFalse($leader->fresh()->is_active);
     }
@@ -359,7 +556,8 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UserIndex::class)
             ->call('toggleActive', $teacher)
-            ->assertSet('deactivationError', '');
+            ->assertSet('deactivationError', '')
+            ->assertNotDispatched('confirm-modal');
 
         $this->assertTrue($teacher->fresh()->is_active);
     }

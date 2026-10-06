@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\Enums\DocumentType;
+use App\Enums\RoleName;
 use App\Services\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,17 +14,20 @@ use Livewire\Component;
 /**
  * "Mi perfil" — autoservicio de cualquier usuario autenticado sobre su
  * propia cuenta. Dos secciones independientes en la misma página, cada
- * una con su propio método de guardado/validación/mensaje de éxito, para
- * que un error en una no afecte ni limpie el estado de la otra.
+ * una con su propio método de guardado/validación, que comparten el
+ * mismo flash `status` (ver resources/views/components/flash-message.blade.php)
+ * — nunca se ejecutan los dos a la vez en una misma petición, así que no
+ * hay riesgo de que un guardado pise el mensaje del otro.
  *
- * `document_number` y `email` son de solo lectura aquí a propósito: son
- * datos administrativos/de acceso, no autoservicio libre — corregirlos
- * requiere un Administrador desde "Usuarios" (misma validación de
- * unicidad que ya existía ahí, y queda registrado en Auditoría vía el
- * trait `Auditable`). `saveProfile()` solo valida y guarda `name`; las
- * otras dos propiedades siguen existiendo para poblar los campos
- * deshabilitados en la vista, pero nunca se validan ni se persisten
- * desde aquí — ni siquiera si alguien manipulara la petición de
+ * `document_number`, `email`, `document_type` y `program_unit_id` son de
+ * solo lectura aquí a propósito: son datos administrativos/de acceso, no
+ * autoservicio libre. Los cuatro se pueden corregir desde "Usuarios"
+ * (Administrador, ver App\Livewire\Admin\Users\UserForm) — aquí se
+ * muestran puramente informativos, nunca editables, aunque la cuenta
+ * autenticada sea la de un Administrador editando su propio perfil.
+ * `saveProfile()` solo valida y guarda `name`; el resto de propiedades
+ * solo pueblan campos deshabilitados en la vista, nunca se validan ni se
+ * persisten desde aquí — ni siquiera si alguien manipulara la petición de
  * Livewire a mano, ya que `update()` ni las toca.
  *
  * No usa UserPolicy/Gate: a diferencia de app/Livewire/Admin/Users
@@ -41,6 +46,19 @@ class Profile extends Component
 
     public string $email = '';
 
+    public ?string $document_type = null;
+
+    public ?string $programUnitName = null;
+
+    /**
+     * El texto de ayuda de los 4 campos de solo lectura (ver
+     * resources/views/components/readonly-field-help.blade.php) depende
+     * de este flag: un Administrador viendo su PROPIO perfil ya puede
+     * corregirlos él mismo desde "Usuarios", a diferencia de cualquier
+     * otro rol.
+     */
+    public bool $isAdministrator = false;
+
     public string $current_password = '';
 
     public string $password = '';
@@ -54,6 +72,9 @@ class Profile extends Component
         $this->name = $user->name;
         $this->document_number = (string) $user->document_number;
         $this->email = $user->email;
+        $this->document_type = $user->document_type ? DocumentType::tryFrom($user->document_type)?->label() ?? $user->document_type : null;
+        $this->programUnitName = $user->programUnit?->name;
+        $this->isAdministrator = $user->hasRole(RoleName::Administrator);
     }
 
     public function saveProfile(): void
@@ -72,7 +93,7 @@ class Profile extends Component
         // que es quien realmente actualiza el nombre en el sidebar.
         $this->dispatch('profile-updated');
 
-        session()->flash('profileStatus', 'Perfil actualizado correctamente.');
+        session()->flash('status', 'Perfil actualizado correctamente.');
     }
 
     public function savePassword(): void
@@ -88,7 +109,7 @@ class Profile extends Component
 
         $this->reset(['current_password', 'password', 'password_confirmation']);
 
-        session()->flash('passwordStatus', 'Contraseña actualizada correctamente.');
+        session()->flash('status', 'Contraseña actualizada correctamente.');
     }
 
     public function render()

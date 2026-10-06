@@ -10,10 +10,26 @@
             @error('name') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
-        <div>
-            <label class="field-label">Número de documento</label>
-            <input type="text" wire:model="document_number" class="field-input">
-            @error('document_number') <p class="field-error">{{ $message }}</p> @enderror
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label class="field-label">
+                    Tipo de documento
+                    @if (! $this->requiresProgramInfo()) <span class="font-normal text-text-secondary">(opcional)</span> @endif
+                </label>
+                <select wire:model="document_type" class="field-input">
+                    <option value="">Seleccionar...</option>
+                    @foreach ($documentTypeOptions as $code => $label)
+                        <option value="{{ $code }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('document_type') <p class="field-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div>
+                <label class="field-label">Número de documento</label>
+                <input type="text" wire:model="document_number" class="field-input">
+                @error('document_number') <p class="field-error">{{ $message }}</p> @enderror
+            </div>
         </div>
 
         <div>
@@ -36,12 +52,31 @@
             <div class="mt-2 space-y-1">
                 @foreach ($roles as $role)
                     <label class="flex items-center gap-2 text-sm text-text-secondary">
-                        <input type="checkbox" wire:model="selectedRoles" value="{{ $role->name }}" class="field-checkbox">
+                        <input type="checkbox" wire:model.live="selectedRoles" value="{{ $role->name }}" class="field-checkbox">
                         {{ $role->label }}
                     </label>
                 @endforeach
             </div>
             @error('selectedRoles') <p class="field-error">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <label class="field-label">
+                Programa de adscripción
+                @if (! $this->requiresProgramInfo()) <span class="font-normal text-text-secondary">(opcional)</span> @endif
+            </label>
+            <select wire:model="program_unit_id" class="field-input">
+                <option value="">Seleccionar...</option>
+                @foreach ($programUnits as $programUnit)
+                    <option value="{{ $programUnit->id }}">{{ $programUnit->name }}</option>
+                @endforeach
+            </select>
+            @error('program_unit_id') <p class="field-error">{{ $message }}</p> @enderror
+            @if ($this->hasVigenteAssignmentsOrLeaderships())
+                <p class="field-help">
+                    Este cambio solo afecta los filtros de Coordinación e Informes; no modifica su distribución ni sus liderazgos actuales.
+                </p>
+            @endif
         </div>
 
         <div class="flex items-center gap-2">
@@ -50,8 +85,9 @@
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="btn-primary">
-                Guardar
+            <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
+                <span wire:loading.remove wire:target="save">Guardar</span>
+                <span wire:loading wire:target="save">Guardando...</span>
             </button>
             <a href="{{ route('admin.users.index') }}" class="btn-text text-text-secondary">Cancelar</a>
         </div>

@@ -47,6 +47,8 @@ class UserIndex extends Component
         $this->deactivationError = '';
 
         if ($user->is_active && $this->blocksDeactivation($user)) {
+            $this->dispatch('confirm-modal', title: 'No se puede desactivar', body: $this->deactivationError, confirmLabel: 'Entendido', variant: 'danger');
+
             return;
         }
 

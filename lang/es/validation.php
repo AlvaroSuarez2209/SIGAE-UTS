@@ -182,6 +182,16 @@ return [
         'selectedRoles.*' => 'rol',
         'remember' => 'recordarme',
 
+        // Importación masiva de docentes — nombres de columna de la
+        // plantilla, ver App\Services\TeacherImport\TeacherImportService.
+        'tipo_documento' => 'tipo de documento',
+        'numero_documento' => 'número de documento',
+        'nombre_completo' => 'nombre completo',
+        'correo_institucional' => 'correo institucional',
+        'codigo_programa' => 'código de programa',
+        'roles' => 'roles',
+        'estado' => 'estado',
+
         'component_id' => 'componente',
         'subcomponent_id' => 'subcomponente',
         'activity_id' => 'actividad',

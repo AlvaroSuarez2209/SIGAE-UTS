@@ -1,17 +1,15 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Usuarios</h1>
-        <a href="{{ route('admin.users.create') }}" class="btn-primary">
-            Nuevo usuario
-        </a>
-    </div>
-
-    @if ($deactivationError)
-        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-error-subtle p-3 text-sm text-status-error">
-            <x-icon name="alert-circle" class="h-4 w-4 shrink-0" />
-            {{ $deactivationError }}
+        <div class="flex items-center gap-3">
+            <a href="{{ route('admin.users.import') }}" class="btn-secondary">
+                Importar docentes
+            </a>
+            <a href="{{ route('admin.users.create') }}" class="btn-primary">
+                Nuevo usuario
+            </a>
         </div>
-    @endif
+    </div>
 
     <div class="mb-4 flex flex-wrap gap-4">
         <x-search-input
