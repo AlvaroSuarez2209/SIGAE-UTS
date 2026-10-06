@@ -6,6 +6,14 @@
 /storage/*.key
 /storage/pail
 /vendor
+
+# Preventivo: ningún volcado de base de datos debe versionarse jamás (ver
+# auditoría de seguridad) — ninguno existe hoy en el repositorio, esto
+# solo cierra la puerta a que uno se agregue por accidente en el futuro.
+*.sql
+*.dump
+*.bak
+
 .env
 .env.backup
 .env.production

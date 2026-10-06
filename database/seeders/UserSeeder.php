@@ -7,26 +7,34 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class UserSeeder extends Seeder
 {
+    /**
+     * La contraseña del Administrador inicial nunca vive en el
+     * repositorio (ver auditoría de seguridad: admin@uts.edu.co /
+     * ***REMOVED*** estuvo en texto plano aquí, en README.md y en
+     * docs/manual-tecnico.md). Sin ADMIN_INITIAL_PASSWORD definida, este
+     * seeder falla con un mensaje claro en vez de caer a cualquier valor
+     * por defecto — local: en tu .env; Render: en el panel de variables
+     * de entorno del servicio.
+     */
     public function run(): void
     {
+        $adminPassword = config('seeding.admin_initial_password');
+
+        if (blank($adminPassword)) {
+            throw new RuntimeException(
+                'ADMIN_INITIAL_PASSWORD no está definida. Agrégala a tu .env local '
+                .'(o al panel de variables de entorno de Render) antes de sembrar el Administrador inicial.'
+            );
+        }
+
         $roles = Role::pluck('id', 'name');
 
         $users = [
-            ['name' => 'Administrador', 'email' => 'admin@uts.edu.co', 'document_number' => '1000000001', 'roles' => [RoleName::Administrator->value], 'is_active' => true, 'password' => '***REMOVED***'],
-
-            // Cuentas de demostración — desactivadas junto con
-            // TeacherAssignmentSeeder, LeadershipSeeder y EvidenceSeeder,
-            // que dependen de estos mismos correos. Reactivar las 4 juntas
-            // si se necesita un seed completo de demostración.
-            // ['name' => 'Carlos Coordinador', 'email' => 'coordinacion@sigae.local', 'document_number' => '1000000002', 'roles' => [RoleName::Coordination->value], 'is_active' => true, 'password' => 'password'],
-            // ['name' => 'Laura Líder', 'email' => 'lider1@sigae.local', 'document_number' => '1000000003', 'roles' => [RoleName::Leader->value, RoleName::Teacher->value], 'is_active' => true, 'password' => 'password'],
-            // ['name' => 'Diego Docente', 'email' => 'docente1@sigae.local', 'document_number' => '1000000004', 'roles' => [RoleName::Teacher->value], 'is_active' => true, 'password' => 'password'],
-            // ['name' => 'Elena Docente', 'email' => 'docente2@sigae.local', 'document_number' => '1000000005', 'roles' => [RoleName::Teacher->value], 'is_active' => true, 'password' => 'password'],
-            // ['name' => 'Felipe Docente Inactivo', 'email' => 'docente3@sigae.local', 'document_number' => '1000000006', 'roles' => [RoleName::Teacher->value], 'is_active' => false, 'password' => 'password'],
-            // ['name' => 'Gloria Auditora', 'email' => 'auditor@sigae.local', 'document_number' => '1000000007', 'roles' => [RoleName::Auditor->value], 'is_active' => true, 'password' => 'password'],
+            ['name' => 'Administrador', 'email' => 'admin@uts.edu.co', 'document_number' => '1000000001', 'roles' => [RoleName::Administrator->value], 'is_active' => true, 'password' => $adminPassword],
         ];
 
         foreach ($users as $data) {

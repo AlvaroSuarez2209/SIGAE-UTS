@@ -5,12 +5,19 @@ namespace Database\Seeders;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Models\DeliverableTemplate;
+use Database\Seeders\Concerns\RefusesInProduction;
 use Illuminate\Database\Seeder;
 
 class DeliverableTemplateSeeder extends Seeder
 {
+    use RefusesInProduction;
+
     public function run(): void
     {
+        if ($this->abortIfProduction()) {
+            return;
+        }
+
         DeliverableTemplate::firstOrCreate(
             ['name' => 'Informe de avance mensual'],
             [

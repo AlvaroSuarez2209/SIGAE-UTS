@@ -7,12 +7,19 @@ use App\Models\Activity;
 use App\Models\ProgramUnit;
 use App\Models\TeacherAssignment;
 use App\Models\User;
+use Database\Seeders\Concerns\RefusesInProduction;
 use Illuminate\Database\Seeder;
 
 class TeacherAssignmentSeeder extends Seeder
 {
+    use RefusesInProduction;
+
     public function run(): void
     {
+        if ($this->abortIfProduction()) {
+            return;
+        }
+
         // Desactivado: dependía de las cuentas de demostración
         // (docente1@sigae.local, docente2@sigae.local, lider1@sigae.local)
         // que UserSeeder ya no crea — solo siembra un Administrador. Vuelve

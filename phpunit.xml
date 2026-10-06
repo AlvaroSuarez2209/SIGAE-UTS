@@ -18,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- Solo para que UserSeeder (y los tests que corren db:seed-if-empty)
+             tengan un valor determinista — nunca la contraseña real, que va
+             en .env local o en el panel de Render, nunca en el repositorio. -->
+        <env name="ADMIN_INITIAL_PASSWORD" value="TestPassword123!"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

@@ -48,11 +48,11 @@ arquitectura, decisiones de diseño) en `docs/manual-tecnico.md`.
 
 ## Acceso inicial
 
-`php artisan migrate --seed` siembra un único usuario Administrador:
-
-| Correo | Contraseña |
-|---|---|
-| `admin@uts.edu.co` | `***REMOVED***` |
+`php artisan migrate --seed` siembra un único usuario Administrador
+(`admin@uts.edu.co`), con la contraseña que definas en la variable de
+entorno `ADMIN_INITIAL_PASSWORD` (ver `.env.example`) — nunca un valor
+fijo en el código ni en este archivo. Sin esa variable, el seeder falla
+con un mensaje claro en vez de usar cualquier contraseña por defecto.
 
 Desde esa cuenta se crean los demás usuarios, periodos, catálogos y
 entregables del sistema.

@@ -10,12 +10,19 @@ use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\TeacherAssignment;
 use App\Models\User;
+use Database\Seeders\Concerns\RefusesInProduction;
 use Illuminate\Database\Seeder;
 
 class DeliverableSeeder extends Seeder
 {
+    use RefusesInProduction;
+
     public function run(): void
     {
+        if ($this->abortIfProduction()) {
+            return;
+        }
+
         $period = AcademicPeriod::where('name', '2026-1')->first();
 
         // Escenario obligatorio: la actividad de 5 horas (Dirección de

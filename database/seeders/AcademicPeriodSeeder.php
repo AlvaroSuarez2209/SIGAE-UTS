@@ -4,12 +4,19 @@ namespace Database\Seeders;
 
 use App\Enums\AcademicPeriodStatus;
 use App\Models\AcademicPeriod;
+use Database\Seeders\Concerns\RefusesInProduction;
 use Illuminate\Database\Seeder;
 
 class AcademicPeriodSeeder extends Seeder
 {
+    use RefusesInProduction;
+
     public function run(): void
     {
+        if ($this->abortIfProduction()) {
+            return;
+        }
+
         AcademicPeriod::firstOrCreate(
             ['name' => '2025-2'],
             [

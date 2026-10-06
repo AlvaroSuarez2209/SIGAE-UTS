@@ -6,12 +6,19 @@ use App\Models\Activity;
 use App\Models\Component;
 use App\Models\ProgramUnit;
 use App\Models\Subcomponent;
+use Database\Seeders\Concerns\RefusesInProduction;
 use Illuminate\Database\Seeder;
 
 class CatalogSeeder extends Seeder
 {
+    use RefusesInProduction;
+
     public function run(): void
     {
+        if ($this->abortIfProduction()) {
+            return;
+        }
+
         foreach ([
             'Facultad de Ciencias Naturales e Ingeniería',
             'Facultad de Ciencias Socioeconómicas y Empresariales',
