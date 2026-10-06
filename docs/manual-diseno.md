@@ -316,10 +316,13 @@ de forma consistente en los 10 módulos funcionales:
   variante ámbar, igual que "Cerrar periodo". "Quitar exención" (su
   inverso) sí lleva confirmación pero sin exigir justificación, porque
   deshacer una excepción hacia el estado por defecto es de menor riesgo
-  que aplicarla. Restringido a Administrador/Coordinación — un Líder no
-  lo tiene: ver docs/manual-tecnico.md §5.7 para la justificación
-  completa de por qué esta acción es administrativa y no de revisión de
-  pares.
+  que aplicarla. El docente dueño de la evidencia puede marcarla y
+  quitarla él mismo (revisión del estado Exento: antes era exclusivo de
+  Administrador/Coordinación, que mantienen la misma capacidad sobre
+  cualquier evidencia) — un Líder sigue sin tenerla: ver
+  docs/manual-tecnico.md §5.7 para la justificación completa de por qué
+  esta acción es del dueño de la evidencia o de Administración, y no de
+  revisión de pares.
 - **Formato de fecha de solo lectura — `$fecha->toReadable()`** — regla
   única para toda fecha mostrada fuera de un input de formulario (tablas,
   tarjetas, informes, badges): día + mes abreviado en texto + año, y solo

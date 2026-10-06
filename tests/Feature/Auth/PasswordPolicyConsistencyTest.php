@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Profile;
+use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PasswordPolicy;
@@ -70,6 +71,7 @@ class PasswordPolicyConsistencyTest extends TestCase
     public function test_user_form_matches_the_shared_policy(string $password): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
+        $programUnit = ProgramUnit::factory()->create();
 
         Livewire::actingAs($admin)
             ->test(UserForm::class)
@@ -77,6 +79,8 @@ class PasswordPolicyConsistencyTest extends TestCase
             ->set('email', 'nuevo.docente@sigae.local')
             ->set('password', $password)
             ->set('selectedRoles', [RoleName::Teacher->value])
+            ->set('document_type', 'CC')
+            ->set('program_unit_id', $programUnit->id)
             ->call('save');
 
         $this->assertEquals(
