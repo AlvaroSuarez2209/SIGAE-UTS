@@ -28,12 +28,7 @@
         @endif
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-success-subtle p-3 text-sm text-status-success">
-            <x-icon name="check-circle" class="h-4 w-4 shrink-0" />
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-flash-message />
 
     @if ($submissionError)
         <div class="mb-4 flex items-center gap-2 rounded-md bg-status-error-subtle p-3 text-sm text-status-error">
@@ -58,7 +53,7 @@
             </div>
         @endif
 
-        @if (in_array('file', $allowed) || in_array('multiple_files', $allowed))
+        @if (in_array('file', $allowed))
             @php $fileCount = $evidence->currentVersion?->files->count() ?? 0; @endphp
             <div>
                 <label class="field-label">
@@ -76,32 +71,7 @@
 
                 @if ($evidence->status->isEditable())
                     @if ($fileCount < $deliverable->max_files)
-                        <div
-                            x-data="{ isDragging: false, uploading: false, progress: 0 }"
-                            x-on:livewire-upload-start="uploading = true"
-                            x-on:livewire-upload-finish="uploading = false; progress = 0"
-                            x-on:livewire-upload-error="uploading = false"
-                            x-on:livewire-upload-progress="progress = $event.detail.progress"
-                            @dragover.prevent="isDragging = true"
-                            @dragleave.prevent="isDragging = false"
-                            @drop.prevent="isDragging = false; $refs.newFilesInput.files = $event.dataTransfer.files; $refs.newFilesInput.dispatchEvent(new Event('change'))"
-                            :class="isDragging ? 'border-brand-primary bg-brand-primary-subtle' : 'border-border-subtle'"
-                            class="mt-2 rounded-md border-2 border-dashed p-6 text-center transition-colors"
-                        >
-                            <input type="file" x-ref="newFilesInput" wire:model="newFiles" multiple id="newFiles" class="sr-only">
-                            <label for="newFiles" class="flex cursor-pointer flex-col items-center gap-1.5">
-                                <x-icon name="paperclip" class="h-6 w-6 text-text-secondary" />
-                                <span class="text-sm text-text-secondary">
-                                    Arrastra los archivos aquí o <span class="font-medium text-brand-primary">haz clic para seleccionar</span>
-                                </span>
-                            </label>
-
-                            <div x-show="uploading" x-cloak class="mx-auto mt-3 max-w-xs">
-                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                                    <div class="h-full bg-brand-primary transition-all" :style="`width: ${progress}%`"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <x-file-dropzone wire-model="newFiles" :multiple="true" class="mt-2" />
 
                         @if (! empty($newFiles))
                             <ul class="mt-2 space-y-1">
@@ -153,17 +123,34 @@
                     <div class="mt-2 flex gap-2">
                         <input type="url" wire:model="newLinkUrl" placeholder="https://..." class="field-input mt-0">
                         <input type="text" wire:model="newLinkLabel" placeholder="Etiqueta (opcional)" class="field-input mt-0 w-48">
-                        <button type="button" wire:click="addLink" class="btn-secondary whitespace-nowrap">Agregar</button>
+                        <button
+                            type="button"
+                            wire:click="addLink"
+                            wire:loading.attr="disabled"
+                            wire:target="addLink"
+                            class="btn-secondary whitespace-nowrap"
+                        >
+                            <span wire:loading.remove wire:target="addLink">Agregar</span>
+                            <span wire:loading wire:target="addLink">Agregando...</span>
+                        </button>
                     </div>
                     @error('newLinkUrl') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('newLinkLabel') <p class="field-error">{{ $message }}</p> @enderror
                 @endif
             </div>
         @endif
 
         @if ($evidence->status->isEditable())
             <div class="flex items-center gap-3 pt-2">
-                <button type="button" wire:click="saveDraft" class="btn-secondary">
-                    Guardar borrador
+                <button
+                    type="button"
+                    wire:click="saveDraft"
+                    wire:loading.attr="disabled"
+                    wire:target="saveDraft,submit"
+                    class="btn-secondary"
+                >
+                    <span wire:loading.remove wire:target="saveDraft">Guardar borrador</span>
+                    <span wire:loading wire:target="saveDraft">Guardando...</span>
                 </button>
                 <button
                     type="button"
@@ -175,8 +162,11 @@
                         variant: 'primary',
                         action: () => $wire.submit(),
                     })"
+                    wire:loading.attr="disabled"
+                    wire:target="saveDraft,submit"
                 >
-                    Enviar evidencia
+                    <span wire:loading.remove wire:target="submit">Enviar evidencia</span>
+                    <span wire:loading wire:target="submit">Enviando...</span>
                 </button>
                 <a href="{{ route('my-deliverables.index') }}" class="btn-text">Volver</a>
             </div>
@@ -185,57 +175,98 @@
         @endif
     </div>
 
-    @can('markExempt', $evidence)
+    @php $isSelfExemption = auth()->id() === $evidence->user_id; @endphp
+
+    @if ($evidence->status->value === 'exempt')
+        {{-- Visible para cualquiera que pueda ver esta página (docente, líder
+             y Coordinación/Administrador) — antes la razón no se le
+             mostraba a nadie, ni siquiera a quien quedó exento. --}}
         <div class="card mt-6 space-y-4 p-6">
-            <h2 class="form-section-title">Exención (Administración/Coordinación)</h2>
+            <h2 class="form-section-title">Exención activa</h2>
             <p class="text-base text-text-secondary">
-                Eximir a este docente de este entregable: deja de estar obligado a enviarlo y ya no cuenta en su % de avance.
+                Esta evidencia está marcada como exenta.
+                {{ $isSelfExemption ? 'No puedes editarla ni enviarla' : 'El docente no puede editarla ni enviarla' }}
+                mientras la exención esté activa.
+            </p>
+            <div>
+                <span class="field-label">Motivo</span>
+                <p class="text-base text-text-primary">{{ $evidence->exemption_reason ?? '—' }}</p>
+            </div>
+
+            @can('removeExemption', $evidence)
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    @click="$dispatch('confirm-modal', {
+                        title: 'Quitar exención',
+                        body: '¿Quitar la exención de esta evidencia? Volverá al estado Pendiente y, si la fecha límite ya pasó, podrá marcarse Vencida nuevamente.',
+                        confirmLabel: 'Quitar exención',
+                        variant: 'warning',
+                        action: () => $wire.removeExemption(),
+                    })"
+                    wire:loading.attr="disabled"
+                    wire:target="removeExemption"
+                >
+                    <span wire:loading.remove wire:target="removeExemption">Quitar exención</span>
+                    <span wire:loading wire:target="removeExemption">Quitando...</span>
+                </button>
+            @endcan
+        </div>
+    @elseif (auth()->user()->can('markExempt', $evidence))
+        <div class="card mt-6 space-y-4 p-6">
+            <h2 class="form-section-title">
+                {{ $isSelfExemption ? 'Marcarme como exento' : 'Exención (Administración/Coordinación)' }}
+            </h2>
+            <p class="text-base text-text-secondary">
+                @if ($isSelfExemption)
+                    Si tienes otra prioridad que te impide realizar esta entrega (carga académica, un percance, etc.), puedes marcarte como exento: ya no estarás obligado a enviarla y no contará en tu % de avance.
+                @else
+                    Eximir a este docente de este entregable: deja de estar obligado a enviarlo y ya no cuenta en su % de avance.
+                @endif
             </p>
             <div>
                 <label class="field-label">
                     Justificación <span class="font-normal text-text-secondary">(obligatoria)</span>
                 </label>
-                <textarea wire:model="exemptionJustification" rows="3" class="field-input"></textarea>
+                <textarea wire:model="exemptionJustification" rows="3" class="field-input" placeholder="{{ $isSelfExemption ? 'Explica por qué no puedes realizar esta entrega.' : 'Explica por qué el docente no puede realizar esta entrega.' }}"></textarea>
                 @error('exemptionJustification') <p class="field-error">{{ $message }}</p> @enderror
             </div>
             <button
                 type="button"
                 class="btn-warning"
                 @click="$dispatch('confirm-modal', {
-                    title: 'Marcar evidencia como exenta',
-                    body: '¿Marcar esta evidencia como exenta? El docente ya no tendrá que enviarla y dejará de contar en su porcentaje de avance. Esta acción quedará registrada en la auditoría.',
+                    title: '{{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar evidencia como exenta' }}',
+                    body: '{{ $isSelfExemption
+                        ? '¿Marcarte como exento de este entregable? Ya no tendrás que enviarlo y dejará de contar en tu porcentaje de avance. Esta acción quedará registrada en la auditoría.'
+                        : '¿Marcar esta evidencia como exenta? El docente ya no tendrá que enviarla y dejará de contar en su porcentaje de avance. Esta acción quedará registrada en la auditoría.' }}',
                     confirmLabel: 'Marcar como exento',
                     variant: 'warning',
                     action: () => $wire.markExempt(),
                 })"
+                wire:loading.attr="disabled"
+                wire:target="markExempt"
             >
-                <x-icon name="shield-check" class="h-4 w-4" />
-                Marcar como exento
+                <span wire:loading.remove wire:target="markExempt" class="inline-flex items-center gap-2">
+                    <x-icon name="shield-check" class="h-4 w-4" />
+                    {{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar como exento' }}
+                </span>
+                <span wire:loading wire:target="markExempt">Marcando...</span>
             </button>
         </div>
-    @endcan
-
-    @can('removeExemption', $evidence)
-        <div class="card mt-6 space-y-4 p-6">
-            <h2 class="form-section-title">Exención activa</h2>
-            <p class="text-base text-text-secondary">
-                Esta evidencia está marcada como exenta. El docente no puede editarla ni enviarla mientras la exención esté activa.
-            </p>
-            <button
-                type="button"
-                class="btn-secondary"
-                @click="$dispatch('confirm-modal', {
-                    title: 'Quitar exención',
-                    body: '¿Quitar la exención de esta evidencia? Volverá al estado Pendiente y, si la fecha límite ya pasó, podrá marcarse Vencida nuevamente.',
-                    confirmLabel: 'Quitar exención',
-                    variant: 'warning',
-                    action: () => $wire.removeExemption(),
-                })"
-            >
-                Quitar exención
-            </button>
+    @elseif ($canManageExemptionByRole)
+        {{-- Tiene el rol para eximir (dueño, Administrador o Coordinación)
+             pero el estado actual no lo permite — sin este aviso, la
+             sección de exención simplemente desaparecería sin explicar
+             por qué. --}}
+        <div class="mt-6 flex items-center gap-2 rounded-md bg-surface-muted p-4 text-sm text-text-secondary">
+            <x-icon name="alert-circle" class="h-4 w-4 shrink-0" />
+            @if ($isSelfExemption)
+                No puedes marcarte exento mientras esta evidencia esté Enviada o Aprobada. Esta evidencia está en estado "{{ $evidence->status->label() }}" — si ya la enviaste, espera a que tu líder la revise o la devuelva primero; si ya fue aprobada, no se puede eximir.
+            @else
+                No se puede eximir una evidencia Enviada o Aprobada. Esta evidencia está en estado "{{ $evidence->status->label() }}" — si ya fue enviada, debe devolverse primero; si ya fue aprobada, no se puede eximir.
+            @endif
         </div>
-    @endcan
+    @endif
 
     @if ($evidence->reviews->isNotEmpty())
         <div class="mt-6">

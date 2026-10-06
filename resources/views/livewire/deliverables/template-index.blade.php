@@ -11,6 +11,20 @@
         de partida al crear varios entregables concretos con fechas distintas.
     </p>
 
+    <div class="mb-4 flex flex-wrap gap-4">
+        <x-search-input
+            wire:model.live.debounce.300ms="search"
+            placeholder="Buscar plantilla..."
+            class="w-full max-w-xs"
+        />
+
+        <select wire:model.live="statusFilter" class="field-input mt-0 w-auto">
+            <option value="">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+        </select>
+    </div>
+
     <div class="table-shell">
         <table class="min-w-full divide-y divide-border-subtle">
             <thead>

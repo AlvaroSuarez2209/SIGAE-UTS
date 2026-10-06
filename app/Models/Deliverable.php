@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AcademicPeriodStatus;
+use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
@@ -31,6 +32,7 @@ class Deliverable extends Model
 
     protected $fillable = [
         'deliverable_template_id',
+        'status',
         'academic_period_id',
         'activity_id',
         'cross_cutting_commitment_id',
@@ -54,6 +56,7 @@ class Deliverable extends Model
     {
         return [
             'is_mandatory' => 'boolean',
+            'status' => DeliverableStatus::class,
             'periodicity_type' => PeriodicityType::class,
             'opens_at' => 'datetime',
             'due_at' => 'datetime',

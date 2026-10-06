@@ -5,6 +5,7 @@ namespace App\Livewire\Deliverables;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Models\DeliverableTemplate;
+use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -62,7 +63,7 @@ class TemplateForm extends Component
     public function save(): void
     {
         $data = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', (new CaseAccentInsensitiveUnique('deliverable_templates'))->ignore($this->template)],
             'description' => ['nullable', 'string', 'max:2000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
             'completion_criteria' => ['nullable', 'string', 'max:2000'],

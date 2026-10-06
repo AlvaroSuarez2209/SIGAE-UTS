@@ -24,6 +24,7 @@
             <thead>
                 <tr>
                     <th class="table-header-cell">Nombre</th>
+                    <th class="table-header-cell">Estado</th>
                     <th class="table-header-cell">Ámbito</th>
                     <th class="table-header-cell">Obligatorio</th>
                     <th class="table-header-cell">Fecha límite</th>
@@ -35,6 +36,7 @@
                 @forelse ($deliverables as $deliverable)
                     <tr wire:key="deliverable-{{ $deliverable->id }}" class="table-row">
                         <td class="table-cell">{{ $deliverable->name }}</td>
+                        <td class="table-cell"><x-status-badge :status="$deliverable->status" /></td>
                         <td class="table-cell text-text-secondary">
                             @if ($deliverable->isCrossCutting())
                                 <span class="badge bg-category-subtle text-category">
@@ -59,7 +61,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6">
+                        <td colspan="7">
                             <x-empty-state icon="document" title="No hay entregables registrados" description='Usa el botón "Nuevo entregable" para crear el primero.' />
                         </td>
                     </tr>

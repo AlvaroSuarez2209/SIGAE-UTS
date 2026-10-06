@@ -5,6 +5,7 @@ namespace App\Livewire\Evidence;
 use App\Models\AcademicPeriod;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -13,6 +14,7 @@ class MyDeliverables extends Component
 {
     public ?int $periodFilter = null;
 
+    #[Url(as: 'status')]
     public string $statusFilter = '';
 
     public function mount(): void

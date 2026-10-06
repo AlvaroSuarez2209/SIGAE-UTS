@@ -3,6 +3,7 @@
 namespace App\Livewire\Evidence;
 
 use App\Enums\EvidenceType;
+use App\Enums\RoleName;
 use App\Models\Evidence;
 use App\Models\EvidenceFile;
 use Illuminate\Support\Facades\Gate;
@@ -281,7 +282,7 @@ class EvidenceWorkspace extends Component
         $hasText = filled($version->description);
         $hasLink = $version->links()->exists();
 
-        $satisfiesFile = in_array(EvidenceType::File->value, $allowed, true) || in_array(EvidenceType::MultipleFiles->value, $allowed, true);
+        $satisfiesFile = in_array(EvidenceType::File->value, $allowed, true);
         $satisfiesText = in_array(EvidenceType::Text->value, $allowed, true);
         $satisfiesLink = in_array(EvidenceType::Link->value, $allowed, true);
 
@@ -306,7 +307,7 @@ class EvidenceWorkspace extends Component
         $this->validate([
             'exemptionJustification' => ['required', 'string', 'max:2000'],
         ], [
-            'exemptionJustification.required' => 'La exención exige una justificación explicando por qué el docente queda eximido.',
+            'exemptionJustification.required' => 'Explica por qué no puedes realizar esta entrega.',
         ]);
 
         $this->evidence->markExempt($this->exemptionJustification);
@@ -326,6 +327,21 @@ class EvidenceWorkspace extends Component
         session()->flash('status', 'Exención retirada; la evidencia vuelve a estar pendiente.');
     }
 
+    /**
+     * Para decidir, en la vista, si se muestra el aviso de "no puedes
+     * eximirte en este estado" en vez de no mostrar nada — chequea solo el
+     * ROL (quién podría eximir en general), nunca el estado, que es lo
+     * que EvidencePolicy::markExempt() decide de verdad. Esto es
+     * puramente de presentación: sin él, alguien con el rol correcto pero
+     * en un estado bloqueado (Enviada/Aprobada) no vería ninguna pista de
+     * por qué la sección de exención no aparece.
+     */
+    public function canManageExemptionByRole(): bool
+    {
+        return auth()->id() === $this->evidence->user_id
+            || auth()->user()->hasAnyRole([RoleName::Administrator, RoleName::Coordination]);
+    }
+
     public function render()
     {
         $this->evidence->load([
@@ -340,6 +356,7 @@ class EvidenceWorkspace extends Component
 
         return view('livewire.evidence.evidence-workspace', [
             'allowed' => $this->allowedTypes(),
+            'canManageExemptionByRole' => $this->canManageExemptionByRole(),
         ])->title($this->evidence->deliverable->name);
     }
 }

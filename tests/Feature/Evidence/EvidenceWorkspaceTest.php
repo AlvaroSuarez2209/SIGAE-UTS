@@ -89,6 +89,26 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals('propuesta.pdf', $evidence->currentVersion->files->first()->original_name);
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: "Guardar borrador" era,
+     * según el diagnóstico, el único botón de todo el sistema sin ningún
+     * paso de loading — ni siquiera wire:loading simple. "Enviar
+     * evidencia" (vía confirm-modal) tampoco lo tenía.
+     */
+    public function test_save_draft_and_submit_buttons_disable_themselves_and_show_their_own_loading_state(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringContainsString('wire:target="saveDraft,submit"', $html);
+        $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
+        $this->assertStringContainsString('Guardando...', $html);
+        $this->assertStringContainsString('Enviando...', $html);
+    }
+
     public function test_cannot_submit_without_meeting_minimum_evidence_requirement(): void
     {
         $evidence = $this->evidenceFor();
@@ -341,6 +361,22 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals('pending', $log->metadata['previous_status']);
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: "Marcar como exento" no
+     * tenía ningún estado de carga.
+     */
+    public function test_mark_exempt_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $evidence = $this->evidenceFor();
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(EvidenceWorkspace::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('wire:target="markExempt"', $html);
+        $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
+        $this->assertStringContainsString('Marcando...', $html);
+    }
+
     public function test_coordination_can_also_mark_evidence_as_exempt(): void
     {
         $evidence = $this->evidenceFor();
@@ -369,15 +405,184 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
     }
 
-    public function test_teacher_cannot_mark_their_own_evidence_as_exempt(): void
+    /**
+     * Revisión del estado Exento (aclaración de la directora): el docente
+     * dueño ahora puede marcarse exento cuando otra prioridad le impide
+     * cumplir la entrega — antes esto estaba prohibido por completo (ver
+     * EvidencePolicy::markExempt()).
+     */
+    public function test_teacher_can_mark_their_own_evidence_as_exempt_when_pending(): void
     {
         $evidence = $this->evidenceFor();
 
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->set('exemptionJustification', 'Intento no autorizado')
+            ->set('exemptionJustification', 'Tengo una carga académica adicional este periodo que no me permite cumplir.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->status);
+        $this->assertEquals(
+            'Tengo una carga académica adicional este periodo que no me permite cumplir.',
+            $evidence->exemption_reason
+        );
+    }
+
+    public function test_teacher_can_mark_their_own_evidence_as_exempt_when_needs_adjustment(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Un percance familiar me impide ajustarla a tiempo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->fresh()->status);
+    }
+
+    /**
+     * "Docente ajeno": un docente sin ninguna relación con esta evidencia
+     * (no es el dueño, no es su líder) — EvidencePolicy::view() ya lo
+     * bloquearía antes de llegar a markExempt() si se montara la pantalla
+     * completa (ver test_unrelated_teacher_cannot_view_someone_elses_evidence
+     * más abajo), así que esta prueba va directo contra la policy
+     * específica de markExempt(), para aislar justo la regla que cambió
+     * (el dueño sí puede, cualquier otro docente no).
+     */
+    public function test_another_teachers_evidence_cannot_be_marked_exempt_by_a_different_teacher(): void
+    {
+        $evidence = $this->evidenceFor();
+        $otherTeacher = $this->userWithRole(RoleName::Teacher);
+
+        $this->assertFalse($otherTeacher->can('markExempt', $evidence));
+    }
+
+    /**
+     * Estados bloqueados: una evidencia Enviada o Aprobada ya tiene (o
+     * tuvo) una revisión en curso o resuelta — ni siquiera el propio
+     * docente puede eximirse por detrás de eso.
+     */
+    public function test_teacher_cannot_mark_their_own_submitted_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Submitted]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Intento no válido')
             ->call('markExempt')
             ->assertForbidden();
+    }
+
+    public function test_teacher_cannot_mark_their_own_approved_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Intento no válido')
+            ->call('markExempt')
+            ->assertForbidden();
+    }
+
+    /**
+     * Ajuste del bloqueo: solo Enviada y Aprobada están bloqueadas —
+     * Borrador y Vencida (y Pendiente/Requiere ajustes, ya probados
+     * arriba) son elegibles.
+     */
+    public function test_teacher_can_mark_their_own_draft_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Draft]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Tengo otra prioridad este periodo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->fresh()->status);
+    }
+
+    /**
+     * Vencida es un valor real de `evidences.status` (lo pone el comando
+     * diario `evidences:mark-overdue`, no se calcula a partir de la fecha
+     * límite) — se verifica aquí poniéndolo directamente, igual que
+     * cualquier otro estado.
+     */
+    public function test_teacher_can_mark_their_own_expired_evidence_as_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Expired]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Tengo otra prioridad este periodo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->fresh()->status);
+    }
+
+    /**
+     * Ventana real entre que la fecha límite pasa y el comando diario
+     * `evidences:mark-overdue` todavía no corrió: la evidencia sigue
+     * siendo Pendiente en la base de datos — ya era elegible antes de
+     * este ajuste (Pendiente siempre lo fue) y lo sigue siendo.
+     */
+    public function test_a_pending_evidence_past_its_due_date_but_not_yet_processed_by_the_scheduler_can_still_be_exempted(): void
+    {
+        $evidence = $this->evidenceFor(['due_at' => now()->subDay()]);
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->status);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Tengo otra prioridad este periodo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->fresh()->status);
+    }
+
+    /**
+     * Si el estado anterior a la exención era Borrador (con archivos ya
+     * cargados en una versión en edición), quitar la exención no debe
+     * perder nada: vuelve a Pendiente con la misma versión/archivos
+     * intactos — removeExemption() solo toca `status`/`exemption_reason`,
+     * nunca `current_version_id` ni las versiones/archivos.
+     */
+    public function test_removing_an_exemption_from_a_formerly_draft_evidence_keeps_its_files_intact(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Draft, $evidence->status);
+        $versionId = $evidence->current_version_id;
+
+        $evidence->update(['status' => EvidenceStatus::Exempt, 'exemption_reason' => 'Motivo temporal.']);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeExemption')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->status);
+        $this->assertNull($evidence->exemption_reason);
+        $this->assertEquals($versionId, $evidence->current_version_id);
+        $this->assertCount(1, $evidence->currentVersion->files);
+        $this->assertEquals('propuesta.pdf', $evidence->currentVersion->files->first()->original_name);
     }
 
     public function test_leader_cannot_mark_evidence_as_exempt(): void
@@ -450,6 +655,154 @@ class EvidenceWorkspaceTest extends TestCase
 
         $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
         $this->assertTrue(AuditLog::where('action', 'evidence_exemption_removed')->where('auditable_id', $evidence->id)->exists());
+    }
+
+    /**
+     * Revisión del estado Exento: el docente dueño también puede quitar
+     * su propia exención — antes solo Administrador/Coordinación podían.
+     * `exemption_reason` debe limpiarse al revertir.
+     */
+    public function test_teacher_can_remove_their_own_exemption(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Exempt, 'exemption_reason' => 'Motivo original.']);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeExemption')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->status);
+        $this->assertNull($evidence->exemption_reason);
+    }
+
+    public function test_leader_cannot_remove_an_exemption(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Exempt,
+            'exemption_reason' => 'Motivo original.',
+            'deliverable_id' => Deliverable::factory()->create([
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ])->id,
+        ]);
+
+        Livewire::actingAs($leader)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertOk()
+            ->call('removeExemption')
+            ->assertForbidden();
+    }
+
+    /**
+     * Visibilidad de la razón: cualquiera que pueda ver la evidencia
+     * (docente, líder en su ámbito, Coordinación) debe ver el motivo
+     * cuando está Exenta — antes no se mostraba a nadie.
+     */
+    public function test_exemption_reason_is_visible_to_the_teacher_when_exempt(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Exempt, 'exemption_reason' => 'Carga académica adicional este periodo.']);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Carga académica adicional este periodo.');
+    }
+
+    public function test_exemption_reason_is_visible_to_the_leader_in_scope_when_exempt(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Exempt,
+            'exemption_reason' => 'Un percance familiar.',
+            'deliverable_id' => Deliverable::factory()->create([
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ])->id,
+        ]);
+
+        Livewire::actingAs($leader)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Un percance familiar.');
+    }
+
+    /**
+     * Estado bloqueado, mensaje claro: quien tiene el rol para eximir
+     * (aquí, el propio docente) pero está en un estado no elegible debe
+     * ver una explicación — no que la sección de exención simplemente
+     * desaparezca sin decir por qué.
+     */
+    public function test_teacher_sees_a_clear_message_when_their_submitted_evidence_cannot_be_exempted(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Submitted]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('No puedes marcarte exento mientras esta evidencia esté Enviada o Aprobada');
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 7: "Quitar exención" tampoco
+     * tenía ningún estado de carga.
+     */
+    public function test_remove_exemption_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::Exempt]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(EvidenceWorkspace::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('wire:target="removeExemption"', $html);
+        $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
+        $this->assertStringContainsString('Quitando...', $html);
     }
 
     public function test_cannot_remove_exemption_from_an_evidence_that_is_not_exempt(): void
@@ -536,6 +889,26 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertHasErrors('newLinkUrl');
 
         $this->assertNull($evidence->fresh()->current_version_id);
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 3: `newLinkLabel` ya tenía su
+     * regla `max:255`, pero la plantilla solo mostraba el @error() de
+     * `newLinkUrl` — un error de etiqueta quedaba invisible. Confirma que
+     * el mensaje aparece en el HTML, no solo en el error bag.
+     */
+    public function test_a_too_long_link_label_shows_its_own_visible_error(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Link->value]]);
+
+        $component = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com')
+            ->set('newLinkLabel', str_repeat('a', 256))
+            ->call('addLink')
+            ->assertHasErrors('newLinkLabel');
+
+        $this->assertStringContainsString('no debe tener más de 255 caracteres', $component->html());
     }
 
     public function test_saving_a_draft_and_submitting_works_normally_when_period_is_active(): void

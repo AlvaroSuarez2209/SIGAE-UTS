@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Models\AcademicPeriod;
@@ -18,6 +19,7 @@ class DeliverableFactory extends Factory
     public function definition(): array
     {
         return [
+            'status' => DeliverableStatus::Published,
             'academic_period_id' => AcademicPeriod::factory(),
             'activity_id' => Activity::factory(),
             'cross_cutting_commitment_id' => null,
@@ -44,5 +46,10 @@ class DeliverableFactory extends Factory
             'activity_id' => null,
             'cross_cutting_commitment_id' => CrossCuttingCommitment::factory(),
         ]);
+    }
+
+    public function draft(): static
+    {
+        return $this->state(fn () => ['status' => DeliverableStatus::Draft]);
     }
 }

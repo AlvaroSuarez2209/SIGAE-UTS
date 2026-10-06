@@ -6,6 +6,7 @@ use App\Enums\PeriodicityType;
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DeliverableTemplate extends Model
 {
@@ -35,5 +36,10 @@ class DeliverableTemplate extends Model
             'allowed_evidence_types' => 'array',
             'allowed_file_types' => 'array',
         ];
+    }
+
+    public function deliverables(): HasMany
+    {
+        return $this->hasMany(Deliverable::class);
     }
 }
