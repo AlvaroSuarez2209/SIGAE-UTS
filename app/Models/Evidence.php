@@ -8,11 +8,14 @@ use App\Enums\RoleName;
 use App\Models\Concerns\Auditable;
 use App\Notifications\Evidence\EvidenceApprovalConfirmedNotification;
 use App\Notifications\Evidence\EvidenceApprovedNotification;
+use App\Notifications\Evidence\EvidenceExemptedForLeaderNotification;
 use App\Notifications\Evidence\EvidenceExemptedNotification;
 use App\Notifications\Evidence\EvidenceExemptionConfirmedNotification;
+use App\Notifications\Evidence\EvidenceExemptionRemovedForLeaderNotification;
 use App\Notifications\Evidence\EvidenceNeedsAdjustmentNotification;
 use App\Notifications\Evidence\EvidencePendingReviewNotification;
 use App\Notifications\Evidence\EvidenceReturnConfirmedNotification;
+use App\Notifications\Evidence\EvidenceStatusNotification;
 use App\Notifications\Evidence\EvidenceSubmissionConfirmedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +37,7 @@ class Evidence extends Model
         'user_id',
         'status',
         'current_version_id',
+        'exemption_reason',
     ];
 
     protected function casts(): array
@@ -148,22 +152,30 @@ class Evidence extends Model
     }
 
     /**
-     * Excepción administrativa: el docente deja de estar obligado a este
+     * El docente dueño de la evidencia se exime a sí mismo (otra
+     * prioridad le impide cumplir esta entrega), o Administración/
+     * Coordinación lo hace por él — EvidencePolicy::markExempt() exige
+     * además que el estado actual sea Pendiente o Devuelta (nunca
+     * Enviada/Aprobada: una revisión en curso o ya resuelta no se puede
+     * eximir por detrás). El docente deja de estar obligado a este
      * entregable (no cuenta en su % de avance, ver ComplianceCalculator) y
-     * no puede editarla/enviarla mientras la exención esté activa. Exige
-     * justificación y queda registrada en la bitácora de auditoría además
-     * del registro automático de "updated" que ya produce Auditable — este
-     * segundo registro es intencional: captura el "por qué", que el diff
-     * genérico de campos no puede expresar.
+     * no puede editarla/enviarla mientras la exención esté activa.
+     *
+     * La razón se guarda en `exemption_reason` (dato de negocio real,
+     * visible en la propia evidencia) Y queda registrada en la bitácora
+     * de auditoría además del registro automático de "updated" que ya
+     * produce Auditable — este segundo registro es intencional: captura
+     * el "por qué" con su propia traducción en AuditLogPresenter, que el
+     * diff genérico de campos no puede expresar igual de claro.
      */
-    public function markExempt(string $justification): void
+    public function markExempt(string $reason): void
     {
         $previousStatus = $this->status;
 
-        $this->update(['status' => EvidenceStatus::Exempt]);
+        $this->update(['status' => EvidenceStatus::Exempt, 'exemption_reason' => $reason]);
 
         AuditLog::record('evidence_marked_exempt', $this, [
-            'justification' => $justification,
+            'justification' => $reason,
             'previous_status' => $previousStatus->value,
         ]);
 
@@ -175,7 +187,12 @@ class Evidence extends Model
             auth()->user()->notify(new EvidenceExemptionConfirmedNotification($this));
         }
 
+        // El propio docente ya sabe por qué (la acción pudo haber sido
+        // suya) — se le notifica igual, sea quien sea el actor, para que
+        // quede un rastro consistente sin importar quién la ejecutó.
         $this->user->notify(new EvidenceExemptedNotification($this));
+
+        $this->notifyLeadersOfExemptionChange(new EvidenceExemptedForLeaderNotification($this, $reason));
     }
 
     /**
@@ -183,13 +200,41 @@ class Evidence extends Model
      * través de esta acción explícita, para que quede su propio rastro de
      * auditoría. La evidencia vuelve a "pendiente": si la fecha límite ya
      * pasó, el próximo `evidences:mark-overdue` la marcará vencida de
-     * nuevo, que es el comportamiento correcto.
+     * nuevo, que es el comportamiento correcto. `exemption_reason` se
+     * limpia (ya no aplica a una evidencia que no está exenta), pero se
+     * captura antes de limpiarla para dejarla en la propia fila de
+     * auditoría y en el aviso a los líderes — "qué fue lo que se
+     * revirtió" es información real, no solo "se revirtió algo".
      */
     public function removeExemption(): void
     {
-        $this->update(['status' => EvidenceStatus::Pending]);
+        $previousReason = $this->exemption_reason;
 
-        AuditLog::record('evidence_exemption_removed', $this);
+        $this->update(['status' => EvidenceStatus::Pending, 'exemption_reason' => null]);
+
+        AuditLog::record('evidence_exemption_removed', $this, array_filter([
+            'previous_reason' => $previousReason,
+        ]));
+
+        $this->notifyLeadersOfExemptionChange(new EvidenceExemptionRemovedForLeaderNotification($this, $previousReason));
+    }
+
+    /**
+     * Mismos destinatarios que una evidencia recién enviada
+     * (reviewerRecipients(): líder(es) vigentes del ámbito, o Coordinación
+     * si nadie cubre ese ámbito ahora mismo) — eximir o revertir una
+     * evidencia cambia lo que ese líder tiene pendiente de revisar, así
+     * que le interesa enterarse igual que si hubiera sido enviada. Se
+     * excluye al propio actor (Administrador/Coordinación puede coincidir
+     * con el destinatario de respaldo) para no auto-notificarlo dos veces:
+     * ya recibe su propia confirmación en markExempt().
+     */
+    private function notifyLeadersOfExemptionChange(EvidenceStatusNotification $notification): void
+    {
+        $recipients = $this->reviewerRecipients()
+            ->when(auth()->check(), fn ($users) => $users->reject(fn (User $u) => $u->id === auth()->id()));
+
+        Notification::send($recipients, $notification);
     }
 
     public function reviews(): HasManyThrough

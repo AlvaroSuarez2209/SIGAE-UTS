@@ -8,7 +8,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
+            <select wire:model.live="periodFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
                 @foreach ($periods as $period)
                     <option value="{{ $period->id }}">{{ $period->name }}</option>
                 @endforeach
@@ -17,6 +17,7 @@
             @if ($selectedPeriod)
                 <x-status-badge :status="$selectedPeriod->status" />
             @endif
+            <x-loading-indicator />
         </div>
     </div>
 
@@ -31,8 +32,36 @@
                         :label="$status->label()"
                         :color="$status->color()"
                         :icon="$status->icon()"
+                        :url="route('my-deliverables.index', ['status' => $status->value])"
                     />
                 @endforeach
+            </div>
+
+            @php
+                // Mismo tono por estado que las tarjetas KPI de arriba
+                // (EvidenceStatus::color()), traducido a un color CSS real:
+                // un atributo SVG stroke/fill no puede resolver una clase
+                // de utilidad de Tailwind, solo un valor de color.
+                $statusToneColors = [
+                    'neutral' => 'var(--color-text-secondary)',
+                    'secondary' => 'var(--color-secondary)',
+                    'primary' => 'var(--color-brand-primary)',
+                    'warning' => 'var(--color-status-warning)',
+                    'success' => 'var(--color-status-success)',
+                    'error' => 'var(--color-status-error)',
+                    'accent' => 'var(--color-accent)',
+                ];
+                $teacherDonutSegments = collect(\App\Enums\EvidenceStatus::cases())->map(fn ($status) => [
+                    'label' => $status->label(),
+                    'value' => $teacherPanel['counts'][$status->value],
+                    'color' => $statusToneColors[$status->color()],
+                    'url' => route('my-deliverables.index', ['status' => $status->value]),
+                ])->all();
+            @endphp
+
+            <div class="card mb-6 p-5">
+                <p class="mb-3 text-sm font-semibold text-text-primary">Distribución de evidencias por estado</p>
+                <x-donut-chart :segments="$teacherDonutSegments" empty-label="Todavía no tienes evidencias en este periodo." />
             </div>
 
             @if ($teacherPanel['compliance']['percentage'] !== null)
@@ -81,12 +110,43 @@
         <section>
             <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel líder</h2>
 
+            <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
+                <x-kpi-card :value="$leaderPanel['teacherCount']" label="Docentes en tu ámbito" color="primary" icon="users" />
+                <x-kpi-card :value="$leaderPanel['pendingReviewCount']" label="Pendientes de revisión" color="warning" icon="clock" />
+                <x-kpi-card
+                    :value="$leaderPanel['averageCompliance'] !== null ? $leaderPanel['averageCompliance'].'%' : '—'"
+                    label="% cumplimiento promedio"
+                    :color="$leaderPanel['averageCompliance'] !== null ? 'success' : 'neutral'"
+                    icon="check-circle"
+                />
+                {{-- Siempre visible, también en 0 — para que el Líder sepa
+                     que esta pantalla existe aunque hoy no tenga ninguna
+                     evidencia exenta en su ámbito. --}}
+                <x-kpi-card
+                    :value="$leaderPanel['exemptCount']"
+                    label="Exentas"
+                    color="accent"
+                    icon="shield-check"
+                    :url="route('reviews.exempt', ['period' => $periodFilter])"
+                />
+            </div>
+
             <div class="card mb-6 p-5">
                 <p class="text-sm text-text-secondary">
-                    <span class="font-semibold text-text-primary">{{ $leaderPanel['pendingReviewCount'] }}</span>
-                    evidencia(s) pendiente(s) de revisión en tu ámbito.
-                    <a href="{{ route('reviews.index') }}" class="btn-text">Ir a la bandeja</a>
+                    <a href="{{ route('reviews.index') }}" class="btn-text">Ir a la bandeja de revisión</a>
                 </p>
+            </div>
+
+            {{-- Sin enlace: a diferencia del panel de Coordinación,
+                 /reports/* no admite el rol Líder (role:administrator,
+                 coordination,auditor) — enlazar aquí a reports.activity
+                 era un 403 esperando a que alguien hiciera clic.
+                 <x-bar-chart> ya muestra la fila sin vínculo cuando no
+                 recibe 'url'. --}}
+            @php $leaderActivityBars = $leaderPanel['activityCompliance']->all(); @endphp
+            <div class="card mb-6 p-5">
+                <p class="mb-3 text-sm font-semibold text-text-primary">% de cumplimiento por actividad</p>
+                <x-bar-chart :bars="$leaderActivityBars" empty-label="No hay actividades con entregables obligatorios en tu ámbito todavía." />
             </div>
 
             <div class="table-shell">
@@ -130,15 +190,83 @@
         <section>
             <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel de coordinación</h2>
 
-            <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-7">
+            <div class="mb-6 flex flex-wrap items-end gap-3">
+                <div>
+                    <label class="field-label">Programa</label>
+                    <select wire:model.live="programFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                        <option value="">Todos</option>
+                        @foreach ($programUnits as $programUnit)
+                            <option value="{{ $programUnit->id }}">{{ $programUnit->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Docente</label>
+                    <select wire:model.live="teacherFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                        <option value="">Todos</option>
+                        @foreach ($filterableTeachers as $filterableTeacher)
+                            <option value="{{ $filterableTeacher->id }}">{{ $filterableTeacher->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Actividad</label>
+                    <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                        <option value="">Todas</option>
+                        @foreach ($filterableActivities as $filterableActivity)
+                            <option value="{{ $filterableActivity->id }}">{{ $filterableActivity->component->name }} — {{ $filterableActivity->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Líder</label>
+                    <select wire:model.live="leaderFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                        <option value="">Todos</option>
+                        @foreach ($filterableLeaders as $filterableLeader)
+                            <option value="{{ $filterableLeader->id }}">{{ $filterableLeader->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Estado</label>
+                    <select wire:model.live="evidenceStatusFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                        <option value="">Todos</option>
+                        @foreach ($evidenceStatusOptions as $status)
+                            <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <x-loading-indicator />
+            </div>
+
+            <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-8">
+                <x-kpi-card
+                    :value="$coordinationPanel['globalCompliance'] !== null ? $coordinationPanel['globalCompliance'].'%' : '—'"
+                    label="% cumplimiento global"
+                    :color="$coordinationPanel['globalCompliance'] !== null ? 'success' : 'neutral'"
+                    icon="check-circle"
+                    :url="route('reports.consolidated', ['period' => $periodFilter])"
+                />
                 @foreach (\App\Enums\EvidenceStatus::cases() as $status)
                     <x-kpi-card
                         :value="$coordinationPanel['counts'][$status->value]"
                         :label="$status->label()"
                         :color="$status->color()"
                         :icon="$status->icon()"
+                        :url="route('reports.consolidated', ['period' => $periodFilter, 'status' => $status->value])"
                     />
                 @endforeach
+            </div>
+
+            @php
+                $programBars = $coordinationPanel['programCompliance']->map(fn ($bar) => [
+                    ...$bar,
+                    'url' => route('reports.consolidated', ['period' => $periodFilter, 'program' => $bar['programUnitId']]),
+                ])->all();
+            @endphp
+            <div class="card mb-6 p-5">
+                <p class="mb-3 text-sm font-semibold text-text-primary">% de cumplimiento por programa</p>
+                <x-bar-chart :bars="$programBars" empty-label="No hay docentes con entregables obligatorios en este periodo todavía." />
             </div>
 
             <div class="table-shell">
@@ -153,7 +281,11 @@
                     <tbody class="divide-y divide-border-subtle">
                         @forelse ($coordinationPanel['teacherRows'] as $row)
                             <tr class="table-row">
-                                <td class="table-cell">{{ $row['teacher']->name }}</td>
+                                <td class="table-cell">
+                                    <a href="{{ route('reports.teacher', ['period' => $periodFilter, 'teacher' => $row['teacher']->id]) }}" class="text-brand-primary hover:underline">
+                                        {{ $row['teacher']->name }}
+                                    </a>
+                                </td>
                                 <td class="table-cell text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         <x-progress-bar :percentage="$row['compliance']['percentage']" class="h-1.5 w-20" />

@@ -18,6 +18,14 @@ use Illuminate\Support\Collection;
  * promedio ponderado. Un conjunto mixto (algunos con peso, otros sin) se
  * trata como "sin pesos" para no inventar una regla de prorrateo que el
  * negocio no pidió.
+ *
+ * Un entregable con evidencia Exenta (EvidenceStatus::Exempt) se excluye
+ * del cálculo por completo — mismo tratamiento que uno opcional (is_mandatory
+ * = false) — nunca suma al numerador (aprobados) ni al denominador (total).
+ * Bug real encontrado y corregido en la revisión de Prioridad 6: antes, un
+ * entregable exento seguía contando como "no aprobado" en el denominador,
+ * bajando el % de avance del docente exactamente igual que uno sin
+ * resolver — lo opuesto de lo que una exención debería significar.
  */
 class ComplianceCalculator
 {
@@ -40,6 +48,16 @@ class ComplianceCalculator
 
         $evidenceByDeliverable = ($evidences ?? $user->evidences()->whereIn('deliverable_id', $mandatory->pluck('id'))->get())
             ->keyBy('deliverable_id');
+
+        // Exento se excluye por completo, igual que un opcional — no entra
+        // ni al numerador ni al denominador (ver docblock de la clase).
+        $mandatory = $mandatory->reject(
+            fn (Deliverable $d) => $evidenceByDeliverable->get($d->id)?->status === EvidenceStatus::Exempt
+        );
+
+        if ($mandatory->isEmpty()) {
+            return ['percentage' => null, 'approved' => 0, 'total' => 0];
+        }
 
         $isApproved = fn (Deliverable $deliverable) => $evidenceByDeliverable
             ->get($deliverable->id)

@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\Admin\TeacherImportTemplateController;
+use App\Http\Controllers\Audit\AuditLogExportController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Cron\ProcessQueueController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
+use App\Livewire\Admin\InstitutionSettingsForm;
+use App\Livewire\Admin\Users\TeacherImportWizard;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Admin\Users\UserIndex;
 use App\Livewire\Audit\AuditLogIndex;
@@ -11,6 +15,7 @@ use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Catalogs\ActivityIndex;
+use App\Livewire\Catalogs\CatalogHierarchy;
 use App\Livewire\Catalogs\ComponentIndex;
 use App\Livewire\Catalogs\CrossCuttingCommitmentIndex;
 use App\Livewire\Catalogs\ProgramUnitIndex;
@@ -33,6 +38,7 @@ use App\Livewire\Reports\ActivityReport;
 use App\Livewire\Reports\ConsolidatedReport;
 use App\Livewire\Reports\CrossCuttingReport;
 use App\Livewire\Reports\TeacherReport;
+use App\Livewire\Reviews\ExemptEvidenceIndex;
 use App\Livewire\Reviews\ReviewInbox;
 use App\Livewire\Reviews\ReviewShow;
 use Illuminate\Support\Facades\Route;
@@ -70,20 +76,36 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::middleware('role:administrator,coordination,leader')->prefix('reviews')->name('reviews.')->group(function () {
         Route::get('/', ReviewInbox::class)->name('index');
+        Route::get('/exempt', ExemptEvidenceIndex::class)->name('exempt');
         Route::get('/{evidence}', ReviewShow::class)->name('show');
     });
 
     Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');
         Route::get('/users/create', UserForm::class)->name('users.create');
+        Route::get('/users/import', TeacherImportWizard::class)->name('users.import');
+        Route::get('/users/import/template', TeacherImportTemplateController::class)->name('users.import.template');
         Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
+        Route::get('/settings/institution', InstitutionSettingsForm::class)->name('settings.institution');
+    });
+
+    // Prioridad 7, parte 2: a diferencia del resto de /admin (solo
+    // Administrador), la bitácora es de solo lectura también para Auditor
+    // — mismo criterio de acceso que ya tiene en Dashboard y Reportes. No
+    // comparte grupo de middleware con el resto de /admin de arriba a
+    // propósito, para no abrirle a Auditor ninguna otra pantalla (usuarios,
+    // identidad institucional) que sigue siendo exclusiva de Administrador.
+    Route::middleware('role:administrator,auditor')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/audit-logs', AuditLogIndex::class)->name('audit-logs.index');
+        Route::get('/audit-logs/pdf', [AuditLogExportController::class, 'downloadPdf'])->name('audit-logs.pdf');
+        Route::get('/audit-logs/excel', [AuditLogExportController::class, 'downloadExcel'])->name('audit-logs.excel');
     });
 
     Route::middleware('role:administrator,coordination')->group(function () {
         Route::get('/periods', PeriodIndex::class)->name('periods.index');
 
         Route::prefix('catalogs')->name('catalogs.')->group(function () {
+            Route::get('/hierarchy', CatalogHierarchy::class)->name('hierarchy');
             Route::get('/program-units', ProgramUnitIndex::class)->name('program-units');
             Route::get('/components', ComponentIndex::class)->name('components');
             Route::get('/subcomponents', SubcomponentIndex::class)->name('subcomponents');

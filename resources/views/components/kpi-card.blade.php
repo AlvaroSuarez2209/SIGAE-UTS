@@ -1,4 +1,4 @@
-@props(['value', 'label', 'color' => 'neutral', 'icon' => null])
+@props(['value', 'label', 'color' => 'neutral', 'icon' => null, 'url' => null])
 
 @php
     $tones = [
@@ -12,12 +12,13 @@
     ];
 
     $tone = $tones[$color] ?? $tones['neutral'];
+    $tag = $url ? 'a' : 'div';
 @endphp
 
-<div {{ $attributes->merge(['class' => "card card-accent {$tone['border']} {$tone['bg']} p-6 text-center"]) }}>
+<{{ $tag }} @if ($url) href="{{ $url }}" @endif {{ $attributes->merge(['class' => "card card-accent {$tone['border']} {$tone['bg']} p-6 text-center".($url ? ' transition-shadow hover:shadow-md' : '')]) }}>
     @if ($icon)
         <x-icon :name="$icon" class="{{ $tone['icon'] }} mx-auto mb-2 h-6 w-6" />
     @endif
     <p class="text-3xl font-bold text-text-primary">{{ $value }}</p>
     <p class="text-sm text-text-secondary">{{ $label }}</p>
-</div>
+</{{ $tag }}>

@@ -20,8 +20,10 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use App\Notifications\Evidence\EvidenceApprovalConfirmedNotification;
 use App\Notifications\Evidence\EvidenceApprovedNotification;
+use App\Notifications\Evidence\EvidenceExemptedForLeaderNotification;
 use App\Notifications\Evidence\EvidenceExemptedNotification;
 use App\Notifications\Evidence\EvidenceExemptionConfirmedNotification;
+use App\Notifications\Evidence\EvidenceExemptionRemovedForLeaderNotification;
 use App\Notifications\Evidence\EvidenceNeedsAdjustmentNotification;
 use App\Notifications\Evidence\EvidencePendingReviewNotification;
 use App\Notifications\Evidence\EvidenceReturnConfirmedNotification;
@@ -35,9 +37,12 @@ use Tests\TestCase;
 /**
  * Verifica que las notificaciones por correo se disparen exactamente en
  * los puntos donde ya ocurre cada transición de estado (nunca desde un
- * observer genérico), y solo en los 5 escenarios pedidos — en particular,
- * que reopen() (que también deja el estado en NeedsAdjustment) y
- * removeExemption() (fuera del alcance pedido) no disparen nada.
+ * observer genérico). reopen() (que también deja el estado en
+ * NeedsAdjustment) sigue sin disparar nada — es una acción excepcional
+ * sin una Review asociada. markExempt()/removeExemption() sí notifican al
+ * líder/Coordinación en el ámbito desde la revisión del estado Exento
+ * (antes no avisaban a nadie salvo, en el caso de marcar, al propio
+ * docente).
  */
 class EvidenceNotificationDispatchTest extends TestCase
 {
@@ -253,10 +258,35 @@ class EvidenceNotificationDispatchTest extends TestCase
     }
 
     /**
-     * Quitar una exención no está entre los 5 escenarios pedidos — solo
-     * marcarla lo está.
+     * Revisión del estado Exento: el líder (o Coordinación, si nadie
+     * cubre el ámbito) también debe enterarse cuando una evidencia que
+     * podía tener pendiente de revisar queda exenta — antes esto no
+     * avisaba a nadie salvo al propio docente.
      */
-    public function test_removing_an_exemption_does_not_send_any_notification(): void
+    public function test_marking_exempt_also_notifies_the_leader_in_scope(): void
+    {
+        [$evidence, $teacher, $leader] = $this->teacherWithAssignment();
+
+        Notification::fake();
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', 'Tengo otra prioridad este periodo.')
+            ->call('markExempt')
+            ->assertHasNoErrors();
+
+        Notification::assertSentTo($leader, EvidenceExemptedForLeaderNotification::class);
+    }
+
+    /**
+     * Quitar una exención nunca notifica al propio actor (a diferencia de
+     * markExempt, que sí le confirma a quien la marcó) — aquí, además, no
+     * hay ningún líder ni Coordinación en el ámbito de esta evidencia (sin
+     * TeacherAssignment/Leadership ni Coordinación seedeada), así que no
+     * se envía nada en absoluto. Ver el siguiente test para el caso con
+     * alguien real en el ámbito.
+     */
+    public function test_removing_an_exemption_does_not_notify_the_actor(): void
     {
         $evidence = Evidence::factory()->create(['status' => EvidenceStatus::Exempt]);
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -269,5 +299,25 @@ class EvidenceNotificationDispatchTest extends TestCase
             ->assertHasNoErrors();
 
         Notification::assertNothingSent();
+    }
+
+    /**
+     * Revisión del estado Exento: revertir una exención también avisa al
+     * líder (o Coordinación) en el ámbito — la evidencia vuelve a estar
+     * pendiente y puede terminar de nuevo en su bandeja.
+     */
+    public function test_removing_an_exemption_notifies_the_leader_in_scope(): void
+    {
+        [$evidence, $teacher, $leader] = $this->teacherWithAssignment();
+        $evidence->update(['status' => EvidenceStatus::Exempt, 'exemption_reason' => 'Motivo original.']);
+
+        Notification::fake();
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeExemption')
+            ->assertHasNoErrors();
+
+        Notification::assertSentTo($leader, EvidenceExemptionRemovedForLeaderNotification::class);
     }
 }

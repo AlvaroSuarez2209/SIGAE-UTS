@@ -40,24 +40,33 @@ class EvidencePolicy
     }
 
     /**
-     * Marcar una evidencia como exenta es una decisión administrativa
-     * institucional (ej. licencia, reasignación), no una decisión de
-     * revisión por pares — se restringe a Administrador/Coordinación,
-     * igual que activar/desactivar catálogos y plantillas. Un Líder no la
-     * tiene: su ámbito es revisar el contenido de una evidencia dentro de
-     * su liderazgo, no decidir si el docente está obligado a presentarla.
-     * No se puede eximir una evidencia ya aprobada (el resultado ya es
-     * definitivo) ni una que ya está exenta (usar removeExemption).
+     * Revisión del estado Exento (aclaración de la directora): el docente
+     * dueño de la evidencia se exime a sí mismo cuando otra prioridad le
+     * impide cumplir la entrega — ya no es solo una decisión
+     * administrativa institucional. Administrador/Coordinación mantienen
+     * la misma capacidad (ej. licencia, reasignación que el docente no
+     * gestiona él mismo). El Líder sigue sin tenerla: su ámbito es
+     * revisar el contenido de una evidencia dentro de su liderazgo, no
+     * decidir si el docente está obligado a presentarla.
+     *
+     * Bloqueado solo en Enviada (ya hay una revisión en curso; debe
+     * resolverse primero, no eximirse por detrás), Aprobada (el resultado
+     * ya es definitivo) y Exenta (usar removeExemption). Cualquier otro
+     * estado es elegible, incluyendo Borrador y Vencida — Vencida es un
+     * valor real de `status` (no calculado: lo pone el comando diario
+     * `evidences:mark-overdue`, ver MarkOverdueEvidences), así que se
+     * verifica igual que los demás con `in_array`, sin lógica de fecha
+     * aparte.
      */
     public function markExempt(User $user, Evidence $evidence): bool
     {
-        return $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination])
-            && ! in_array($evidence->status, [EvidenceStatus::Approved, EvidenceStatus::Exempt], true);
+        return ($user->id === $evidence->user_id || $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination]))
+            && ! in_array($evidence->status, [EvidenceStatus::Submitted, EvidenceStatus::Approved, EvidenceStatus::Exempt], true);
     }
 
     public function removeExemption(User $user, Evidence $evidence): bool
     {
-        return $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination])
+        return ($user->id === $evidence->user_id || $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination]))
             && $evidence->status === EvidenceStatus::Exempt;
     }
 }

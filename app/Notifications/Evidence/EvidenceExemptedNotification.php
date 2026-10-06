@@ -16,7 +16,10 @@ class EvidenceExemptedNotification extends EvidenceStatusNotification
 
     protected function introText(object $notifiable): string
     {
-        return 'Tu evidencia fue marcada como exenta: ya no cuenta como pendiente en tu avance.';
+        $reason = $this->evidence->exemption_reason;
+        $reasonSuffix = $reason ? " Motivo: {$reason}" : '';
+
+        return "Tu evidencia fue marcada como exenta: ya no cuenta como pendiente en tu avance.{$reasonSuffix}";
     }
 
     protected function statusLabel(): string

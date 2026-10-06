@@ -84,6 +84,23 @@ class ReviewShowTest extends TestCase
         return [$evidence->fresh(), $leader, $teacher];
     }
 
+    /**
+     * Bloque de ajustes de interfaz, punto 7: "Aprobar"/"Devolver" no
+     * tenían ningún estado de carga — mismo patrón ya usado en
+     * Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    public function test_approve_and_return_buttons_disable_themselves_and_show_their_own_loading_state(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('wire:target="approve,returnForAdjustment"', $html);
+        $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
+        $this->assertStringContainsString('Aprobando...', $html);
+        $this->assertStringContainsString('Devolviendo...', $html);
+    }
+
     public function test_teacher_cannot_access_review_routes(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);
@@ -98,11 +115,18 @@ class ReviewShowTest extends TestCase
         Livewire::actingAs($leader)
             ->test(ReviewShow::class, ['evidence' => $evidence])
             ->call('approve')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertRedirect(route('reviews.index'));
 
         $evidence->refresh();
         $this->assertEquals(EvidenceStatus::Approved, $evidence->status);
         $this->assertEquals(ReviewDecision::Approved, $evidence->currentVersion->reviews()->first()->decision);
+
+        // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
+        // redirigía a reviews.index, que no tenía ningún bloque que lo
+        // mostrara. Confirma con una petición real (no Livewire::test(),
+        // que no renderiza el layout) que ahora sí llega.
+        $this->actingAs($leader)->get(route('reviews.index'))->assertSee('Evidencia aprobada.');
     }
 
     public function test_leader_outside_scope_cannot_review(): void
@@ -133,7 +157,8 @@ class ReviewShowTest extends TestCase
             ->test(ReviewShow::class, ['evidence' => $evidence])
             ->set('observation', 'Falta el archivo de soporte.')
             ->call('returnForAdjustment')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertRedirect(route('reviews.index'));
 
         $evidence->refresh();
         $this->assertEquals(EvidenceStatus::NeedsAdjustment, $evidence->status);
@@ -141,6 +166,12 @@ class ReviewShowTest extends TestCase
         $review = $evidence->currentVersion->reviews()->first();
         $this->assertEquals(ReviewDecision::Returned, $review->decision);
         $this->assertEquals('Falta el archivo de soporte.', $review->observations->first()->body);
+
+        // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
+        // redirigía a reviews.index, que no tenía ningún bloque que lo
+        // mostrara. Confirma con una petición real (no Livewire::test(),
+        // que no renderiza el layout) que ahora sí llega.
+        $this->actingAs($leader)->get(route('reviews.index'))->assertSee('Evidencia devuelta al docente para ajustes.');
     }
 
     public function test_teacher_cannot_review_their_own_evidence_even_as_leader(): void
@@ -253,5 +284,22 @@ class ReviewShowTest extends TestCase
             ->call('reopen');
 
         $this->assertEquals(EvidenceStatus::NeedsAdjustment, $evidence->fresh()->status);
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 7: "Reabrir (permiso especial)"
+     * tampoco tenía ningún estado de carga.
+     */
+    public function test_reopen_button_disables_itself_and_shows_a_loading_state(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader();
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('wire:target="reopen"', $html);
+        $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
+        $this->assertStringContainsString('Reabriendo...', $html);
     }
 }

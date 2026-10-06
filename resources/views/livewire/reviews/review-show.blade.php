@@ -9,12 +9,7 @@
         <x-status-badge :status="$evidence->status" />
     </div>
 
-    @if (session('status'))
-        <div class="mb-4 flex items-center gap-2 rounded-md bg-status-success-subtle p-3 text-sm text-status-success">
-            <x-icon name="check-circle" class="h-4 w-4 shrink-0" />
-            {{ session('status') }}
-        </div>
-    @endif
+    <x-flash-message />
 
     @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
         <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
@@ -85,9 +80,14 @@
                         variant: 'success',
                         action: () => $wire.approve(),
                     })"
+                    wire:loading.attr="disabled"
+                    wire:target="approve,returnForAdjustment"
                 >
-                    <x-icon name="check-circle" class="h-4 w-4" />
-                    Aprobar
+                    <span wire:loading.remove wire:target="approve" class="inline-flex items-center gap-2">
+                        <x-icon name="check-circle" class="h-4 w-4" />
+                        Aprobar
+                    </span>
+                    <span wire:loading wire:target="approve">Aprobando...</span>
                 </button>
                 <button
                     type="button"
@@ -99,9 +99,14 @@
                         variant: 'warning',
                         action: () => $wire.returnForAdjustment(),
                     })"
+                    wire:loading.attr="disabled"
+                    wire:target="approve,returnForAdjustment"
                 >
-                    <x-icon name="alert-triangle" class="h-4 w-4" />
-                    Devolver
+                    <span wire:loading.remove wire:target="returnForAdjustment" class="inline-flex items-center gap-2">
+                        <x-icon name="alert-triangle" class="h-4 w-4" />
+                        Devolver
+                    </span>
+                    <span wire:loading wire:target="returnForAdjustment">Devolviendo...</span>
                 </button>
                 <a href="{{ route('reviews.index') }}" class="btn-text text-text-secondary">Volver</a>
             </div>
@@ -120,8 +125,11 @@
                             variant: 'warning',
                             action: () => $wire.reopen(),
                         })"
+                        wire:loading.attr="disabled"
+                        wire:target="reopen"
                     >
-                        Reabrir (permiso especial)
+                        <span wire:loading.remove wire:target="reopen">Reabrir (permiso especial)</span>
+                        <span wire:loading wire:target="reopen">Reabriendo...</span>
                     </button>
                 </div>
             @endif
