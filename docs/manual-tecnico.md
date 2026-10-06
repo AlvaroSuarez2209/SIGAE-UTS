@@ -1410,23 +1410,31 @@ sección toca `.env` ni la configuración local.
   `pgsql_migrate` (`config/database.php`), que apunta a `DB_HOST_MIGRATE`
   — el host de Neon **sin** `-pooler`. El pooler de Neon corre PgBouncer
   en modo *transaction pooling*, que puede reasignar la sesión de
-  backend real entre una transacción y la siguiente; esto causó un fallo
-  real y reproducible en el primer despliegue de pruebas (la primerísima
-  migración, `create_users_table`, fallaba siempre igual, con el
-  síntoma clásico de Postgres "current transaction is aborted" — el
-  mensaje genérico que aparece en *cualquier* sentencia posterior a la
-  que realmente falló dentro de la misma transacción). El mismo modo de
-  pooling puede producir, para una migración que altera una tabla ya
-  existente (no el caso de `create_users_table`, que es una tabla
-  nueva), el error relacionado `cached plan must not change result
-  type` — una sesión reasignada deja un plan de consulta en caché
-  desincronizado con el esquema recién alterado. No es el error que
-  realmente se registró en este despliegue, pero es la misma causa raíz
-  (PgBouncer en modo *transaction pooling*), y la conexión directa de
-  `pgsql_migrate` lo evita igual. Sin `DB_HOST_MIGRATE` definido (como en
-  local, donde no existe ningún pooler), `pgsql_migrate` cae al mismo
-  `DB_HOST` de siempre — el
-  comportamiento local no cambia.
+  backend real entre una transacción y la siguiente — la misma causa
+  raíz detrás de dos incidentes reales y distintos en este proyecto:
+  - **Primer despliegue de pruebas**: la primerísima migración,
+    `create_users_table`, fallaba siempre igual, con el síntoma clásico
+    de Postgres "current transaction is aborted" (SQLSTATE 25P02) — el
+    mensaje genérico que aparece en *cualquier* sentencia posterior a la
+    que realmente falló dentro de la misma transacción.
+  - **Octubre de 2026, ya en producción (Render + Neon)**: después de
+    aplicar la migración que agrega `exemption_reason` a `evidences`
+    (altera una tabla ya existente, a diferencia de `create_users_table`),
+    ocurrió de verdad `cached plan must not change result type` — una
+    sesión pooled reasignada dejó un plan de consulta en caché
+    desincronizado con el esquema recién alterado, y tumbó la aplicación
+    entera con error 500 en cualquier pantalla. Reiniciar el servicio en
+    Render **no** lo resolvió (el plan en caché vive del lado del
+    pooler/backend de Postgres, no en el contenedor de la app). Se
+    resolvió cambiando `DB_HOST` al host directo de Neon (sin
+    `-pooler`).
+
+  Ambos incidentes comparten la misma causa (PgBouncer en modo
+  *transaction pooling*) y la misma solución (la conexión directa, sin
+  pooler) — por eso `migrate --force` usa `pgsql_migrate` apuntando a
+  `DB_HOST_MIGRATE`. Sin `DB_HOST_MIGRATE` definido (como en local, donde
+  no existe ningún pooler), `pgsql_migrate` cae al mismo `DB_HOST` de
+  siempre — el comportamiento local no cambia.
 - **Seed solo la primera vez (`php artisan db:seed-if-empty`,
   `App\Console\Commands\SeedIfEmpty`)**: siembra el rol Administrador y
   `admin@uts.edu.co` (`DatabaseSeeder`, que en este entorno solo corre
