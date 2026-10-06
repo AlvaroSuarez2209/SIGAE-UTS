@@ -1046,11 +1046,11 @@ español, reutilizado tanto por la columna como por el filtro "Acción" de
     `logout`, que no tocan ningún modelo), la columna queda vacía —
     mismo comportamiento que antes de este cambio.
 
-Ver `docs/privacidad.md` para la base legal de la dirección IP que
-`AuditLog::record()` captura en cada entrada, y a qué roles está
-restringida la pantalla (`role:administrator,auditor` — mismo acceso de
-solo lectura que ya tienen Administrador y Auditor en Dashboard y
-Reportes). La pantalla también incluye un modal de detalle por registro
+Ver §5.16 para la base legal de la dirección IP que `AuditLog::record()`
+captura en cada entrada, y a qué roles está restringida la pantalla
+(`role:administrator,auditor` — mismo acceso de solo lectura que ya
+tienen Administrador y Auditor en Dashboard y Reportes). La pantalla
+también incluye un modal de detalle por registro
 y exportación a PDF/Excel que respeta los mismos 4 filtros (Usuario,
 Acción, Desde, Hasta) — ver `App\Http\Controllers\Audit\AuditLogExportController`
 y `App\Services\Audit\AuditLogExportBuilder`, que arman la bitácora
@@ -1272,6 +1272,33 @@ color del badge (`statusBgColor`/`statusTextColor`) viene de
 y los informes PDF/Excel, para que el badge del correo nunca quede
 desincronizado si algún día cambia el tono de un estado.
 
+### 5.16 Tratamiento de la dirección IP en auditoría
+
+- **Qué se registra**: `AuditLog::record()` guarda la dirección IP
+  (`request()->ip()`) en la misma fila que el usuario (`user_id`), la
+  acción (`action`) y la fecha (`created_at`) de cada entrada de la
+  bitácora — nunca por separado ni en una tabla aparte.
+- **Finalidad**: seguridad y trazabilidad — identificar desde dónde se
+  originó una acción crítica (inicio de sesión, creación/edición de
+  registros administrativos, revisión de evidencias) si hiciera falta
+  investigar un incidente o un acceso indebido.
+- **Base legal**: interés legítimo de la institución en mantener la
+  seguridad y trazabilidad del sistema, en el marco de la Ley 1581 de
+  2012 (Protección de Datos Personales).
+- **Quién puede consultarlo**: solo Administrador y Auditor — la
+  pantalla de Auditoría (`/admin/audit-logs` y sus exportaciones a PDF/
+  Excel) está restringida a `role:administrator,auditor`
+  (`routes/web.php`), igual que ya lo está en Dashboard e Informes.
+  Ningún otro rol tiene acceso, ni de lectura ni de escritura: la
+  bitácora es de solo lectura incluso para quien sí puede verla — no
+  existe ninguna pantalla ni ruta para editar o borrar un registro ya
+  creado (ver `App\Models\AuditLog`).
+- **Retención**: el código no define ninguna política de retención ni
+  purga para `audit_logs` — no hay un comando, tarea programada ni
+  mecanismo que borre o archive registros por antigüedad. Toda entrada
+  queda indefinidamente hasta que alguien decida lo contrario a nivel de
+  base de datos.
+
 ## 6. Comandos útiles
 
 ```bash
@@ -1388,9 +1415,17 @@ sección toca `.env` ni la configuración local.
   migración, `create_users_table`, fallaba siempre igual, con el
   síntoma clásico de Postgres "current transaction is aborted" — el
   mensaje genérico que aparece en *cualquier* sentencia posterior a la
-  que realmente falló dentro de la misma transacción). Sin
-  `DB_HOST_MIGRATE` definido (como en local, donde no existe ningún
-  pooler), `pgsql_migrate` cae al mismo `DB_HOST` de siempre — el
+  que realmente falló dentro de la misma transacción). El mismo modo de
+  pooling puede producir, para una migración que altera una tabla ya
+  existente (no el caso de `create_users_table`, que es una tabla
+  nueva), el error relacionado `cached plan must not change result
+  type` — una sesión reasignada deja un plan de consulta en caché
+  desincronizado con el esquema recién alterado. No es el error que
+  realmente se registró en este despliegue, pero es la misma causa raíz
+  (PgBouncer en modo *transaction pooling*), y la conexión directa de
+  `pgsql_migrate` lo evita igual. Sin `DB_HOST_MIGRATE` definido (como en
+  local, donde no existe ningún pooler), `pgsql_migrate` cae al mismo
+  `DB_HOST` de siempre — el
   comportamiento local no cambia.
 - **Seed solo la primera vez (`php artisan db:seed-if-empty`,
   `App\Console\Commands\SeedIfEmpty`)**: siembra el rol Administrador y

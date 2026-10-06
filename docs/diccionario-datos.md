@@ -348,7 +348,7 @@ ninguna ruta que permita editarlo o borrarlo).
 | `action` | string | Ej. `login`, `login_failed`, `login_blocked_inactive`, `logout`, `created`, `updated` |
 | `auditable_type`, `auditable_id` | morph, nulos | Referencia polimórfica al registro afectado |
 | `metadata` | json, nulo | Valor nuevo (`changes`), valor anterior (`previous`, solo en registros creados a partir de Prioridad 7) y campos redactados (`redacted_fields`) — nunca contiene contraseñas |
-| `ip_address` | string(45), nulo | Ver `docs/privacidad.md` — base legal y a quién se le permite consultarla |
+| `ip_address` | string(45), nulo | Ver `docs/manual-tecnico.md` §5.16 — base legal y a quién se le permite consultarla |
 | `created_at` | datetime | Único timestamp de la tabla |
 
 **`action`, `auditable_type` y las claves de `metadata->changes`/`metadata->previous` se

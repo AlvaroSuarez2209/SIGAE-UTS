@@ -142,7 +142,6 @@ para el detalle completo.
 - `docs/manual-usuario.md` — guía de uso por rol.
 - `docs/manual-diseno.md` — sistema de diseño (paleta, tipografía, componentes).
 - `docs/diccionario-datos.md` — esquema de base de datos.
-- `docs/privacidad.md` — base legal y alcance de los datos personales que registra el sistema.
 
 ## Pruebas
 
