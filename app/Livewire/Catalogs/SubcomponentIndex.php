@@ -5,6 +5,7 @@ namespace App\Livewire\Catalogs;
 use App\Models\Component;
 use App\Models\Subcomponent;
 use App\Rules\CaseAccentInsensitiveUnique;
+use App\Services\CatalogDependencyChecker;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
@@ -24,6 +25,10 @@ class SubcomponentIndex extends LivewireComponent
     public bool $is_active = true;
 
     public string $search = '';
+
+    public string $statusFilter = '';
+
+    public string $deactivationError = '';
 
     public function openCreate(): void
     {
@@ -68,8 +73,10 @@ class SubcomponentIndex extends LivewireComponent
 
         if ($this->editing) {
             $this->editing->update($data);
+            session()->flash('status', 'Subcomponente actualizado correctamente.');
         } else {
             Subcomponent::create($data);
+            session()->flash('status', 'Subcomponente creado correctamente.');
         }
 
         $this->showModal = false;
@@ -77,7 +84,37 @@ class SubcomponentIndex extends LivewireComponent
 
     public function toggleActive(Subcomponent $subcomponent): void
     {
+        $this->deactivationError = '';
+
+        if ($subcomponent->is_active && $this->blocksDeactivation($subcomponent)) {
+            $this->dispatch('confirm-modal', title: 'No se puede desactivar', body: $this->deactivationError, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
         $subcomponent->update(['is_active' => ! $subcomponent->is_active]);
+
+        session()->flash('status', $subcomponent->is_active ? 'Subcomponente activado.' : 'Subcomponente desactivado.');
+    }
+
+    /**
+     * Prioridad 4: mismo criterio que ComponentIndex — un subcomponente con
+     * actividades activas bajo él no se puede desactivar sin dejarlas
+     * huérfanas de su agrupación vigente.
+     */
+    private function blocksDeactivation(Subcomponent $subcomponent): bool
+    {
+        $activityCount = CatalogDependencyChecker::activeActivityCountForSubcomponent($subcomponent);
+
+        if ($activityCount === 0) {
+            return false;
+        }
+
+        $this->deactivationError = 'No se puede desactivar este subcomponente: tiene '
+            .($activityCount === 1 ? '1 actividad activa' : "{$activityCount} actividades activas")
+            .'. Desactívalas primero.';
+
+        return true;
     }
 
     public function render()
@@ -85,6 +122,7 @@ class SubcomponentIndex extends LivewireComponent
         return view('livewire.catalogs.subcomponent-index', [
             'subcomponents' => Subcomponent::with('component')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->newestFirst()
                 ->get(),
             'components' => Component::orderBy('name')->get(),

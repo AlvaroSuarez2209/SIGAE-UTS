@@ -6,6 +6,22 @@
         </button>
     </div>
 
+    <x-flash-message />
+
+    <div class="mb-4 flex flex-wrap gap-4">
+        <x-search-input
+            wire:model.live.debounce.300ms="search"
+            placeholder="Buscar programa..."
+            class="w-full max-w-xs"
+        />
+
+        <select wire:model.live="statusFilter" class="field-input mt-0 w-auto">
+            <option value="">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+        </select>
+    </div>
+
     <div class="table-shell">
         <table class="min-w-full divide-y divide-border-subtle">
             <thead>
@@ -80,8 +96,9 @@
                     </div>
 
                     <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="btn-primary">
-                            Guardar
+                        <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
+                            <span wire:loading.remove wire:target="save">Guardar</span>
+                            <span wire:loading wire:target="save">Guardando...</span>
                         </button>
                         <button type="button" wire:click="closeModal" class="btn-text text-text-secondary">
                             Cancelar

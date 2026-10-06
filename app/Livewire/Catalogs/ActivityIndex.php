@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\Component;
 use App\Models\Subcomponent;
 use App\Rules\CaseAccentInsensitiveUnique;
+use App\Services\CatalogDependencyChecker;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -33,6 +34,10 @@ class ActivityIndex extends LivewireComponent
 
     public string $search = '';
 
+    public string $statusFilter = '';
+
+    public string $deactivationError = '';
+
     public function updatedComponentId(): void
     {
         if (! $this->editing || $this->editing->component_id !== $this->component_id) {
@@ -41,6 +46,11 @@ class ActivityIndex extends LivewireComponent
     }
 
     public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStatusFilter(): void
     {
         $this->resetPage();
     }
@@ -93,8 +103,10 @@ class ActivityIndex extends LivewireComponent
 
         if ($this->editing) {
             $this->editing->update($data);
+            session()->flash('status', 'Actividad actualizada correctamente.');
         } else {
             Activity::create($data);
+            session()->flash('status', 'Actividad creada correctamente.');
         }
 
         $this->showModal = false;
@@ -102,7 +114,49 @@ class ActivityIndex extends LivewireComponent
 
     public function toggleActive(Activity $activity): void
     {
+        $this->deactivationError = '';
+
+        if ($activity->is_active && $this->blocksDeactivation($activity)) {
+            $this->dispatch('confirm-modal', title: 'No se puede desactivar', body: $this->deactivationError, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
         $activity->update(['is_active' => ! $activity->is_active]);
+
+        session()->flash('status', $activity->is_active ? 'Actividad activada.' : 'Actividad desactivada.');
+    }
+
+    /**
+     * Prioridad 4: Entregable y Asignación docente no tienen su propia
+     * columna is_active — "activo" para ellos es pertenecer a un periodo
+     * académico que no esté Cerrado ni Archivado (ver
+     * CatalogDependencyChecker). Un entregable o asignación de un periodo
+     * ya cerrado no bloquea nada.
+     */
+    private function blocksDeactivation(Activity $activity): bool
+    {
+        $deliverableCount = CatalogDependencyChecker::openDeliverableCountForActivity($activity);
+        $assignmentCount = CatalogDependencyChecker::openTeacherAssignmentCountForActivity($activity);
+
+        if ($deliverableCount === 0 && $assignmentCount === 0) {
+            return false;
+        }
+
+        $parts = [];
+
+        if ($deliverableCount > 0) {
+            $parts[] = $deliverableCount === 1 ? '1 entregable' : "{$deliverableCount} entregables";
+        }
+
+        if ($assignmentCount > 0) {
+            $parts[] = $assignmentCount === 1 ? '1 asignación docente' : "{$assignmentCount} asignaciones docentes";
+        }
+
+        $this->deactivationError = 'No se puede desactivar esta actividad: tiene '.implode(' y ', $parts)
+            .' en un periodo académico vigente (en planeación o activo). Resuélvelos primero.';
+
+        return true;
     }
 
     public function render()
@@ -110,6 +164,7 @@ class ActivityIndex extends LivewireComponent
         return view('livewire.catalogs.activity-index', [
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->newestFirst()
                 ->paginate(self::PER_PAGE),
             'components' => Component::orderBy('name')->get(),

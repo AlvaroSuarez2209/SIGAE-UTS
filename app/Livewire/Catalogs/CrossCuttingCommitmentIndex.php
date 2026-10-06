@@ -4,6 +4,7 @@ namespace App\Livewire\Catalogs;
 
 use App\Models\CrossCuttingCommitment;
 use App\Rules\CaseAccentInsensitiveUnique;
+use App\Services\CatalogDependencyChecker;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -19,6 +20,12 @@ class CrossCuttingCommitmentIndex extends Component
     public string $name = '';
 
     public bool $is_active = true;
+
+    public string $search = '';
+
+    public string $statusFilter = '';
+
+    public string $deactivationError = '';
 
     public function openCreate(): void
     {
@@ -58,8 +65,10 @@ class CrossCuttingCommitmentIndex extends Component
 
         if ($this->editing) {
             $this->editing->update($data);
+            session()->flash('status', 'Compromiso transversal actualizado correctamente.');
         } else {
             CrossCuttingCommitment::create($data);
+            session()->flash('status', 'Compromiso transversal creado correctamente.');
         }
 
         $this->showModal = false;
@@ -67,13 +76,46 @@ class CrossCuttingCommitmentIndex extends Component
 
     public function toggleActive(CrossCuttingCommitment $commitment): void
     {
+        $this->deactivationError = '';
+
+        if ($commitment->is_active && $this->blocksDeactivation($commitment)) {
+            $this->dispatch('confirm-modal', title: 'No se puede desactivar', body: $this->deactivationError, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
         $commitment->update(['is_active' => ! $commitment->is_active]);
+
+        session()->flash('status', $commitment->is_active ? 'Compromiso transversal activado.' : 'Compromiso transversal desactivado.');
+    }
+
+    /**
+     * Prioridad 4: Entregable no tiene su propia columna is_active —
+     * "activo" es pertenecer a un periodo académico que no esté Cerrado ni
+     * Archivado (ver CatalogDependencyChecker).
+     */
+    private function blocksDeactivation(CrossCuttingCommitment $commitment): bool
+    {
+        $deliverableCount = CatalogDependencyChecker::openDeliverableCountForCommitment($commitment);
+
+        if ($deliverableCount === 0) {
+            return false;
+        }
+
+        $this->deactivationError = 'No se puede desactivar este compromiso: tiene '
+            .($deliverableCount === 1 ? '1 entregable' : "{$deliverableCount} entregables")
+            .' en un periodo académico vigente (en planeación o activo). Resuélvelos primero.';
+
+        return true;
     }
 
     public function render()
     {
         return view('livewire.catalogs.cross-cutting-commitment-index', [
-            'commitments' => CrossCuttingCommitment::newestFirst()->get(),
+            'commitments' => CrossCuttingCommitment::newestFirst()
+                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->get(),
         ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Concerns\OrdersNewestFirst;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Activity extends Model
 {
@@ -34,5 +35,15 @@ class Activity extends Model
     public function subcomponent(): BelongsTo
     {
         return $this->belongsTo(Subcomponent::class);
+    }
+
+    public function deliverables(): HasMany
+    {
+        return $this->hasMany(Deliverable::class);
+    }
+
+    public function teacherAssignments(): HasMany
+    {
+        return $this->hasMany(TeacherAssignment::class);
     }
 }

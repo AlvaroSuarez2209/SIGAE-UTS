@@ -4,6 +4,7 @@ namespace App\Livewire\Catalogs;
 
 use App\Models\Component;
 use App\Rules\CaseAccentInsensitiveUnique;
+use App\Services\CatalogDependencyChecker;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
@@ -19,6 +20,12 @@ class ComponentIndex extends LivewireComponent
     public string $name = '';
 
     public bool $is_active = true;
+
+    public string $search = '';
+
+    public string $statusFilter = '';
+
+    public string $deactivationError = '';
 
     public function openCreate(): void
     {
@@ -58,8 +65,10 @@ class ComponentIndex extends LivewireComponent
 
         if ($this->editing) {
             $this->editing->update($data);
+            session()->flash('status', 'Componente actualizado correctamente.');
         } else {
             Component::create($data);
+            session()->flash('status', 'Componente creado correctamente.');
         }
 
         $this->showModal = false;
@@ -67,13 +76,57 @@ class ComponentIndex extends LivewireComponent
 
     public function toggleActive(Component $component): void
     {
+        $this->deactivationError = '';
+
+        if ($component->is_active && $this->blocksDeactivation($component)) {
+            $this->dispatch('confirm-modal', title: 'No se puede desactivar', body: $this->deactivationError, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
         $component->update(['is_active' => ! $component->is_active]);
+
+        session()->flash('status', $component->is_active ? 'Componente activado.' : 'Componente desactivado.');
+    }
+
+    /**
+     * Prioridad 4: desactivar un componente con subcomponentes o
+     * actividades activos dependiendo de él dejaría esos registros
+     * huérfanos de su padre vigente — se bloquea, con el detalle de
+     * cuántos y de qué tipo, no un mensaje genérico. Ver
+     * CatalogDependencyChecker.
+     */
+    private function blocksDeactivation(Component $component): bool
+    {
+        $subcomponentCount = CatalogDependencyChecker::activeSubcomponentCount($component);
+        $activityCount = CatalogDependencyChecker::activeActivityCountForComponent($component);
+
+        if ($subcomponentCount === 0 && $activityCount === 0) {
+            return false;
+        }
+
+        $parts = [];
+
+        if ($subcomponentCount > 0) {
+            $parts[] = $subcomponentCount === 1 ? '1 subcomponente activo' : "{$subcomponentCount} subcomponentes activos";
+        }
+
+        if ($activityCount > 0) {
+            $parts[] = $activityCount === 1 ? '1 actividad activa' : "{$activityCount} actividades activas";
+        }
+
+        $this->deactivationError = 'No se puede desactivar este componente: tiene '.implode(' y ', $parts).'. Desactívalos primero.';
+
+        return true;
     }
 
     public function render()
     {
         return view('livewire.catalogs.component-index', [
-            'components' => Component::newestFirst()->get(),
+            'components' => Component::newestFirst()
+                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->get(),
         ]);
     }
 }

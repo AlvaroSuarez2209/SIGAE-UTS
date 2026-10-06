@@ -18,6 +18,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class CatalogManagementTest extends TestCase
@@ -492,5 +493,136 @@ class CatalogManagementTest extends TestCase
             ->set('search', 'induccion')
             ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->count() === 1
                 && $subcomponents->first()->name === 'Inducción docente');
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 5, punto 3: crear/editar/
+     * activar/desactivar un catálogo no mostraba ningún mensaje — solo se
+     * cerraba el modal y la lista se actualizaba. Estas 5 pantallas no
+     * redirigen (el modal cierra en la misma página): el flash se setea y
+     * el componente se vuelve a renderizar dentro de la MISMA petición, así
+     * que <x-flash-message /> (incluido directamente en la vista de cada
+     * catálogo) ya lo muestra en el HTML que devuelve ese mismo ->call().
+     */
+    public function test_creating_updating_and_toggling_a_component_shows_a_success_message(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create(['is_active' => true]);
+
+        Livewire::actingAs($admin)->test(ComponentIndex::class)
+            ->set('name', 'Bienestar institucional')->call('save')
+            ->assertSee('Componente creado correctamente.');
+
+        Livewire::actingAs($admin)->test(ComponentIndex::class)
+            ->call('openEdit', $component)->set('name', 'Nuevo nombre')->call('save')
+            ->assertSee('Componente actualizado correctamente.');
+
+        Livewire::actingAs($admin)->test(ComponentIndex::class)
+            ->call('toggleActive', $component)
+            ->assertSee('Componente desactivado.');
+    }
+
+    public function test_creating_updating_and_toggling_a_subcomponent_shows_a_success_message(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $parent = Component::factory()->create();
+        $subcomponent = Subcomponent::factory()->create(['component_id' => $parent->id, 'is_active' => true]);
+
+        Livewire::actingAs($admin)->test(SubcomponentIndex::class)
+            ->set('name', 'Procesos OACA')->set('component_id', $parent->id)->call('save')
+            ->assertSee('Subcomponente creado correctamente.');
+
+        Livewire::actingAs($admin)->test(SubcomponentIndex::class)
+            ->call('openEdit', $subcomponent)->set('name', 'Nuevo nombre')->call('save')
+            ->assertSee('Subcomponente actualizado correctamente.');
+
+        Livewire::actingAs($admin)->test(SubcomponentIndex::class)
+            ->call('toggleActive', $subcomponent)
+            ->assertSee('Subcomponente desactivado.');
+    }
+
+    public function test_creating_updating_and_toggling_an_activity_shows_a_success_message(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $parent = Component::factory()->create();
+        $activity = Activity::factory()->create(['component_id' => $parent->id, 'is_active' => true]);
+
+        Livewire::actingAs($admin)->test(ActivityIndex::class)
+            ->set('name', 'Docencia directa')->set('component_id', $parent->id)->call('save')
+            ->assertSee('Actividad creada correctamente.');
+
+        Livewire::actingAs($admin)->test(ActivityIndex::class)
+            ->call('openEdit', $activity)->set('name', 'Nuevo nombre')->call('save')
+            ->assertSee('Actividad actualizada correctamente.');
+
+        Livewire::actingAs($admin)->test(ActivityIndex::class)
+            ->call('toggleActive', $activity)
+            ->assertSee('Actividad desactivada.');
+    }
+
+    public function test_creating_updating_and_toggling_a_program_unit_shows_a_success_message(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $programUnit = ProgramUnit::factory()->create(['is_active' => true]);
+
+        Livewire::actingAs($admin)->test(ProgramUnitIndex::class)
+            ->set('name', 'Ingeniería de Sistemas')->call('save')
+            ->assertSee('Programa creado correctamente.');
+
+        Livewire::actingAs($admin)->test(ProgramUnitIndex::class)
+            ->call('openEdit', $programUnit)->set('name', 'Nuevo nombre')->call('save')
+            ->assertSee('Programa actualizado correctamente.');
+
+        Livewire::actingAs($admin)->test(ProgramUnitIndex::class)
+            ->call('toggleActive', $programUnit)
+            ->assertSee('Programa desactivado.');
+    }
+
+    public function test_creating_updating_and_toggling_a_cross_cutting_commitment_shows_a_success_message(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $commitment = CrossCuttingCommitment::factory()->create(['is_active' => true]);
+
+        Livewire::actingAs($admin)->test(CrossCuttingCommitmentIndex::class)
+            ->set('name', 'Bilingüismo')->call('save')
+            ->assertSee('Compromiso transversal creado correctamente.');
+
+        Livewire::actingAs($admin)->test(CrossCuttingCommitmentIndex::class)
+            ->call('openEdit', $commitment)->set('name', 'Nuevo nombre')->call('save')
+            ->assertSee('Compromiso transversal actualizado correctamente.');
+
+        Livewire::actingAs($admin)->test(CrossCuttingCommitmentIndex::class)
+            ->call('toggleActive', $commitment)
+            ->assertSee('Compromiso transversal desactivado.');
+    }
+
+    public static function catalogComponents(): array
+    {
+        return [
+            [ComponentIndex::class],
+            [SubcomponentIndex::class],
+            [ActivityIndex::class],
+            [ProgramUnitIndex::class],
+            [CrossCuttingCommitmentIndex::class],
+        ];
+    }
+
+    /**
+     * Bloque de ajustes de interfaz, punto 7: el botón "Guardar" del modal
+     * de los 5 catálogos (mismo scaffold generado) no tenía ningún estado
+     * de carga — mismo patrón ya usado en
+     * Login/InstitutionSettingsForm/TeacherImportWizard.
+     */
+    #[DataProvider('catalogComponents')]
+    public function test_the_save_button_disables_itself_and_shows_a_loading_state(string $component): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test($component)
+            ->call('openCreate')
+            ->assertSee('wire:loading.attr="disabled"', false)
+            ->assertSee('wire:target="save"', false)
+            ->assertSee('Guardando...');
     }
 }
