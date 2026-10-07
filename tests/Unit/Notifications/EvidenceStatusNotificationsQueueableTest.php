@@ -4,6 +4,7 @@ namespace Tests\Unit\Notifications;
 
 use App\Notifications\Evidence\EvidenceApprovalConfirmedNotification;
 use App\Notifications\Evidence\EvidenceApprovedNotification;
+use App\Notifications\Evidence\EvidenceAssignedNotification;
 use App\Notifications\Evidence\EvidenceExemptedNotification;
 use App\Notifications\Evidence\EvidenceExemptionConfirmedNotification;
 use App\Notifications\Evidence\EvidenceNeedsAdjustmentNotification;
@@ -17,7 +18,8 @@ use Tests\TestCase;
 
 /**
  * El envío no debe bloquear la acción del usuario (aprobar, devolver,
- * etc.) — las 9 clases deben ir en cola, ver docs/manual-tecnico.md.
+ * asignar un entregable, etc.) — las clases listadas aquí deben ir en
+ * cola, ver docs/manual-tecnico.md.
  */
 class EvidenceStatusNotificationsQueueableTest extends TestCase
 {
@@ -33,6 +35,7 @@ class EvidenceStatusNotificationsQueueableTest extends TestCase
             [EvidenceOverdueNotification::class],
             [EvidenceExemptionConfirmedNotification::class],
             [EvidenceExemptedNotification::class],
+            [EvidenceAssignedNotification::class],
         ];
     }
 

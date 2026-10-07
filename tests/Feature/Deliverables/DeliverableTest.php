@@ -16,10 +16,12 @@ use App\Models\Evidence;
 use App\Models\Role;
 use App\Models\TeacherAssignment;
 use App\Models\User;
+use App\Notifications\Evidence\EvidenceAssignedNotification;
 use App\Services\CatalogDependencyChecker;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -93,6 +95,109 @@ class DeliverableTest extends TestCase
             'activity_id' => $activity->id,
             'cross_cutting_commitment_id' => null,
         ]);
+    }
+
+    /**
+     * Antes, publicar un entregable no avisaba nada al docente — se
+     * enteraba solo si entraba a "Mis entregables" por su cuenta.
+     */
+    public function test_publishing_a_deliverable_notifies_each_new_recipient(): void
+    {
+        Notification::fake();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $assignment = TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $teacher = $assignment->user;
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        Notification::assertSentTo($teacher, EvidenceAssignedNotification::class);
+    }
+
+    /**
+     * Re-guardar un entregable ya publicado (ej. Coordinación solo
+     * corrige la fecha límite) no debe volver a notificar a nadie que ya
+     * era destinatario — `ensureEvidencesForRecipients()` usa
+     * `firstOrCreate()`, así que su Evidence ya existe y no es "nueva".
+     */
+    public function test_resaving_a_published_deliverable_does_not_renotify_existing_recipients(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $assignment = TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $teacher = $assignment->user;
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+
+        Notification::fake();
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable])
+            ->set('due_at', now()->addWeeks(2)->toDateTimeString())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        Notification::assertNotSentTo($teacher, EvidenceAssignedNotification::class);
+    }
+
+    /**
+     * Agregar a alguien nuevo como destinatario de un entregable ya
+     * publicado sí debe notificarlo a él — pero no a quienes ya eran
+     * destinatarios desde antes.
+     */
+    public function test_adding_a_new_recipient_to_a_published_deliverable_notifies_only_the_new_one(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $firstAssignment = TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $firstTeacher = $firstAssignment->user;
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$firstTeacher->id])
+            ->set($this->baseFormState())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+
+        $secondAssignment = TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $secondTeacher = $secondAssignment->user;
+
+        Notification::fake();
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable])
+            ->set('recipient_ids', [$firstTeacher->id, $secondTeacher->id])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        Notification::assertSentTo($secondTeacher, EvidenceAssignedNotification::class);
+        Notification::assertNotSentTo($firstTeacher, EvidenceAssignedNotification::class);
     }
 
     public function test_can_create_a_cross_cutting_deliverable_without_an_activity(): void

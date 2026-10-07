@@ -8,6 +8,7 @@ use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Models\Concerns\Auditable;
+use App\Notifications\Evidence\EvidenceAssignedNotification;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -154,14 +155,23 @@ class Deliverable extends Model
      * Creates a pending Evidence record for every recipient that doesn't
      * already have one. Never removes evidence for a recipient that was
      * later dropped from the list — evidence history is never deleted.
+     *
+     * Notifica al docente solo cuando la Evidence es realmente nueva
+     * (`wasRecentlyCreated`) — un re-guardado del mismo entregable para
+     * alguien que ya era destinatario (ej. Coordinación solo cambió la
+     * fecha límite) nunca debe volver a avisarle como si fuera nuevo.
      */
     public function ensureEvidencesForRecipients(array $userIds): void
     {
         foreach ($userIds as $userId) {
-            Evidence::firstOrCreate(
+            $evidence = Evidence::firstOrCreate(
                 ['deliverable_id' => $this->id, 'user_id' => $userId],
                 ['status' => EvidenceStatus::Pending]
             );
+
+            if ($evidence->wasRecentlyCreated) {
+                $evidence->user->notify(new EvidenceAssignedNotification($evidence));
+            }
         }
     }
 }

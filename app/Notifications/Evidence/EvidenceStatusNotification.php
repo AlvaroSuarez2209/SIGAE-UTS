@@ -11,13 +11,21 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Base compartida por las 9 notificaciones de cambio de estado de
- * evidencias: arma el toMail() genérico sobre el layout
- * resources/views/mail/status-notification.blade.php (logo, badge de
- * estado, contexto y botón de acción), y cada subclase solo aporta el
- * texto y la ruta propios de su transición. Mismo principio que
- * ReportTheme para PDF/Excel: un único lugar de identidad visual en vez
- * de repetirla en 9 archivos.
+ * Base compartida por las notificaciones de cambio de estado de
+ * evidencias (incluida la de asignación, que no es un cambio de estado
+ * en sí pero comparte exactamente el mismo contexto: entregable,
+ * actividad/compromiso transversal y periodo): arma el toMail()
+ * genérico sobre el layout resources/views/mail/status-notification.blade.php
+ * (logo, badge de estado, contexto y botón de acción), y cada subclase
+ * solo aporta el texto y la ruta propios de su transición. Mismo
+ * principio que ReportTheme para PDF/Excel: un único lugar de identidad
+ * visual en vez de repetirla en cada archivo.
+ *
+ * `primaryLabel`/`primaryValue` del layout compartido son genéricos a
+ * propósito ("Entregable" aquí, "Ámbito" para
+ * App\Notifications\Leadership\LeadershipAssignedNotification, que
+ * reutiliza el mismo layout sin extender esta clase porque no tiene una
+ * Evidence detrás).
  *
  * SerializesModels es necesario porque $evidence viaja en el payload de
  * la cola (driver `database`): sin él, PHP serializaría la entidad y sus
@@ -49,7 +57,8 @@ abstract class EvidenceStatusNotification extends Notification implements Should
                 'statusLabel' => $this->statusLabel(),
                 'statusBgColor' => $tone['bg'],
                 'statusTextColor' => $tone['text'],
-                'deliverableName' => $deliverable->name,
+                'primaryLabel' => 'Entregable',
+                'primaryValue' => $deliverable->name,
                 'contextLabel' => $deliverable->isCrossCutting() ? 'Compromiso transversal' : 'Actividad',
                 'contextValue' => $deliverable->isCrossCutting()
                     ? $deliverable->crossCuttingCommitment->name

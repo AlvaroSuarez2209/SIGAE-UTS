@@ -13,8 +13,11 @@ use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\TeacherAssignment;
 use App\Models\User;
+use App\Notifications\Leadership\LeadershipAssignedNotification;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -89,6 +92,70 @@ class LeadershipTest extends TestCase
         // mostrara. Confirma con una petición real (no Livewire::test(),
         // que no renderiza el layout) que ahora sí llega.
         $this->actingAs($admin)->get(route('leaderships.index'))->assertSee('Liderazgo guardado correctamente.');
+    }
+
+    /**
+     * Antes, asignar un liderazgo no avisaba nada al líder — se enteraba
+     * solo si entraba a la aplicación y veía que ya tenía algo en su
+     * panel o en su bandeja de revisión.
+     */
+    public function test_assigning_a_leadership_notifies_the_new_leader(): void
+    {
+        Notification::fake();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipForm::class)
+            ->set('user_id', $leader->id)
+            ->set('academic_period_id', $period->id)
+            ->set('program_unit_id', $programUnit->id)
+            ->set('activity_id', null)
+            ->set('starts_at', now()->toDateString())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        Notification::assertSentTo($leader, LeadershipAssignedNotification::class);
+    }
+
+    /**
+     * Editar un liderazgo ya existente (ej. solo extender su fecha de
+     * fin) no debe volver a notificar — la notificación es solo para la
+     * asignación nueva, nunca para cada ajuste posterior.
+     */
+    public function test_editing_an_existing_leadership_does_not_renotify(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+
+        $leadership = Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        Notification::fake();
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipForm::class, ['leadership' => $leadership])
+            ->set('ends_at', now()->addMonth()->toDateString())
+            ->call('save')
+            ->assertHasNoErrors();
+
+        Notification::assertNotSentTo($leader, LeadershipAssignedNotification::class);
+    }
+
+    public function test_leadership_assigned_notification_is_queued(): void
+    {
+        $this->assertTrue(is_subclass_of(LeadershipAssignedNotification::class, ShouldQueue::class));
     }
 
     public function test_cannot_create_leadership_for_a_closed_period(): void

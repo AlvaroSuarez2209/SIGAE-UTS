@@ -65,7 +65,7 @@
     <tr>
       <td style="padding: 16px 18px;">
         <p style="font-size: 13px; line-height: 1.7em; margin: 0; color: #52525b; text-align: left;">
-          <strong style="color: #3f3f46;">Entregable:</strong> {{ $deliverableName }}<br>
+          <strong style="color: #3f3f46;">{{ $primaryLabel }}:</strong> {{ $primaryValue }}<br>
           <strong style="color: #3f3f46;">{{ $contextLabel }}:</strong> {{ $contextValue }}<br>
           <strong style="color: #3f3f46;">Periodo académico:</strong> {{ $periodName }}
         </p>
