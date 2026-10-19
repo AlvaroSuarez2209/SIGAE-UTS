@@ -16,16 +16,22 @@
 <body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased">
     @php
         $user = auth()->user();
+        $isTeacher = $user?->hasRole('teacher') ?? false;
         $isAdmin = $user?->hasRole(\App\Enums\RoleName::Administrator) ?? false;
         $isCoordination = $user?->hasAnyRole(['administrator', 'coordination']) ?? false;
         $isReviewer = $user?->hasAnyRole(['administrator', 'coordination', 'leader']) ?? false;
         $canSeeReports = $user?->hasAnyRole(['administrator', 'coordination', 'auditor']) ?? false;
+        $canSeeAudit = $user?->hasAnyRole(['administrator', 'auditor']) ?? false;
 
         $navGroups = collect([
             [
                 'title' => 'Seguimiento',
+                // "Mis entregables" es exclusivo del rol Docente (manual de
+                // usuario, sección "Docente") — antes se mostraba siempre,
+                // sin importar el rol, igual que ya pasa con "Revisión"
+                // justo abajo (ese sí ya estaba condicionado a $isReviewer).
                 'links' => collect([
-                    ['route' => 'my-deliverables.index', 'label' => 'Mis entregables', 'icon' => 'document'],
+                    $isTeacher ? ['route' => 'my-deliverables.index', 'label' => 'Mis entregables', 'icon' => 'document'] : null,
                     $isReviewer ? ['route' => 'reviews.index', 'label' => 'Revisión', 'icon' => 'inbox'] : null,
                 ])->filter(),
             ],
@@ -59,13 +65,19 @@
                     ['route' => 'reports.consolidated', 'label' => 'Consolidado por periodo', 'icon' => 'chart-bar'],
                 ]),
             ] : null,
-            $isAdmin ? [
+            ($isAdmin || $canSeeAudit) ? [
                 'title' => 'Administración',
+                // "Auditoría" también es del rol Auditor (manual de
+                // usuario, sección "Auditor"; ruta ya protegida con
+                // 'role:administrator,auditor') — antes dependía solo de
+                // $isAdmin, igual que el resto del grupo, así que un
+                // Auditor sin otro rol nunca lo veía. Usuarios e Identidad
+                // institucional siguen siendo exclusivos de Administrador.
                 'links' => collect([
-                    ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'],
-                    ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'shield-check'],
-                    ['route' => 'admin.settings.institution', 'label' => 'Identidad institucional', 'icon' => 'pencil'],
-                ]),
+                    $isAdmin ? ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'] : null,
+                    $canSeeAudit ? ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'shield-check'] : null,
+                    $isAdmin ? ['route' => 'admin.settings.institution', 'label' => 'Identidad institucional', 'icon' => 'pencil'] : null,
+                ])->filter(),
             ] : null,
         ])->filter();
     @endphp

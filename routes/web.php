@@ -68,7 +68,14 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/profile', Profile::class)->name('profile');
 
     Route::prefix('my-deliverables')->name('my-deliverables.')->group(function () {
-        Route::get('/', MyDeliverables::class)->name('index');
+        // Solo el rol Docente (manual de usuario, sección "Docente") — a
+        // diferencia de /my-deliverables/{evidence} justo abajo, que sigue
+        // sin este middleware a propósito: EvidencePolicy::view() ya le da
+        // a Administrador/Coordinación/Auditor (y a un Líder dentro de su
+        // ámbito) acceso de solo consulta a CUALQUIER evidencia por su URL
+        // directa, un caso de uso real y documentado que este cambio no
+        // debe romper.
+        Route::get('/', MyDeliverables::class)->name('index')->middleware('role:teacher');
         Route::get('/{evidence}', EvidenceWorkspace::class)->name('show');
     });
 
