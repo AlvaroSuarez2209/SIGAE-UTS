@@ -15,14 +15,14 @@
     </div>
 
     <div class="table-shell">
-        <table class="w-full table-fixed divide-y divide-border-subtle">
+        <table class="w-full table-fixed max-md:table-auto divide-y divide-border-subtle">
             <colgroup>
-                <col class="w-[16%]">
-                <col class="w-[20%]">
-                <col class="w-[18%]">
-                <col class="w-[12%]">
-                <col class="w-[12%]">
-                <col class="w-[22%]">
+                <col class="w-[16%] max-md:w-auto">
+                <col class="w-[20%] max-md:w-auto">
+                <col class="w-[18%] max-md:w-auto">
+                <col class="w-[12%] max-md:w-auto">
+                <col class="w-[12%] max-md:w-auto">
+                <col class="w-[22%] max-md:w-auto">
             </colgroup>
             <thead>
                 <tr>

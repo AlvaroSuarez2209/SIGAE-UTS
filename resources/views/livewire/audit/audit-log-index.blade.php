@@ -52,15 +52,15 @@
     </div>
 
     <div class="table-shell">
-        <table class="w-full table-fixed divide-y divide-border-subtle">
+        <table class="w-full table-fixed max-md:table-auto divide-y divide-border-subtle">
             <colgroup>
-                <col class="w-[16%]">
-                <col class="w-[14%]">
-                <col class="w-[13%]">
-                <col class="w-[14%]">
-                <col class="w-[7%]">
-                <col class="w-[24%]">
-                <col class="w-[12%]">
+                <col class="w-[16%] max-md:w-auto">
+                <col class="w-[14%] max-md:w-auto">
+                <col class="w-[13%] max-md:w-auto">
+                <col class="w-[14%] max-md:w-auto">
+                <col class="w-[7%] max-md:w-auto">
+                <col class="w-[24%] max-md:w-auto">
+                <col class="w-[12%] max-md:w-auto">
             </colgroup>
             <thead>
                 <tr>
