@@ -103,10 +103,17 @@
                     {{ $editing ? 'Editar periodo' : 'Nuevo periodo' }}
                 </h2>
 
+                @if ($periodLocked)
+                    <div class="mb-4 flex items-center gap-2 rounded-md bg-status-warning-subtle p-4 text-sm text-status-warning">
+                        <x-icon name="alert-triangle" class="h-4 w-4 shrink-0" />
+                        Este periodo está cerrado o archivado y no se puede modificar.
+                    </div>
+                @endif
+
                 <form wire:submit="save" class="space-y-4">
                     <div>
                         <label class="field-label">Nombre</label>
-                        <input type="text" wire:model="name" placeholder="Ej. 2026-1" class="field-input">
+                        <input type="text" wire:model="name" placeholder="Ej. 2026-1" class="field-input" @if ($periodLocked) disabled @endif>
                         @error('name') <p class="field-error">{{ $message }}</p> @enderror
                     </div>
 
@@ -122,19 +129,31 @@
                             <input type="date" wire:model="end_date" class="field-input">
                             @error('end_date') <p class="field-error">{{ $message }}</p> @enderror
                         </div>
-                    @else
+                    @elseif (! $periodLocked)
                         <p class="field-help">
                             Las fechas solo se pueden modificar mientras el periodo está en planeación.
                         </p>
+                    @else
+                        <div>
+                            <label class="field-label">Fecha de inicio</label>
+                            <input type="date" value="{{ $start_date }}" class="field-input" disabled>
+                        </div>
+
+                        <div>
+                            <label class="field-label">Fecha de fin</label>
+                            <input type="date" value="{{ $end_date }}" class="field-input" disabled>
+                        </div>
                     @endif
 
                     <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
-                            <span wire:loading.remove wire:target="save">Guardar</span>
-                            <span wire:loading wire:target="save">Guardando...</span>
-                        </button>
+                        @unless ($periodLocked)
+                            <button type="submit" class="btn-primary" wire:loading.attr="disabled" wire:target="save">
+                                <span wire:loading.remove wire:target="save">Guardar</span>
+                                <span wire:loading wire:target="save">Guardando...</span>
+                            </button>
+                        @endunless
                         <button type="button" wire:click="closeModal" class="btn-text text-text-secondary">
-                            Cancelar
+                            {{ $periodLocked ? 'Cerrar' : 'Cancelar' }}
                         </button>
                     </div>
                 </form>

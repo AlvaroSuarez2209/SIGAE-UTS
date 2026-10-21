@@ -23,9 +23,11 @@ class PeriodIndex extends Component
 
     public string $end_date = '';
 
+    public bool $periodLocked = false;
+
     public function openCreate(): void
     {
-        $this->reset(['editing', 'name', 'start_date', 'end_date']);
+        $this->reset(['editing', 'name', 'start_date', 'end_date', 'periodLocked']);
         $this->resetValidation();
         $this->showModal = true;
     }
@@ -37,6 +39,16 @@ class PeriodIndex extends Component
         $this->name = $period->name;
         $this->start_date = $period->start_date->toDateString();
         $this->end_date = $period->end_date->toDateString();
+        // RF-010: Cerrado/Archivado es modo consulta completo (ningún
+        // campo, no solo las fechas) — a diferencia de Activo, que solo
+        // bloquea fechas (ver $datesLocked en save()). Esta propiedad es
+        // solo para la interfaz (deshabilitar campos, ocultar "Guardar");
+        // save() nunca confía en ella para decidir si de verdad bloquea
+        // la escritura, porque es una propiedad pública de Livewire y
+        // viaja en cada request — se vuelve a calcular ahí directo desde
+        // $this->editing->status, que Livewire siempre rehidrata fresco
+        // desde la base de datos.
+        $this->periodLocked = in_array($period->status, [AcademicPeriodStatus::Closed, AcademicPeriodStatus::Archived], true);
         $this->showModal = true;
     }
 
@@ -47,20 +59,31 @@ class PeriodIndex extends Component
      */
     public function closeModal(): void
     {
-        $this->reset(['editing', 'name', 'start_date', 'end_date']);
+        $this->reset(['editing', 'name', 'start_date', 'end_date', 'periodLocked']);
         $this->resetValidation();
         $this->showModal = false;
     }
 
     public function save(): void
     {
-        $editingIsLocked = $this->editing && $this->editing->status !== AcademicPeriodStatus::Planning;
+        // RF-010, modo consulta real: recalculado aquí directo desde
+        // $this->editing->status (nunca desde $this->periodLocked, una
+        // propiedad pública que un cliente manipulado podría enviar en
+        // false) — ni se valida ni se llama a update() para un periodo
+        // Cerrado o Archivado, sin importar qué haya mandado el navegador.
+        if ($this->editing && in_array($this->editing->status, [AcademicPeriodStatus::Closed, AcademicPeriodStatus::Archived], true)) {
+            $this->addError('name', 'Este periodo está cerrado o archivado y no se puede modificar.');
+
+            return;
+        }
+
+        $datesLocked = $this->editing && $this->editing->status !== AcademicPeriodStatus::Planning;
 
         $rules = [
             'name' => ['required', 'string', 'max:255', (new CaseAccentInsensitiveUnique('academic_periods'))->ignore($this->editing)],
         ];
 
-        if (! $editingIsLocked) {
+        if (! $datesLocked) {
             $rules['start_date'] = ['required', 'date'];
             $rules['end_date'] = ['required', 'date', 'after_or_equal:start_date'];
         }
