@@ -224,32 +224,70 @@
                     </span>
 
                     @if ($referenceFiles->isNotEmpty())
-                        <ul class="mt-2 space-y-2">
+                        <ul class="mt-2 space-y-1">
                             @foreach ($referenceFiles as $file)
-                                <li class="flex items-center justify-between gap-2 rounded-md border border-border-subtle p-2 text-sm">
-                                    <span class="truncate text-text-primary">{{ $file->original_name }} <span class="text-text-secondary">({{ $file->readable_size }})</span></span>
-                                    <button type="button" wire:click="removeReferenceFile({{ $file->id }})" wire:loading.attr="disabled" class="btn-text shrink-0 text-status-error">Quitar</button>
+                                <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                        <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
+                                        <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-3">
+                                        <a href="{{ route('deliverable-reference-files.download', $file) }}" class="btn-text">Descargar</a>
+                                        <button
+                                            type="button"
+                                            wire:click="removeReferenceFile({{ $file->id }})"
+                                            wire:loading.attr="disabled"
+                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                        >
+                                            <x-icon name="trash" class="h-4 w-4" />
+                                            Quitar
+                                        </button>
+                                    </div>
                                 </li>
                             @endforeach
                         </ul>
                     @endif
 
                     @if ($referenceFiles->count() + count($newReferenceFiles) < \App\Models\DeliverableReferenceFile::MAX_FILES)
-                        <input type="file" wire:model="newReferenceFiles" multiple class="field-input mt-2">
+                        <x-file-dropzone
+                            wire-model="newReferenceFiles"
+                            :multiple="true"
+                            accept="{{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => '.'.$e)->join(',') }}"
+                            class="mt-2"
+                        />
+                    @else
+                        <p class="field-help mt-2">
+                            Ya alcanzaste el máximo de {{ \App\Models\DeliverableReferenceFile::MAX_FILES }} archivo(s) de referencia permitido(s). Quita uno para poder subir otro.
+                        </p>
                     @endif
-                    @error('newReferenceFiles') <p class="field-error">{{ $message }}</p> @enderror
-                    @error('newReferenceFiles.*') <p class="field-error">{{ $message }}</p> @enderror
 
                     @if (! empty($newReferenceFiles))
-                        <ul class="mt-2 space-y-2">
+                        <ul class="mt-2 space-y-1">
                             @foreach ($newReferenceFiles as $index => $file)
-                                <li class="flex items-center justify-between gap-2 rounded-md border border-border-subtle bg-surface-muted p-2 text-sm">
-                                    <span class="truncate text-text-primary">{{ $file->getClientOriginalName() }} <span class="text-text-secondary">(pendiente de guardar)</span></span>
-                                    <button type="button" wire:click="removeNewReferenceFile({{ $index }})" class="btn-text shrink-0 text-status-error">Quitar</button>
+                                <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                        <span class="truncate text-base text-text-primary">{{ $file->getClientOriginalName() }}</span>
+                                        <span class="shrink-0 text-sm text-text-secondary">({{ \App\Models\EvidenceFile::formatReadableSize($file->getSize()) }})</span>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-3">
+                                        <button
+                                            type="button"
+                                            wire:click="removeNewReferenceFile({{ $index }})"
+                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                        >
+                                            <x-icon name="trash" class="h-4 w-4" />
+                                            Quitar
+                                        </button>
+                                    </div>
                                 </li>
                             @endforeach
                         </ul>
                     @endif
+
+                    @error('newReferenceFiles') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('newReferenceFiles.*') <p class="field-error">{{ $message }}</p> @enderror
                 </div>
             </div>
 

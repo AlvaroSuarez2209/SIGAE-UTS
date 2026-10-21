@@ -350,4 +350,85 @@ class DeliverableReferenceFileTest extends TestCase
 
         $this->assertFalse($file->fresh()->is_active);
     }
+
+    // --- Diseño: mismo componente de arrastrar-y-soltar que la carga de evidencia ---
+
+    /**
+     * El campo debe usar <x-file-dropzone> (resources/views/components/
+     * file-dropzone.blade.php) — el mismo componente ya usado por
+     * EvidenceWorkspace y TeacherImportWizard — no el <input type="file">
+     * nativo que tenía antes.
+     */
+    public function test_the_reference_files_field_uses_the_shared_dropzone_component(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(DeliverableForm::class)->html();
+
+        $this->assertStringContainsString('Arrastra los archivos aquí', $html);
+        $this->assertStringContainsString('haz clic para seleccionar', $html);
+        $this->assertStringContainsString('id="new-reference-files-dropzone"', $html);
+        $this->assertStringNotContainsString('wire:model="newReferenceFiles" multiple class="field-input"', $html);
+    }
+
+    /**
+     * Mismo criterio visual que EvidenceWorkspace::$newFiles: nombre +
+     * tamaño legible, no la etiqueta genérica "(pendiente de guardar)" que
+     * tenía antes.
+     */
+    public function test_selected_but_unsaved_reference_files_show_their_name_and_size(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $file = UploadedFile::fake()->create('instructivo.pdf', 200, 'application/pdf');
+
+        $html = Livewire::actingAs($admin)->test(DeliverableForm::class)
+            ->set('newReferenceFiles', [$file])
+            ->html();
+
+        $this->assertStringContainsString('instructivo.pdf', $html);
+        $this->assertStringContainsString(\App\Models\EvidenceFile::formatReadableSize($file->getSize()), $html);
+        $this->assertStringNotContainsString('pendiente de guardar', $html);
+    }
+
+    /**
+     * Mismo criterio que EvidenceWorkspace cuando ya se alcanzó
+     * $deliverable->max_files: el dropzone desaparece y se explica por qué,
+     * en vez de ocultar el campo en silencio.
+     */
+    public function test_the_dropzone_is_replaced_by_a_limit_message_once_the_maximum_is_reached(): void
+    {
+        [$deliverable, $teacher] = $this->publishedDeliverableWithRecipient();
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        for ($i = 0; $i < DeliverableReferenceFile::MAX_FILES; $i++) {
+            $deliverable->attachReferenceFile(UploadedFile::fake()->create("doc{$i}.pdf", 100, 'application/pdf'), $admin);
+        }
+
+        $html = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable])
+            ->html();
+
+        $this->assertStringContainsString('Ya alcanzaste el máximo de '.DeliverableReferenceFile::MAX_FILES, $html);
+        $this->assertStringNotContainsString('Arrastra los archivos aquí', $html);
+    }
+
+    /**
+     * Los archivos ya guardados deben seguir visibles y descargables en
+     * edición, con el mismo estilo (ícono + nombre + tamaño) que el resto
+     * de filas de archivo de la aplicación.
+     */
+    public function test_already_saved_reference_files_remain_visible_and_downloadable_with_the_new_style(): void
+    {
+        [$deliverable, $teacher] = $this->publishedDeliverableWithRecipient();
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $file = $deliverable->attachReferenceFile(UploadedFile::fake()->create('plantilla.pdf', 100, 'application/pdf'), $teacher);
+
+        $html = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable])
+            ->html();
+
+        $this->assertStringContainsString('plantilla.pdf', $html);
+        $this->assertStringContainsString(route('deliverable-reference-files.download', $file), $html);
+        $this->assertStringContainsString('removeReferenceFile('.$file->id.')', $html);
+    }
 }
