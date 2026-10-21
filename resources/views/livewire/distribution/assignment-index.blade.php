@@ -17,7 +17,7 @@
             class="w-full max-w-xs"
         />
 
-        <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
+        <select wire:model.live="periodFilter" class="field-input mt-0 w-full md:w-auto">
             <option value="">Todos los periodos</option>
             @foreach ($periods as $period)
                 <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>

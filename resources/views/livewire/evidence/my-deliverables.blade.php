@@ -2,14 +2,14 @@
     <h1 class="mb-6 page-title">Mis entregables</h1>
 
     <div class="mb-4 flex flex-wrap gap-4">
-        <select wire:model.live="periodFilter" class="field-input mt-0 w-auto">
+        <select wire:model.live="periodFilter" class="field-input mt-0 w-full md:w-auto">
             <option value="">Todos los periodos</option>
             @foreach ($periods as $period)
                 <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
             @endforeach
         </select>
 
-        <select wire:model.live="statusFilter" class="field-input mt-0 w-auto">
+        <select wire:model.live="statusFilter" class="field-input mt-0 w-full md:w-auto">
             <option value="">Todos los estados</option>
             @foreach (\App\Enums\EvidenceStatus::cases() as $status)
                 <option value="{{ $status->value }}">{{ $status->label() }}</option>

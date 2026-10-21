@@ -7,8 +7,8 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2">
-            <select wire:model.live="periodFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+        <div class="flex flex-wrap items-center gap-2">
+            <select wire:model.live="periodFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                 @foreach ($periods as $period)
                     <option value="{{ $period->id }}">{{ $period->name }}</option>
                 @endforeach
@@ -191,45 +191,45 @@
             <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel de coordinación</h2>
 
             <div class="mb-6 flex flex-wrap items-end gap-3">
-                <div>
+                <div class="w-full md:w-auto">
                     <label class="field-label">Programa</label>
-                    <select wire:model.live="programFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                    <select wire:model.live="programFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todos</option>
                         @foreach ($programUnits as $programUnit)
                             <option value="{{ $programUnit->id }}">{{ $programUnit->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="w-full md:w-auto">
                     <label class="field-label">Docente</label>
-                    <select wire:model.live="teacherFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                    <select wire:model.live="teacherFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todos</option>
                         @foreach ($filterableTeachers as $filterableTeacher)
                             <option value="{{ $filterableTeacher->id }}">{{ $filterableTeacher->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="w-full md:w-auto">
                     <label class="field-label">Actividad</label>
-                    <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                    <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todas</option>
                         @foreach ($filterableActivities as $filterableActivity)
                             <option value="{{ $filterableActivity->id }}">{{ $filterableActivity->component->name }} — {{ $filterableActivity->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="w-full md:w-auto">
                     <label class="field-label">Líder</label>
-                    <select wire:model.live="leaderFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                    <select wire:model.live="leaderFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todos</option>
                         @foreach ($filterableLeaders as $filterableLeader)
                             <option value="{{ $filterableLeader->id }}">{{ $filterableLeader->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="w-full md:w-auto">
                     <label class="field-label">Estado</label>
-                    <select wire:model.live="evidenceStatusFilter" wire:loading.attr="disabled" class="field-input mt-0 w-auto">
+                    <select wire:model.live="evidenceStatusFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todos</option>
                         @foreach ($evidenceStatusOptions as $status)
                             <option value="{{ $status->value }}">{{ $status->label() }}</option>

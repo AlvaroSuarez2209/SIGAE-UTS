@@ -213,7 +213,12 @@
                 <button type="button" @click="mobileOpen = true" aria-label="Abrir menú">
                     <x-icon name="menu" class="h-7 w-7 text-text-secondary" />
                 </button>
-                <livewire:institution-brand-header key="brand-sidebar-mobile-topbar" :clickable="false" logo-class="h-8 w-8" gap="gap-2" />
+                {{-- Sin :clickable="false" a propósito, a diferencia del
+                     drawer de abajo: esta es la única barra visible fuera
+                     del drawer en móvil, y tocar el logo/nombre debe llevar
+                     al dashboard de cualquier rol (ver InstitutionBrandHeader,
+                     $clickable=true por defecto). --}}
+                <livewire:institution-brand-header key="brand-sidebar-mobile-topbar" logo-class="h-8 w-8" gap="gap-2" />
             </header>
 
             <main class="min-w-0 flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">

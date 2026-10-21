@@ -18,7 +18,7 @@
             class="w-full max-w-xs"
         />
 
-        <select wire:model.live="roleFilter" class="field-input mt-0 w-auto">
+        <select wire:model.live="roleFilter" class="field-input mt-0 w-full md:w-auto">
             <option value="">Todos los roles</option>
             @foreach ($roles as $role)
                 <option value="{{ $role->name }}">{{ $role->label }}</option>
