@@ -97,6 +97,7 @@ van directo al panel de Render. Las más importantes:
 | `DB_HOST_MIGRATE` | Host de conexión directa de Neon, solo para migraciones (ver nota abajo) |
 | `MAIL_MAILER`, `BREVO_API_KEY`, `MAIL_FROM_ADDRESS` | Envío de correo vía la API HTTP de Brevo |
 | `CRON_SECRET` | Token que protege el endpoint que procesa la cola |
+| `AUDIT_PDF_ROW_LIMIT`, `AUDIT_EXCEL_ROW_LIMIT` | Tope de filas para exportar la bitácora de auditoría (por defecto `300` y `20000` — ver "Limitaciones conocidas" abajo) |
 
 **Nota sobre Neon**: las migraciones corren contra el host de conexión
 **directa** (sin el sufijo `-pooler`), no el host agrupado que usa el
@@ -125,6 +126,15 @@ para el detalle completo.
   operativo (`schedule:run` cada minuto) que este plan no ofrece — hay
   que correrlo a mano o agregar un cron externo equivalente al de la
   cola.
+- **DomPDF (exportación a PDF) no escala**: medido con volúmenes
+  sintéticos, 1.000 filas ya consumen ~372 MB y 5.000 filas ~5 GB — muy
+  por encima de los 512 MB del contenedor, que además corre con `php
+  artisan serve` directo (sin Nginx/PHP-FPM, ver `docs/manual-tecnico.md`
+  §8.1), así que un filtro demasiado amplio puede agotar la memoria del
+  contenedor. La bitácora de auditoría ya limita esto por configuración
+  (`AUDIT_PDF_ROW_LIMIT`/`AUDIT_EXCEL_ROW_LIMIT`, ver tabla de variables
+  de entorno arriba y `docs/manual-tecnico.md` §5.17); los 4 informes del
+  módulo 9 no tienen este tope todavía.
 
 ### Verificación posterior al despliegue
 

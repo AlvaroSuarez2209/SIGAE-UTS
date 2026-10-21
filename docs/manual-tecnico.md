@@ -1299,6 +1299,34 @@ desincronizado si algún día cambia el tono de un estado.
   queda indefinidamente hasta que alguien decida lo contrario a nivel de
   base de datos.
 
+### 5.17 Tope de filas en la exportación de la bitácora de auditoría
+
+- **Por qué existe**: medido en local con volúmenes sintéticos
+  comparables a producción, DomPDF (exportación a PDF) no hace
+  streaming — arma todo el árbol de render en memoria antes de generar
+  el archivo, y su costo crece de forma no lineal con el número de
+  filas: ~372 MB/10s a 1.000 filas, ~5 GB/4 min a 5.000. Maatwebsite/
+  Excel escala mucho mejor pero tampoco es gratis (~432 MB medidos a
+  50.000 filas). Producción (Render, plan gratuito) corre en un
+  contenedor de 512 MB con `php artisan serve` directo, sin Nginx/PHP-FPM
+  (ver 8.1) — sin tope, un filtro amplio puede agotar la memoria del
+  contenedor antes de que la aplicación llegue a responder con un error
+  controlado.
+- **Cómo funciona**: `App\Http\Controllers\Audit\AuditLogExportController`
+  cuenta las filas que coinciden con el filtro aplicado (usuario, acción,
+  fecha) ANTES de construir el documento. Si el conteo supera el tope,
+  nunca se llama a DomPDF ni a Excel — se redirige a la bitácora con el
+  mensaje de error correspondiente (mismo mecanismo de aviso flash que
+  cualquier otro error de exportación). El botón de descarga nunca se
+  deshabilita: el aviso solo aparece si el usuario de verdad intenta la
+  descarga y el filtro resulta demasiado amplio.
+- **Variables de entorno** (`config/audit.php`):
+
+  | Variable | Por defecto | Aplica a |
+  |---|---|---|
+  | `AUDIT_PDF_ROW_LIMIT` | `300` | Exportación a PDF |
+  | `AUDIT_EXCEL_ROW_LIMIT` | `20000` | Exportación a Excel |
+
 ## 6. Comandos útiles
 
 ```bash

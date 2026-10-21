@@ -491,6 +491,50 @@ class AuditLogTest extends TestCase
         unlink($tempPath);
     }
 
+    /**
+     * Inyección de fórmulas (OWASP CSV/Excel Injection): si una celda de
+     * texto empieza con =, +, -, @ o un tabulador, Excel puede
+     * interpretarla como fórmula al abrir el archivo en vez de mostrarla
+     * como texto plano — un vector real si cualquier campo libre (nombre
+     * de usuario, motivo de exención, etc.) termina en una columna
+     * exportada. Verificado contra el pipeline real (no una celda
+     * construida a mano): PhpSpreadsheet 5.9 / Maatwebsite\Excel 4.0 ya
+     * guardan estos valores con tipo "string", nunca "formula" — esta
+     * prueba deja esa garantía cubierta para que una futura actualización
+     * de esas librerías no la rompa en silencio.
+     */
+    public function test_excel_export_does_not_interpret_formula_like_values_as_formulas(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher->update(['name' => '=cmd|\' /C calc\'!A0']);
+
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        $response = $this->actingAs($admin)->get('/admin/audit-logs/excel?action=login');
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-audit-excel-injection-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tempPath)->getActiveSheet();
+
+        $found = false;
+        foreach ($sheet->getRowIterator() as $row) {
+            foreach ($row->getCellIterator() as $cell) {
+                $value = $cell->getValue();
+                if (is_string($value) && str_starts_with($value, '=cmd')) {
+                    $found = true;
+                    $this->assertNotEquals(\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_FORMULA, $cell->getDataType());
+                }
+            }
+        }
+
+        $this->assertTrue($found, 'La celda con el valor inyectado no se encontró en el Excel exportado.');
+
+        unlink($tempPath);
+    }
+
     public function test_export_with_a_nonexistent_user_filter_still_filters_to_nothing_not_a_404(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -498,5 +542,91 @@ class AuditLogTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/audit-logs/excel?user=999999')
             ->assertOk();
+    }
+
+    public function test_pdf_download_succeeds_at_or_under_the_row_limit(): void
+    {
+        config(['audit.pdf_row_limit' => 2]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        // Filtrado por action=login para que el conteo sea exactamente las 2
+        // filas creadas arriba, sin contar los eventos 'created' que ya
+        // genera userWithRole() al crear los propios usuarios de prueba.
+        $response = $this->actingAs($admin)->get('/admin/audit-logs/pdf?action=login');
+
+        $response->assertOk();
+        $this->assertEquals('application/pdf', $response->headers->get('content-type'));
+    }
+
+    /**
+     * El tope se prueba bajándolo por configuración (no insertando
+     * cientos de filas reales en el test): lo que importa es que la
+     * lógica "count() > limite => no genera el documento" funcione, no
+     * reproducir aquí la escala de producción — eso ya se midió aparte
+     * (DomPDF: ~372 MB/10s a 1.000 filas, ~5 GB/4 min a 5.000).
+     */
+    public function test_pdf_download_is_rejected_without_generating_the_file_when_the_row_limit_is_exceeded(): void
+    {
+        config(['audit.pdf_row_limit' => 2]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        $response = $this->actingAs($admin)->get('/admin/audit-logs/pdf?action=login');
+
+        $response->assertRedirect(route('admin.audit-logs.index', ['action' => 'login']));
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('3 registros', session('error'));
+        $this->assertStringContainsString('máximo para PDF es 2', session('error'));
+        $this->assertNotEquals('application/pdf', $response->headers->get('content-type'));
+    }
+
+    public function test_excel_download_is_rejected_without_generating_the_file_when_the_row_limit_is_exceeded(): void
+    {
+        config(['audit.excel_row_limit' => 2]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        $response = $this->actingAs($admin)->get('/admin/audit-logs/excel');
+
+        $response->assertRedirect(route('admin.audit-logs.index'));
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('máximo para Excel es 2', session('error'));
+    }
+
+    /**
+     * El botón nunca se deshabilita ni aparece un aviso permanente en
+     * pantalla — el aviso solo se muestra si el usuario de verdad hace
+     * clic y el servidor rechaza la descarga (ver los dos tests de
+     * rechazo arriba). Se baja el tope a propósito para confirmar que ni
+     * así cambia el botón.
+     */
+    public function test_pdf_and_excel_buttons_are_always_present_and_enabled(): void
+    {
+        config(['audit.pdf_row_limit' => 1, 'audit.excel_row_limit' => 1]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+        AuditLog::create(['action' => 'login', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        $html = Livewire::actingAs($admin)->test(AuditLogIndex::class)->html();
+
+        $this->assertStringContainsString('Descargar PDF', $html);
+        $this->assertStringContainsString('Descargar Excel', $html);
+        $this->assertStringNotContainsString('disabled', $html);
+        $this->assertMatchesRegularExpression('#<a[^>]+href="[^"]*audit-logs/pdf[^"]*"[^>]*>#', $html);
+        $this->assertMatchesRegularExpression('#<a[^>]+href="[^"]*audit-logs/excel[^"]*"[^>]*>#', $html);
     }
 }
