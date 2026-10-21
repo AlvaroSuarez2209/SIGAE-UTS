@@ -33,6 +33,25 @@ class ReviewShow extends Component
             Gate::authorize('review', $evidence);
         }
 
+        // Nada que mostrar todavía: Evidence::isReviewableBy() no mira el
+        // estado (un líder/Administrador pasa el chequeo de arriba para
+        // CUALQUIER estado dentro de su ámbito), así que se puede llegar
+        // aquí con una evidencia Pendiente que nunca tuvo ninguna versión
+        // (current_version_id nulo — a diferencia de Borrador, que sí
+        // tiene una versión real sin enviar, y para la que esta pantalla
+        // ya renderiza sin problema). La vista asume $evidence->currentVersion
+        // para mostrar fecha de envío, contenido, archivos y enlaces, y
+        // truena con un 500 en vez de mostrar algo con sentido. No cambia
+        // ningún permiso: a quien ya pasó el chequeo de arriba solo se le
+        // redirige a la bandeja con un mensaje, nunca se le niega el
+        // acceso que ya tenía.
+        if (! $evidence->currentVersion) {
+            session()->flash('error', 'Esta evidencia todavía no tiene ninguna versión enviada; no hay nada que revisar.');
+            $this->redirect(route('reviews.index'), navigate: false);
+
+            return;
+        }
+
         $this->evidence = $evidence;
     }
 
