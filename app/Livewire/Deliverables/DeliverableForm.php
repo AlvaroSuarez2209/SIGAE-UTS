@@ -10,16 +10,21 @@ use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
+use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Models\User;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class DeliverableForm extends Component
 {
+    use WithFileUploads;
+
     public ?Deliverable $deliverable = null;
 
     public string $scope_type = 'activity';
@@ -65,6 +70,17 @@ class DeliverableForm extends Component
     public array $recipient_ids = [];
 
     public bool $periodLocked = false;
+
+    /**
+     * RF-038: archivo(s) de referencia nuevos, pendientes de subir al
+     * confirmar (save()/saveAsDraft()) — el Deliverable puede no existir
+     * todavía en los primeros pasos del asistente, así que no se pueden
+     * guardar antes de eso (ver attachReferenceFile(), que exige un
+     * $this->deliverable ya persistido). Los ya existentes (edición) no
+     * viven en una propiedad aparte: render() los lee frescos de
+     * $this->deliverable->activeReferenceFiles cada vez.
+     */
+    public array $newReferenceFiles = [];
 
     /**
      * Prioridad 5: wizard de 6 pasos sobre el mismo componente/formulario
@@ -169,6 +185,66 @@ class DeliverableForm extends Component
     public function updatedRecipientMode(): void
     {
         $this->resetErrorBag('recipient_ids');
+    }
+
+    /**
+     * Valida cada archivo apenas se adjunta (no al confirmar) — mismo
+     * criterio que EvidenceWorkspace::updatedNewFiles(): un archivo fuera
+     * de la whitelist nunca debe quedar "adjunto en silencio" hasta el
+     * guardado final. El tope de 3 cuenta los ya existentes (si se está
+     * editando) más los pendientes de subir — no solo estos últimos.
+     */
+    public function updatedNewReferenceFiles(): void
+    {
+        $this->resetErrorBag(['newReferenceFiles', 'newReferenceFiles.*']);
+
+        $existingCount = $this->deliverable?->activeReferenceFiles()->count() ?? 0;
+        $rules = [
+            'file',
+            'max:'.(DeliverableReferenceFile::MAX_FILE_SIZE_MB * 1024),
+            'mimes:'.implode(',', Deliverable::DEFAULT_ALLOWED_FILE_TYPES),
+        ];
+
+        $validFiles = [];
+
+        foreach ($this->newReferenceFiles as $file) {
+            if ($existingCount + count($validFiles) >= DeliverableReferenceFile::MAX_FILES) {
+                $this->addError('newReferenceFiles', 'Este entregable admite máximo '.DeliverableReferenceFile::MAX_FILES.' archivo(s) de referencia.');
+
+                break;
+            }
+
+            $validator = Validator::make(['newReferenceFiles' => [$file]], ['newReferenceFiles.*' => $rules]);
+
+            if ($validator->fails()) {
+                $this->addError('newReferenceFiles', $validator->errors()->first('newReferenceFiles.*'));
+
+                continue;
+            }
+
+            $validFiles[] = $file;
+        }
+
+        $this->newReferenceFiles = $validFiles;
+    }
+
+    public function removeNewReferenceFile(int $index): void
+    {
+        unset($this->newReferenceFiles[$index]);
+        $this->newReferenceFiles = array_values($this->newReferenceFiles);
+    }
+
+    /**
+     * Sobre un archivo YA guardado (edición) — a diferencia de los
+     * pendientes de arriba, esto actúa de inmediato (is_active = false +
+     * auditoría), no espera a save()/saveAsDraft(). No exige Gate propio:
+     * toda la pantalla ya está detrás de 'role:administrator,coordination'
+     * (routes/web.php), igual que el resto de las acciones de este
+     * componente.
+     */
+    public function removeReferenceFile(DeliverableReferenceFile $referenceFile): void
+    {
+        $this->deliverable->removeReferenceFile($referenceFile, auth()->user());
     }
 
     private function candidateTeachers()
@@ -389,6 +465,8 @@ class DeliverableForm extends Component
             $this->deliverable = Deliverable::create($data);
         }
 
+        $this->persistNewReferenceFiles();
+
         session()->flash('status', 'Entregable guardado como borrador. No es visible para los docentes todavía.');
 
         $this->redirect(route('deliverables.index'), navigate: false);
@@ -432,9 +510,25 @@ class DeliverableForm extends Component
         $this->deliverable->recipients()->sync($recipientIds);
         $this->deliverable->ensureEvidencesForRecipients($recipientIds);
 
+        $this->persistNewReferenceFiles();
+
         session()->flash('status', 'Entregable guardado correctamente.');
 
         $this->redirect(route('deliverables.index'), navigate: false);
+    }
+
+    /**
+     * Sube y adjunta los archivos de referencia pendientes — llamado
+     * siempre DESPUÉS de crear/actualizar $this->deliverable, nunca antes
+     * (attachReferenceFile() exige un entregable ya persistido).
+     */
+    private function persistNewReferenceFiles(): void
+    {
+        foreach ($this->newReferenceFiles as $file) {
+            $this->deliverable->attachReferenceFile($file, auth()->user());
+        }
+
+        $this->newReferenceFiles = [];
     }
 
     public function render()
@@ -457,6 +551,11 @@ class DeliverableForm extends Component
             'periodicityOptions' => PeriodicityType::cases(),
             'evidenceTypeOptions' => EvidenceType::cases(),
             'fileTypeOptions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'png', 'zip'],
+            // Consultado explícito, no vía la relación directo en la vista:
+            // Model::preventLazyLoading() está activo en local y tronaría
+            // si la vista accediera a $deliverable->activeReferenceFiles
+            // sin que ya viniera cargada.
+            'referenceFiles' => $this->deliverable?->activeReferenceFiles()->get() ?? collect(),
             'candidateTeachers' => $this->candidateTeachers(),
             'totalSteps' => self::TOTAL_STEPS,
         ])->title($this->deliverable ? 'Editar entregable' : 'Nuevo entregable');

@@ -48,6 +48,8 @@ class AuditLogPresenter
         'evidence_marked_exempt' => 'Marcada como exenta',
         'evidence_marked_overdue' => 'Vencimiento automático',
         'evidence_exemption_removed' => 'Exención removida',
+        'deliverable_reference_file_attached' => 'Archivo de referencia adjuntado',
+        'deliverable_reference_file_removed' => 'Archivo de referencia quitado',
     ];
 
     /**
@@ -255,6 +257,10 @@ class AuditLogPresenter
             return self::describeExemption($log);
         }
 
+        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed'], true)) {
+            return self::describeReferenceFileAction($log);
+        }
+
         $metadata = $log->metadata ?? [];
         $modelBasename = $log->auditable_type ? class_basename($log->auditable_type) : null;
         $previous = (array) ($metadata['previous'] ?? []);
@@ -320,6 +326,17 @@ class AuditLogPresenter
     }
 
     /**
+     * RF-038: deliverable_reference_file_attached/_removed guardan
+     * `file_name`, no `changes` — misma razón que describeExemption().
+     */
+    private static function describeReferenceFileAction(AuditLog $log): string
+    {
+        $fileName = $log->metadata['file_name'] ?? null;
+
+        return $fileName ? "Archivo: {$fileName}" : '';
+    }
+
+    /**
      * Prioridad 7, parte 2: desglose campo por campo para el modal de
      * detalle (describeChanges() sigue siendo la frase compacta de la
      * columna "Detalle" de la tabla) — a diferencia de describeFieldChange(),
@@ -338,6 +355,12 @@ class AuditLogPresenter
             $justification = $log->metadata['justification'] ?? null;
 
             return $justification ? [['label' => 'Motivo', 'after' => $justification, 'before' => null]] : [];
+        }
+
+        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed'], true)) {
+            $fileName = $log->metadata['file_name'] ?? null;
+
+            return $fileName ? [['label' => 'Archivo', 'after' => $fileName, 'before' => null]] : [];
         }
 
         $metadata = $log->metadata ?? [];

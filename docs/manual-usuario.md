@@ -75,6 +75,12 @@ seguimiento. Desde el menú puede acceder a:
   (independiente de la distribución). Una plantilla permite reutilizar
   la misma configuración (tipos de evidencia, formatos, criterio de
   cumplimiento) en varios entregables sin volver a escribirla.
+  - **Archivo(s) de referencia** (paso "Información general" del
+    asistente): además de las instrucciones en texto, se puede adjuntar
+    hasta 3 archivos (plantilla, instructivo o formato — máx. 10 MB c/u,
+    formatos PDF, Word, JPG o PNG) que el docente podrá descargar junto
+    con el entregable. "Quitar" un archivo no lo borra: deja de estar
+    disponible, pero su registro se conserva.
 - **Informes** (menú desplegable "Informes"): los cuatro informes
   mínimos — individual por docente, por actividad, de compromisos
   transversales y consolidado por periodo — cada uno exportable a PDF
@@ -100,7 +106,8 @@ completo, para un periodo dado).
 
 - **Revisión** (menú "Revisión"): bandeja de evidencias enviadas por los
   docentes de su ámbito, pendientes de decisión. Al abrir una, puede ver
-  la descripción del entregable, los archivos/enlaces adjuntos y:
+  la descripción del entregable, los archivos/enlaces adjuntos, el o los
+  archivos de referencia del entregable (si tiene alguno) y:
   - **Aprobar** (la observación es opcional).
   - **Devolver** (la observación es **obligatoria** — debe explicar qué
     debe ajustar el docente).
@@ -129,6 +136,9 @@ completo, para un periodo dado).
   estado (Pendiente, Borrador, Enviado, Requiere ajustes, Aprobado,
   Vencido, Exento).
 - Al entrar a un entregable puede:
+  - **Descargar el o los archivos de referencia** (si Coordinación/
+    Administrador adjuntaron alguno): aparecen junto a las instrucciones,
+    con el nombre y tamaño reales de cada archivo.
   - Adjuntar lo que el entregable permita: archivo(s), texto y/o
     enlace(s), según su configuración.
   - **Guardar borrador** cuantas veces quiera mientras no lo haya

@@ -357,6 +357,7 @@ class EvidenceWorkspace extends Component
         return view('livewire.evidence.evidence-workspace', [
             'allowed' => $this->allowedTypes(),
             'canManageExemptionByRole' => $this->canManageExemptionByRole(),
+            'referenceFiles' => $this->evidence->deliverable->activeReferenceFiles()->get(),
         ])->title($this->evidence->deliverable->name);
     }
 }

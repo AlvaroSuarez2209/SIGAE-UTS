@@ -129,7 +129,8 @@ class ReviewShow extends Component
             'reviews.observations',
         ]);
 
-        return view('livewire.reviews.review-show')
-            ->title('Revisar: '.$this->evidence->deliverable->name);
+        return view('livewire.reviews.review-show', [
+            'referenceFiles' => $this->evidence->deliverable->activeReferenceFiles()->get(),
+        ])->title('Revisar: '.$this->evidence->deliverable->name);
     }
 }

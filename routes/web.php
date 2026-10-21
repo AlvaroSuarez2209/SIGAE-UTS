@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\TeacherImportTemplateController;
 use App\Http\Controllers\Audit\AuditLogExportController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Cron\ProcessQueueController;
+use App\Http\Controllers\Deliverable\DeliverableReferenceFileDownloadController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
 use App\Livewire\Admin\InstitutionSettingsForm;
@@ -80,6 +81,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
 
     Route::get('/evidence-files/{evidenceFile}/download', EvidenceFileDownloadController::class)->name('evidence-files.download');
+
+    // RF-038: archivo(s) de referencia del entregable (plantilla/instructivo/
+    // formato) — mismo patrón que la ruta de arriba, sin rol en la ruta: la
+    // autorización real la decide DeliverableReferenceFilePolicy.
+    Route::get('/deliverable-reference-files/{deliverableReferenceFile}/download', DeliverableReferenceFileDownloadController::class)->name('deliverable-reference-files.download');
 
     Route::middleware('role:administrator,coordination,leader')->prefix('reviews')->name('reviews.')->group(function () {
         Route::get('/', ReviewInbox::class)->name('index');

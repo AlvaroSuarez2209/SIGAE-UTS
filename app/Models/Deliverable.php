@@ -7,6 +7,7 @@ use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
+use App\Enums\RoleName;
 use App\Models\Concerns\Auditable;
 use App\Notifications\Evidence\EvidenceAssignedNotification;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 
 class Deliverable extends Model
 {
@@ -97,6 +99,21 @@ class Deliverable extends Model
         return $this->hasMany(Evidence::class);
     }
 
+    public function referenceFiles(): HasMany
+    {
+        return $this->hasMany(DeliverableReferenceFile::class);
+    }
+
+    /**
+     * Lo que de verdad se muestra/descarga — nunca los desactivados (ver
+     * removeReferenceFile(): "quitar" nunca borra la fila ni el archivo
+     * físico, solo is_active = false).
+     */
+    public function activeReferenceFiles(): HasMany
+    {
+        return $this->referenceFiles()->where('is_active', true);
+    }
+
     public function isCrossCutting(): bool
     {
         return $this->activity_id === null;
@@ -173,5 +190,76 @@ class Deliverable extends Model
                 $evidence->user->notify(new EvidenceAssignedNotification($evidence));
             }
         }
+    }
+
+    /**
+     * RF-038: quién puede descargar un archivo de referencia de este
+     * entregable. Administrador/Coordinación/Auditor siempre; el docente
+     * si es destinatario; el líder si puede revisar al menos una
+     * evidencia de este entregable dentro de su ámbito vigente —
+     * reutiliza Evidence::isReviewableBy() en vez de inventar un segundo
+     * criterio de "ámbito": es el mismo que ya usa el resto del sistema
+     * (Evidence::matchingTeacherAssignment() + User::canLeadAssignment()).
+     */
+    public function isReferenceFileViewableBy(User $user): bool
+    {
+        if ($user->hasAnyRole([RoleName::Administrator, RoleName::Coordination, RoleName::Auditor])) {
+            return true;
+        }
+
+        if ($this->recipients->contains('id', $user->id)) {
+            return true;
+        }
+
+        if ($user->hasRole(RoleName::Leader)) {
+            return $this->evidences->contains(fn (Evidence $evidence) => $evidence->isReviewableBy($user));
+        }
+
+        return false;
+    }
+
+    /**
+     * Guarda el archivo real en el disco 'local' (privado, el mismo que
+     * EvidenceFile — ver config/filesystems.php) con nombre aleatorio
+     * (UploadedFile::store()), crea la fila y deja el registro de
+     * auditoría — "adjuntar" y "reemplazar" (quitar uno + adjuntar otro)
+     * usan este mismo método.
+     */
+    public function attachReferenceFile(UploadedFile $file, User $actor): DeliverableReferenceFile
+    {
+        $storedPath = $file->store('deliverables/'.$this->id, 'local');
+
+        $referenceFile = $this->referenceFiles()->create([
+            'original_name' => $file->getClientOriginalName(),
+            'stored_name' => basename($storedPath),
+            'disk_path' => $storedPath,
+            'mime_type' => $file->getMimeType(),
+            'size_bytes' => $file->getSize(),
+            'uploaded_by' => $actor->id,
+        ]);
+
+        AuditLog::record('deliverable_reference_file_attached', $this, [
+            'file_name' => $referenceFile->original_name,
+            'file_id' => $referenceFile->id,
+        ]);
+
+        return $referenceFile;
+    }
+
+    /**
+     * "Quitar" nunca borra la fila ni el archivo físico — solo
+     * is_active = false, mismo principio que el resto del proyecto
+     * (catálogos, cuentas de usuario). El archivo real queda en disco por
+     * si hiciera falta recuperarlo a mano; deja de listarse y de poder
+     * descargarse (DeliverableReferenceFilePolicy exige is_active).
+     */
+    public function removeReferenceFile(DeliverableReferenceFile $referenceFile, User $actor): void
+    {
+        $referenceFile->update(['is_active' => false]);
+
+        AuditLog::record('deliverable_reference_file_removed', $this, [
+            'file_name' => $referenceFile->original_name,
+            'file_id' => $referenceFile->id,
+        ]);
     }
 }

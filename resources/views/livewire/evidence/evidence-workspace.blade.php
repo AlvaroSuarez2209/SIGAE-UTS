@@ -6,7 +6,7 @@
         <x-status-badge :status="$evidence->status" />
     </div>
 
-    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria || $referenceFiles->isNotEmpty())
         <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
             <h2 class="form-section-title mb-2">Instrucciones</h2>
             @if ($deliverable->description)
@@ -17,6 +17,21 @@
             @endif
             @if ($deliverable->completion_criteria)
                 <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
+            @endif
+            @if ($referenceFiles->isNotEmpty())
+                <div>
+                    <span class="font-medium text-text-primary">Archivo(s) de referencia:</span>
+                    <ul class="mt-1 space-y-1">
+                        @foreach ($referenceFiles as $file)
+                            <li>
+                                <a href="{{ route('deliverable-reference-files.download', $file) }}" class="text-brand-primary hover:underline">
+                                    {{ $file->original_name }}
+                                </a>
+                                <span class="text-text-secondary">({{ $file->readable_size }})</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
             @endif
         </div>
     @endif

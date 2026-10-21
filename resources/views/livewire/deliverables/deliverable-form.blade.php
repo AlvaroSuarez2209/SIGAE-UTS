@@ -28,6 +28,21 @@
                 @if ($description)<p><span class="field-label">Descripción</span> {{ $description }}</p>@endif
                 @if ($instructions)<p><span class="field-label">Instrucciones</span> {{ $instructions }}</p>@endif
                 @if ($completion_criteria)<p><span class="field-label">Criterio de cumplimiento</span> {{ $completion_criteria }}</p>@endif
+                @if ($referenceFiles->isNotEmpty())
+                    <div>
+                        <span class="field-label">Archivo(s) de referencia</span>
+                        <ul class="mt-1 space-y-1">
+                            @foreach ($referenceFiles as $file)
+                                <li>
+                                    <a href="{{ route('deliverable-reference-files.download', $file) }}" class="text-brand-primary hover:underline">
+                                        {{ $file->original_name }}
+                                    </a>
+                                    <span class="text-text-secondary">({{ $file->readable_size }})</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
             </div>
 
             <div class="space-y-4">
@@ -200,6 +215,41 @@
                     <label class="field-label">Criterio de cumplimiento <span class="font-normal text-text-secondary">(opcional)</span></label>
                     <textarea wire:model="completion_criteria" rows="2" class="field-input"></textarea>
                     @error('completion_criteria') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- RF-038: plantilla/instructivo/formato de referencia --}}
+                <div>
+                    <span class="field-label">
+                        Archivo(s) de referencia <span class="font-normal text-text-secondary">(opcional — plantilla, instructivo o formato; máx. {{ \App\Models\DeliverableReferenceFile::MAX_FILES }}, {{ \App\Models\DeliverableReferenceFile::MAX_FILE_SIZE_MB }}MB c/u, formatos: {{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => ".$e")->join(', ') }})</span>
+                    </span>
+
+                    @if ($referenceFiles->isNotEmpty())
+                        <ul class="mt-2 space-y-2">
+                            @foreach ($referenceFiles as $file)
+                                <li class="flex items-center justify-between gap-2 rounded-md border border-border-subtle p-2 text-sm">
+                                    <span class="truncate text-text-primary">{{ $file->original_name }} <span class="text-text-secondary">({{ $file->readable_size }})</span></span>
+                                    <button type="button" wire:click="removeReferenceFile({{ $file->id }})" wire:loading.attr="disabled" class="btn-text shrink-0 text-status-error">Quitar</button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    @if ($referenceFiles->count() + count($newReferenceFiles) < \App\Models\DeliverableReferenceFile::MAX_FILES)
+                        <input type="file" wire:model="newReferenceFiles" multiple class="field-input mt-2">
+                    @endif
+                    @error('newReferenceFiles') <p class="field-error">{{ $message }}</p> @enderror
+                    @error('newReferenceFiles.*') <p class="field-error">{{ $message }}</p> @enderror
+
+                    @if (! empty($newReferenceFiles))
+                        <ul class="mt-2 space-y-2">
+                            @foreach ($newReferenceFiles as $index => $file)
+                                <li class="flex items-center justify-between gap-2 rounded-md border border-border-subtle bg-surface-muted p-2 text-sm">
+                                    <span class="truncate text-text-primary">{{ $file->getClientOriginalName() }} <span class="text-text-secondary">(pendiente de guardar)</span></span>
+                                    <button type="button" wire:click="removeNewReferenceFile({{ $index }})" class="btn-text shrink-0 text-status-error">Quitar</button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
             </div>
 
@@ -382,6 +432,9 @@
                             <h3 class="font-semibold text-text-primary">Información general</h3>
                             <p class="text-sm text-text-secondary">Nombre: {{ $name ?: '—' }}</p>
                             @if ($description)<p class="text-sm text-text-secondary">Descripción: {{ $description }}</p>@endif
+                            <p class="text-sm text-text-secondary">
+                                Archivo(s) de referencia: {{ $referenceFiles->count() + count($newReferenceFiles) }}
+                            </p>
                         </div>
                         <button type="button" wire:click="goToStep(2)" class="btn-text shrink-0 text-text-secondary">Editar</button>
                     </div>

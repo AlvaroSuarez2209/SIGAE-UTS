@@ -55,6 +55,7 @@ erDiagram
 
     DELIVERABLE ||--o{ DELIVERABLE_RECIPIENT : ""
     DELIVERABLE ||--o{ EVIDENCE : ""
+    DELIVERABLE ||--o{ DELIVERABLE_REFERENCE_FILE : ""
 
     EVIDENCE ||--o{ EVIDENCE_VERSION : ""
     EVIDENCE }o--|| EVIDENCE_VERSION : "current_version_id"
@@ -335,6 +336,48 @@ Al guardar destinatarios se crea automáticamente una `evidence` en
 estado `pending` para cada uno (`Deliverable::ensureEvidencesForRecipients()`);
 si alguien deja de ser destinatario, su evidencia ya creada **no se
 borra**.
+
+### `deliverable_reference_files`
+
+**Tabla nueva (RF-038).** Archivo(s) de referencia (plantilla,
+instructivo o formato) que Administración/Coordinación puede adjuntar a
+un entregable, además del texto libre de `instructions`. Mismo patrón
+que `evidence_files`.
+
+| Columna | Tipo | Nulo | Default | Notas |
+|---|---|---|---|---|
+| `id` | bigint | no | autoincremental | PK |
+| `deliverable_id` | bigint | no | — | FK, `cascadeOnDelete` |
+| `original_name` | string | no | — | Nombre visible para el usuario |
+| `stored_name` | string | no | — | Único. Nombre real en disco — generado aleatoriamente por Laravel (`UploadedFile::store()`), nunca predecible ni igual al nombre original |
+| `disk_path` | string | no | — | Ruta relativa dentro del disco `local` (privado, `storage/app/private`, sin URL pública — ver `config/filesystems.php`) |
+| `mime_type` | string | no | — | Detectado del archivo real |
+| `size_bytes` | unsigned bigint | no | — | |
+| `is_active` | boolean | no | `true` | "Quitar" nunca borra la fila ni el archivo físico — solo pone esto en `false` (`Deliverable::removeReferenceFile()`), mismo principio que los catálogos |
+| `uploaded_by` | bigint | sí | `null` | FK `users`, `nullOnDelete` |
+| `created_at`, `updated_at` | timestamp | — | — | |
+
+**Límites** (fijos, no configurables por entregable — a diferencia de
+`evidences`): máximo `DeliverableReferenceFile::MAX_FILES` = 3 archivos,
+`DeliverableReferenceFile::MAX_FILE_SIZE_MB` = 10 MB c/u, mismas
+extensiones por defecto que el resto del proyecto
+(`Deliverable::DEFAULT_ALLOWED_FILE_TYPES`: pdf, doc, docx, jpg, jpeg,
+png).
+
+**Descarga**: sin URL pública — pasa siempre por
+`DeliverableReferenceFileDownloadController`, que verifica permisos en
+cada solicitud vía `DeliverableReferenceFilePolicy`
+(`Deliverable::isReferenceFileViewableBy()`): Administrador/Coordinación/
+Auditor siempre; el docente si es destinatario del entregable; el líder
+si puede revisar al menos una evidencia de ese entregable dentro de su
+ámbito vigente (mismo criterio que `Evidence::isReviewableBy()`). Un
+archivo desactivado nunca se puede descargar, sin importar el rol.
+
+**Auditoría**: adjuntar y quitar quedan en `audit_logs` contra el propio
+`Deliverable` (acciones `deliverable_reference_file_attached`/
+`deliverable_reference_file_removed`, con el nombre del archivo en el
+detalle) — no existe una acción de "reemplazar": en la interfaz es quitar
+uno + adjuntar otro, cada uno ya auditado por separado.
 
 ### `evidences`
 
