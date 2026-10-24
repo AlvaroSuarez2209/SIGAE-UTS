@@ -55,6 +55,14 @@ class DeliverableReferenceFile extends Model
         return Storage::disk('local');
     }
 
+    /**
+     * Mismo criterio que EvidenceFile::existsOnDisk() — ver su docblock.
+     */
+    public function existsOnDisk(): bool
+    {
+        return $this->disk()->exists($this->disk_path);
+    }
+
     protected function readableSize(): Attribute
     {
         return Attribute::get(fn () => EvidenceFile::formatReadableSize($this->size_bytes));

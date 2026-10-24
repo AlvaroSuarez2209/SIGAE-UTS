@@ -233,7 +233,11 @@
                                         <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
                                     </div>
                                     <div class="flex shrink-0 items-center gap-3">
-                                        <a href="{{ route('deliverable-reference-files.download', $file) }}" class="btn-text">Descargar</a>
+                                        @if ($file->existsOnDisk())
+                                            <a href="{{ route('deliverable-reference-files.download', $file) }}" class="btn-text">Descargar</a>
+                                        @else
+                                            <span class="text-sm font-medium text-status-error">Archivo no disponible</span>
+                                        @endif
                                         <button
                                             type="button"
                                             wire:click="removeReferenceFile({{ $file->id }})"

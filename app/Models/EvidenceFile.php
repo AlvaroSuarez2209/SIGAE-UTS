@@ -32,6 +32,17 @@ class EvidenceFile extends Model
     }
 
     /**
+     * El disco de Render es efímero — un redeploy puede dejar la fila sin
+     * su archivo físico. Un solo chequeo de existencia en disco local
+     * ('local', no 'S3') es una llamada nativa de filesystem, no una
+     * petición de red — barato incluso con muchos archivos en pantalla.
+     */
+    public function existsOnDisk(): bool
+    {
+        return $this->disk()->exists($this->disk_path);
+    }
+
+    /**
      * Tamaño legible ("245 KB", "1.2 MB") — único punto de formato para no
      * repetir la conversión de bytes en cada vista que liste archivos.
      * Estático porque también lo usa EvidenceWorkspace para los archivos

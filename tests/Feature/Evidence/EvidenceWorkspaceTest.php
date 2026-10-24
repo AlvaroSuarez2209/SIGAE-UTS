@@ -20,6 +20,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -970,5 +971,43 @@ class EvidenceWorkspaceTest extends TestCase
             'El campo archivo debe ser un archivo de tipo: pdf.',
             $test->instance()->getErrorBag()->first('newFiles')
         );
+    }
+
+    /**
+     * El disco de Render es efímero — un redeploy puede dejar la fila de
+     * evidence_files en la base sin su archivo físico. Antes de esta
+     * prueba, Storage::download() dejaba pasar la excepción cruda de
+     * Flysystem como un 500 sin explicación (ver
+     * EvidenceFileDownloadController). Debe ser un 404 controlado, en
+     * español, con su propio registro en el log — sin datos personales,
+     * solo el id de la fila.
+     */
+    public function test_downloading_an_evidence_file_whose_physical_file_is_missing_returns_a_controlled_404(): void
+    {
+        Log::spy();
+
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('evidencia.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+        Storage::disk('local')->delete($evidenceFile->disk_path);
+
+        $response = $this->actingAs($evidence->user)
+            ->get(route('evidence-files.download', $evidenceFile));
+
+        $response->assertNotFound();
+        $this->assertSame(
+            'El archivo ya no está disponible. Es posible que se haya perdido tras un reinicio del servidor.',
+            $response->exception->getMessage()
+        );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($message, $context) => $context === ['evidence_file_id' => $evidenceFile->id]);
     }
 }

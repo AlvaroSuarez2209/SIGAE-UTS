@@ -20,6 +20,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -430,5 +431,35 @@ class DeliverableReferenceFileTest extends TestCase
         $this->assertStringContainsString('plantilla.pdf', $html);
         $this->assertStringContainsString(route('deliverable-reference-files.download', $file), $html);
         $this->assertStringContainsString('removeReferenceFile('.$file->id.')', $html);
+    }
+
+    /**
+     * Mismo criterio que EvidenceWorkspaceTest::test_downloading_an_evidence_file_whose_physical_file_is_missing_returns_a_controlled_404()
+     * — el disco de Render es efímero, el registro puede sobrevivir a su
+     * archivo físico tras un redeploy. Debe ser un 404 controlado, no el
+     * 500 crudo de Flysystem.
+     */
+    public function test_downloading_a_reference_file_whose_physical_file_is_missing_returns_a_controlled_404(): void
+    {
+        Log::spy();
+
+        [$deliverable, $teacher] = $this->publishedDeliverableWithRecipient();
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $file = $deliverable->attachReferenceFile(UploadedFile::fake()->create('plantilla.pdf', 100, 'application/pdf'), $teacher);
+
+        Storage::disk('local')->delete($file->disk_path);
+
+        $response = $this->actingAs($admin)
+            ->get(route('deliverable-reference-files.download', $file));
+
+        $response->assertNotFound();
+        $this->assertSame(
+            'El archivo ya no está disponible. Es posible que se haya perdido tras un reinicio del servidor.',
+            $response->exception->getMessage()
+        );
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($message, $context) => $context === ['deliverable_reference_file_id' => $file->id]);
     }
 }

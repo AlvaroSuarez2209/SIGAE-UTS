@@ -79,7 +79,15 @@
                 @if ($fileCount > 0)
                     <ul class="mt-2 space-y-1">
                         @foreach ($evidence->currentVersion->files as $file)
-                            <x-evidence-file-row :file="$file" :removable="$evidence->status->isEditable()" />
+                            @if ($file->existsOnDisk())
+                                <x-evidence-file-row :file="$file" :removable="$evidence->status->isEditable()" />
+                            @else
+                                <li class="flex items-center gap-2 rounded-md border border-border-subtle px-3 py-2">
+                                    <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                    <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
+                                    <span class="shrink-0 text-sm font-medium text-status-error">Archivo no disponible</span>
+                                </li>
+                            @endif
                         @endforeach
                     </ul>
                 @endif
