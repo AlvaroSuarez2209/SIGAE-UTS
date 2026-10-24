@@ -1010,4 +1010,103 @@ class EvidenceWorkspaceTest extends TestCase
             ->once()
             ->withArgs(fn ($message, $context) => $context === ['evidence_file_id' => $evidenceFile->id]);
     }
+
+    /**
+     * Prepara una evidencia con 2 versiones reales: la versión 1 se envía
+     * con un archivo y el líder la devuelve (queda NeedsAdjustment, sin
+     * crear versión nueva todavía); la versión 2 arranca como el nuevo
+     * borrador actual al volver a guardar. Devuelve [$evidence, $teacher,
+     * $leader, $oldFile] — $oldFile es el archivo de la versión 1 (ya no
+     * la actual).
+     *
+     * @return array{0: Evidence, 1: User, 2: User, 3: \App\Models\EvidenceFile}
+     */
+    private function evidenceWithAReturnedPreviousVersion(): array
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'allowed_evidence_types' => [EvidenceType::File->value],
+            'allowed_file_types' => ['pdf'],
+            'max_files' => 1,
+            'max_file_size_mb' => 5,
+        ]);
+        $evidence = Evidence::factory()->create([
+            'deliverable_id' => $deliverable->id,
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf')])
+            ->call('submit');
+
+        $evidence->refresh();
+        $oldFile = $evidence->currentVersion->files->first();
+
+        $evidence->returnCurrentReviewForAdjustment($leader, 'Ajusta el documento.');
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('saveDraft');
+
+        $evidence->refresh();
+
+        return [$evidence, $teacher, $leader, $oldFile];
+    }
+
+    public function test_the_owning_teacher_sees_a_download_link_for_files_of_a_previous_version(): void
+    {
+        [$evidence, $teacher, , $oldFile] = $this->evidenceWithAReturnedPreviousVersion();
+
+        $this->assertNotEquals($evidence->current_version_id, $oldFile->evidence_version_id);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Historial de versiones')
+            ->assertSee(route('evidence-files.download', $oldFile), false);
+    }
+
+    public function test_an_unrelated_teacher_cannot_download_a_file_from_a_previous_version(): void
+    {
+        [, , , $oldFile] = $this->evidenceWithAReturnedPreviousVersion();
+        $otherTeacher = $this->userWithRole(RoleName::Teacher);
+
+        $this->actingAs($otherTeacher)
+            ->get(route('evidence-files.download', $oldFile))
+            ->assertForbidden();
+    }
+
+    public function test_the_review_list_shows_the_version_number_and_the_reviewer_name(): void
+    {
+        [$evidence, $teacher, $leader] = $this->evidenceWithAReturnedPreviousVersion();
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Versión 1')
+            ->assertSee($leader->name);
+    }
 }

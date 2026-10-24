@@ -349,9 +349,10 @@ class EvidenceWorkspace extends Component
             'deliverable.crossCuttingCommitment',
             'currentVersion.files',
             'currentVersion.links',
-            'versions',
+            'versions.files',
             'reviews.reviewer',
             'reviews.observations',
+            'reviews.version',
         ]);
 
         return view('livewire.evidence.evidence-workspace', [

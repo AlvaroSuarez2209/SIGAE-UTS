@@ -298,7 +298,9 @@
                 @foreach ($evidence->reviews as $review)
                     <li class="card p-3 text-base">
                         <x-status-badge :status="$review->decision" class="mb-1" />
-                        <p class="text-text-secondary">{{ $review->decided_at->toReadable() }}</p>
+                        <p class="text-text-secondary">
+                            Versión {{ $review->version->version_number }} · {{ $review->reviewer->name }} · {{ $review->decided_at->toReadable() }}
+                        </p>
                         @foreach ($review->observations as $observation)
                             <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach
@@ -311,11 +313,34 @@
     @if ($evidence->versions->count() > 1)
         <div class="mt-6">
             <h2 class="form-section-title mb-2">Historial de versiones</h2>
-            <ul class="space-y-1 text-base text-text-secondary">
+            <ul class="space-y-2 text-base text-text-secondary">
                 @foreach ($evidence->versions as $version)
                     <li>
-                        Versión {{ $version->version_number }} —
-                        {{ $version->submitted_at ? 'enviada el '.$version->submitted_at->toReadable() : 'en edición' }}
+                        <p>
+                            Versión {{ $version->version_number }} —
+                            {{ $version->submitted_at ? 'enviada el '.$version->submitted_at->toReadable() : 'en edición' }}
+                            @if ($version->id === $evidence->current_version_id)
+                                (actual)
+                            @endif
+                        </p>
+
+                        {{-- La versión actual ya muestra sus archivos arriba, con sus
+                             propios controles de quitar/adjuntar — no se repiten aquí. --}}
+                        @if ($version->id !== $evidence->current_version_id && $version->files->isNotEmpty())
+                            <ul class="mt-1 space-y-1 pl-4">
+                                @foreach ($version->files as $file)
+                                    <li class="flex items-center gap-2">
+                                        <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                        <span class="truncate">{{ $file->original_name }}</span>
+                                        @if ($file->existsOnDisk())
+                                            <a href="{{ route('evidence-files.download', $file) }}" class="btn-text shrink-0">Descargar</a>
+                                        @else
+                                            <span class="shrink-0 text-sm font-medium text-status-error">Archivo no disponible</span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </li>
                 @endforeach
             </ul>
