@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\TeacherImportTemplateController;
 use App\Http\Controllers\Audit\AuditLogExportController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Cron\MarkOverdueEvidencesController;
 use App\Http\Controllers\Cron\ProcessQueueController;
 use App\Http\Controllers\Deliverable\DeliverableReferenceFileDownloadController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
@@ -55,6 +56,12 @@ Route::get('/', function () {
 Route::get('/cron/process-queue', ProcessQueueController::class)
     ->middleware('throttle:10,1')
     ->name('cron.process-queue');
+
+// Mismo criterio y mismo secreto que la ruta de arriba — ver
+// App\Http\Controllers\Cron\MarkOverdueEvidencesController.
+Route::get('/cron/mark-overdue-evidences', MarkOverdueEvidencesController::class)
+    ->middleware('throttle:10,1')
+    ->name('cron.mark-overdue-evidences');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
