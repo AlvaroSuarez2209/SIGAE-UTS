@@ -3,6 +3,7 @@
 namespace App\Livewire\Evidence;
 
 use App\Enums\EvidenceType;
+use App\Enums\ReviewDecision;
 use App\Enums\RoleName;
 use App\Models\Evidence;
 use App\Models\EvidenceFile;
@@ -272,6 +273,15 @@ class EvidenceWorkspace extends Component
         $this->submissionError = '';
 
         if (! $this->saveDraft()) {
+            return;
+        }
+
+        $deliverable = $this->evidence->deliverable;
+        $isResubmissionAfterReturn = $this->evidence->reviews()->where('decision', ReviewDecision::Returned)->exists();
+
+        if ($deliverable->isPastClosingDate() && ! $isResubmissionAfterReturn) {
+            $this->submissionError = "El plazo de este entregable cerró el {$deliverable->closes_at->toReadable()}.";
+
             return;
         }
 

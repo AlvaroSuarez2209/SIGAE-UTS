@@ -1109,4 +1109,73 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertSee('Versión 1')
             ->assertSee($leader->name);
     }
+
+    public function test_submitting_before_the_closing_date_succeeds(): void
+    {
+        $evidence = $this->evidenceFor(['closes_at' => now()->addDay()]);
+        $file = UploadedFile::fake()->create('a-tiempo.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertSet('submissionError', '');
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    public function test_submitting_after_the_closing_date_is_blocked_with_a_clear_message(): void
+    {
+        $evidence = $this->evidenceFor(['closes_at' => now()->subDay()]);
+        $file = UploadedFile::fake()->create('tarde.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertSet('submissionError', 'El plazo de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.');
+
+        $this->assertEquals(EvidenceStatus::Draft, $evidence->fresh()->status);
+    }
+
+    /**
+     * Sin fecha de cierre configurada (closes_at nulo, el campo es
+     * opcional), el envío nunca debe bloquearse por esta regla —
+     * Deliverable::isPastClosingDate() debe devolver false siempre que
+     * closes_at sea null, no tratarlo como "ya cerrado".
+     */
+    public function test_submitting_without_a_closing_date_configured_is_never_blocked_by_this_rule(): void
+    {
+        $evidence = $this->evidenceFor(['closes_at' => null]);
+        $file = UploadedFile::fake()->create('sin-cierre.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertSet('submissionError', '');
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * Excepción deliberada: una corrección pedida por el líder no debe
+     * quedar varada solo porque el plazo original ya pasó — ver el
+     * docblock de Deliverable::isPastClosingDate().
+     */
+    public function test_resubmitting_after_a_return_is_allowed_even_past_the_closing_date(): void
+    {
+        [$evidence, $teacher] = $this->evidenceWithAReturnedPreviousVersion();
+        $evidence->deliverable->update(['closes_at' => now()->subDay()]);
+
+        $file = UploadedFile::fake()->create('v2.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertSet('submissionError', '');
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
 }

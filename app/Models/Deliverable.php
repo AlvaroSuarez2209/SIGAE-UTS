@@ -136,6 +136,23 @@ class Deliverable extends Model
     }
 
     /**
+     * "Cierre" (closes_at) es opcional y, a diferencia de due_at (que solo
+     * dispara el estado "Vencido" vía evidences:mark-overdue, sin bloquear
+     * nada), es el único corte real de envío — por eso existe como campo
+     * aparte. Antes de este método no se leía en ningún punto del flujo de
+     * envío: un entregable con fecha de cierre mostrada en pantalla
+     * igual aceptaba envíos días después, sin aviso. Ver
+     * EvidenceWorkspace::submit(), que además permite reenviar tras una
+     * devolución aunque ya haya pasado el cierre — una corrección pedida
+     * por el propio líder no debería quedar varada por el plazo que
+     * motivó la devolución.
+     */
+    public function isPastClosingDate(): bool
+    {
+        return $this->closes_at !== null && now()->gt($this->closes_at);
+    }
+
+    /**
      * Extensiones realmente aceptadas al validar un archivo subido: las
      * configuradas explícitamente, o DEFAULT_ALLOWED_FILE_TYPES si el
      * campo quedó vacío. Nunca hay que leer `allowed_file_types` a secas
