@@ -9,7 +9,6 @@ use App\Enums\PeriodicityType;
 use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
-use App\Models\AuditLog;
 use App\Models\Component;
 use App\Models\Deliverable;
 use App\Models\Evidence;
@@ -78,18 +77,22 @@ class DemoCycleSeeder extends Seeder
         ]);
 
         // a) + f (obligatorio con peso): pendiente, sin ninguna carga.
+        // Dentro de plazo — se puede cargar y enviar con normalidad.
         $pending = $this->demoDeliverable($period, $activity, 'Pendiente sin carga', [
             'is_mandatory' => true,
             'weight_percentage' => 25,
             'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
         ]);
         $this->ensureEvidence($pending, $teacher);
 
-        // b) borrador: una versión en edición, nunca enviada.
+        // b) borrador: una versión en edición, nunca enviada. Dentro de
+        // plazo — se puede enviar.
         $draftDeliverable = $this->demoDeliverable($period, $activity, 'Borrador en progreso', [
             'is_mandatory' => true,
             'weight_percentage' => 25,
             'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
         ]);
         $draftEvidence = $this->ensureEvidence($draftDeliverable, $teacher);
         if ($draftEvidence->status === EvidenceStatus::Pending) {
@@ -99,10 +102,18 @@ class DemoCycleSeeder extends Seeder
 
         // c) devuelto por el líder, con observación ligada a esa versión,
         // listo para reenviar (segunda versión en edición, sin enviar).
+        // closes_at ya pasó a propósito (hace 7 días) — demuestra que una
+        // devolución se puede corregir y reenviar fuera de plazo (ver
+        // EvidenceWorkspace::submit(), excepción explícita para
+        // reenvíos tras Review::Returned). due_at también en el pasado,
+        // antes del cierre, para que las dos fechas queden coherentes
+        // entre sí (closes_at nunca antes de due_at).
         $returnedDeliverable = $this->demoDeliverable($period, $activity, 'Devuelto, listo para reenviar', [
             'is_mandatory' => true,
             'weight_percentage' => 25,
-            'due_at' => now()->addDays(10),
+            'opens_at' => now()->subDays(20),
+            'due_at' => now()->subDays(10),
+            'closes_at' => now()->subDays(7),
         ]);
         $returnedEvidence = $this->ensureEvidence($returnedDeliverable, $teacher);
         if ($returnedEvidence->versions()->count() < 2) {
@@ -113,29 +124,31 @@ class DemoCycleSeeder extends Seeder
             $returnedEvidence->startOrGetDraftVersion($teacher);
         }
 
-        // d) vencido: fecha límite en el pasado, nunca se llegó a enviar.
-        // Misma transición y mismo registro de auditoría que
-        // evidences:mark-overdue, aplicados solo a esta fila (el comando
-        // real, al correr después, ya no vuelve a tocarla: su condición
-        // de estado deja de cumplirse).
+        // d) vencido: due_at y closes_at en el pasado, pero la evidencia
+        // se deja en Pendiente a propósito (sin devolución alguna) — no
+        // se simula el paso de evidences:mark-overdue. Así, al intentar
+        // enviarla, pasa isEditable() (Pendiente sí lo es) y llega al
+        // chequeo de closes_at en EvidenceWorkspace::submit(), que la
+        // bloquea con "El plazo de este entregable cerró el {fecha}" —
+        // justo lo que hay que poder demostrar. Si se prefiere ver el
+        // estado "Vencido" en pantalla, basta con correr
+        // evidences:mark-overdue (o el cron del punto E) después de
+        // sembrar: su condición (Pendiente/Borrador con due_at pasado)
+        // la toma igual que a cualquier otra.
         $overdueDeliverable = $this->demoDeliverable($period, $activity, 'Vencido', [
             'is_mandatory' => true,
             'weight_percentage' => 25,
-            'due_at' => now()->subDays(2),
+            'opens_at' => now()->subDays(15),
+            'due_at' => now()->subDays(5),
+            'closes_at' => now()->subDays(2),
         ]);
-        $overdueEvidence = $this->ensureEvidence($overdueDeliverable, $teacher);
-        if ($overdueEvidence->status === EvidenceStatus::Pending) {
-            $overdueEvidence->update(['status' => EvidenceStatus::Expired]);
-            AuditLog::record('evidence_marked_overdue', $overdueEvidence, [
-                'previous_status' => EvidenceStatus::Pending->value,
-                'due_at' => $overdueEvidence->deliverable->due_at->toIso8601String(),
-            ]);
-        }
+        $this->ensureEvidence($overdueDeliverable, $teacher);
 
-        // e) exento, con justificación.
+        // e) exento, con justificación. Dentro de plazo.
         $exemptDeliverable = $this->demoDeliverable($period, $activity, 'Exento con justificación', [
             'is_mandatory' => true,
             'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
         ]);
         $exemptEvidence = $this->ensureEvidence($exemptDeliverable, $teacher);
         if ($exemptEvidence->status === EvidenceStatus::Pending) {
@@ -143,9 +156,11 @@ class DemoCycleSeeder extends Seeder
         }
 
         // f) opcional: nunca entra al % de avance, sin importar su estado.
+        // Dentro de plazo.
         $optionalDeliverable = $this->demoDeliverable($period, $activity, 'Opcional de ejemplo', [
             'is_mandatory' => false,
             'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
         ]);
         $this->ensureEvidence($optionalDeliverable, $teacher);
 

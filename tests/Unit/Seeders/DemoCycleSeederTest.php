@@ -5,6 +5,7 @@ namespace Tests\Unit\Seeders;
 use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
+use App\Livewire\Evidence\EvidenceWorkspace;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
@@ -16,7 +17,9 @@ use App\Models\User;
 use Database\Seeders\DemoCycleSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -101,10 +104,13 @@ class DemoCycleSeederTest extends TestCase
         $this->assertEquals('returned', $returned->reviews->first()->decision->value);
         $this->assertNotEmpty($returned->reviews->first()->observations);
 
+        // Se deja en Pendiente a propósito (no se simula
+        // evidences:mark-overdue) — así, al intentar enviarla, llega al
+        // chequeo de closes_at en vez de que isEditable() la rechace
+        // antes por "Vencido" (ver test dedicado más abajo).
         $overdue = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Vencido'))->first();
-        $this->assertEquals(EvidenceStatus::Expired, $overdue->status);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'evidence_marked_overdue', 'auditable_id' => $overdue->id]);
+        $this->assertEquals(EvidenceStatus::Pending, $overdue->status);
 
         $exempt = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Exento con justificación'))->first();
@@ -118,14 +124,27 @@ class DemoCycleSeederTest extends TestCase
         $this->assertTrue($mandatoryWithWeight->is_mandatory);
         $this->assertEquals(25, $mandatoryWithWeight->weight_percentage);
 
-        // Todas dentro de plazo salvo la vencida, a propósito.
+        // closes_at por caso, tal como se pidió explícitamente.
+        $pastClose = ['[DEMO] Devuelto, listo para reenviar', '[DEMO] Vencido'];
         foreach ($deliverables as $name => $deliverable) {
-            if ($name === '[DEMO] Vencido') {
-                $this->assertTrue($deliverable->due_at->isPast());
+            $this->assertNotNull($deliverable->closes_at, "{$name} debería tener closes_at configurado.");
+
+            if (in_array($name, $pastClose, true)) {
+                $this->assertTrue($deliverable->closes_at->isPast(), "{$name} debería tener closes_at en el pasado.");
+            } else {
+                $this->assertTrue($deliverable->closes_at->isFuture(), "{$name} debería tener closes_at en el futuro.");
+            }
+        }
+
+        // due_at: todas en el futuro salvo las dos con closes_at pasado
+        // (coherencia interna: closes_at nunca antes de due_at).
+        foreach ($deliverables as $name => $deliverable) {
+            if (in_array($name, $pastClose, true)) {
+                $this->assertTrue($deliverable->due_at->isPast(), "{$name} debería tener due_at en el pasado.");
 
                 continue;
             }
-            $this->assertTrue($deliverable->due_at->isFuture());
+            $this->assertTrue($deliverable->due_at->isFuture(), "{$name} debería tener due_at en el futuro.");
         }
 
         $leader = User::where('email', DemoCycleSeeder::DEMO_LEADER_EMAIL)->first();
@@ -205,5 +224,52 @@ class DemoCycleSeederTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertSame(6, Deliverable::where('name', 'like', '[DEMO] %')->count());
+    }
+
+    /**
+     * (d): bloquea. La evidencia queda Pendiente con closes_at ya
+     * pasado y ninguna devolución registrada — EvidenceWorkspace::submit()
+     * debe rechazarla con el mensaje exacto, sin crear ninguna versión.
+     */
+    public function test_demo_case_d_overdue_blocks_submission_with_the_closing_date_message(): void
+    {
+        $teacher = $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $evidence = Evidence::where('user_id', $teacher->id)
+            ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Vencido'))->first();
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [UploadedFile::fake()->create('intento.pdf', 50, 'application/pdf')])
+            ->call('submit')
+            ->assertSet('submissionError', 'El plazo de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.');
+
+        $this->assertNotEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * (c): permite. La evidencia ya tiene una devolución registrada y
+     * closes_at pasado — debe poder reenviarse igual, por la excepción
+     * explícita de EvidenceWorkspace::submit().
+     */
+    public function test_demo_case_c_returned_allows_resubmission_despite_the_past_closing_date(): void
+    {
+        $teacher = $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $evidence = Evidence::where('user_id', $teacher->id)
+            ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Devuelto, listo para reenviar'))->first();
+        $this->assertTrue($evidence->deliverable->closes_at->isPast());
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [UploadedFile::fake()->create('version-2-ejemplo.pdf', 50, 'application/pdf')])
+            ->call('submit')
+            ->assertSet('submissionError', '');
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
 }
