@@ -435,6 +435,46 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString('Transversal: '.$deliverable->crossCuttingCommitment->name, $html);
     }
 
+    /**
+     * Punto 9: el segundo líder puede seguir abriendo la página (su ámbito
+     * la sigue autorizando — isReviewableBy() no mira quién decidió, solo
+     * el ámbito), pero ya no puede actuar: isStillPendingReview() rechaza
+     * cualquier acción en cuanto el estado deja de ser Enviada, sin
+     * importar quién la puso en ese estado. Mismo guard que ya cubre
+     * test_cannot_act_on_an_evidence_that_is_no_longer_pending_review(),
+     * aquí con un segundo líder real en vez de un ->update() manual.
+     */
+    public function test_second_leader_over_the_same_scope_cannot_act_after_the_first_one_decided(): void
+    {
+        [$evidence, $leaderA, $teacher] = $this->submittedEvidenceWithLeader();
+        $leaderB = $this->userWithRole(RoleName::Leader);
+
+        // Mismo ámbito que $leaderA: mismo periodo/programa de
+        // submittedEvidenceWithLeader(), buscado desde la propia evidencia.
+        $assignment = $evidence->matchingTeacherAssignment();
+        Leadership::factory()->create([
+            'user_id' => $leaderB->id,
+            'academic_period_id' => $assignment->academic_period_id,
+            'program_unit_id' => $assignment->program_unit_id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        Livewire::actingAs($leaderA)
+            ->test(ReviewShow::class, ['evidence' => $evidence])
+            ->call('approve')
+            ->assertHasNoErrors();
+
+        Livewire::actingAs($leaderB)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->call('approve')
+            ->assertHasErrors('observation');
+
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
+        $this->assertEquals(1, $evidence->fresh()->currentVersion->reviews()->count());
+    }
+
     public function test_shows_the_late_submission_indicator_when_submitted_after_the_due_date(): void
     {
         [$evidence, $leader] = $this->submittedEvidenceWithLeader();

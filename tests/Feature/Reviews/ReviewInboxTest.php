@@ -273,6 +273,61 @@ class ReviewInboxTest extends TestCase
             ->assertSee('3 días después de la fecha límite');
     }
 
+    /**
+     * Punto 9: dos líderes vigentes sobre la misma actividad y periodo
+     * (nada en el modelo lo impide — ver la migración de leaderships, sin
+     * ninguna restricción unique). Comportamiento documentado, no
+     * ambiguo: ambos ven la evidencia en su bandeja mientras está
+     * Enviada; en cuanto UNO decide (aprueba o devuelve), su estado deja
+     * de ser Enviada y desaparece de la bandeja de TODOS los demás
+     * revisores con el mismo ámbito — el filtro de la bandeja es por
+     * estado, no por quién la decidió, así que no hace falta ninguna
+     * marca de "en revisión por otro" ni ningún bloqueo adicional: la
+     * primera decisión ya resuelve la carrera.
+     */
+    public function test_two_leaders_over_the_same_scope_both_see_it_until_one_decides(): void
+    {
+        $leaderA = $this->userWithRole(RoleName::Leader);
+        $leaderB = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        foreach ([$leaderA, $leaderB] as $leader) {
+            Leadership::factory()->create([
+                'user_id' => $leader->id,
+                'academic_period_id' => $period->id,
+                'program_unit_id' => $programUnit->id,
+                'activity_id' => null,
+                'starts_at' => now()->subMonth(),
+                'ends_at' => null,
+            ]);
+        }
+
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $evidence = $this->submitEvidence($teacher, $deliverable);
+
+        Livewire::actingAs($leaderA)->test(ReviewInbox::class)
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1);
+        Livewire::actingAs($leaderB)->test(ReviewInbox::class)
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1);
+
+        Livewire::actingAs($leaderA)->test(\App\Livewire\Reviews\ReviewShow::class, ['evidence' => $evidence])
+            ->call('approve')
+            ->assertHasNoErrors();
+
+        Livewire::actingAs($leaderB)->test(ReviewInbox::class)
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 0);
+    }
+
     public function test_period_filter_defaults_to_the_active_period_when_the_query_string_has_no_filter_at_all(): void
     {
         $leader = $this->userWithRole(RoleName::Leader);
