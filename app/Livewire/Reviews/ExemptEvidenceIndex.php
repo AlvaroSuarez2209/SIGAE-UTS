@@ -6,6 +6,7 @@ use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
 use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AcademicPeriod;
+use App\Models\AuditLog;
 use App\Models\Evidence;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -73,6 +74,32 @@ class ExemptEvidenceIndex extends Component
         return view('livewire.reviews.exempt-evidence-index', [
             'exempt' => $exempt,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
+            'exemptionHistory' => $this->exemptionHistoryFor($exempt),
         ]);
+    }
+
+    /**
+     * Quién marcó (y, si aplica, retiró) cada exención, y cuándo — sin
+     * ninguna columna nueva: `evidence_marked_exempt`/
+     * `evidence_exemption_removed` ya quedan en audit_logs desde
+     * Evidence::markExempt()/removeExemption(). Una sola consulta para
+     * todas las evidencias de la página (no una por fila), agrupada en
+     * PHP — igual criterio que el resto del listado, que ya evita N+1.
+     */
+    private function exemptionHistoryFor(\Illuminate\Pagination\LengthAwarePaginator $exempt): \Illuminate\Support\Collection
+    {
+        $ids = $exempt->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return AuditLog::with('user')
+            ->where('auditable_type', Evidence::class)
+            ->whereIn('auditable_id', $ids)
+            ->whereIn('action', ['evidence_marked_exempt', 'evidence_exemption_removed'])
+            ->orderBy('created_at')
+            ->get()
+            ->groupBy('auditable_id');
     }
 }

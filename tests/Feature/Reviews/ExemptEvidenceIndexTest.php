@@ -325,4 +325,147 @@ class ExemptEvidenceIndexTest extends TestCase
         $this->assertStringNotContainsString('Devolver', $html);
         $this->assertStringNotContainsString('Quitar exención', $html);
     }
+
+    /**
+     * Punto 8: quién marcó la exención y la fecha exacta, tomadas de
+     * audit_logs (acción evidence_marked_exempt) — sin ninguna columna
+     * nueva. Evidence::markExempt() ya escribe ese registro, así que basta
+     * con pasar por el flujo real en vez de crear la evidencia Exenta
+     * directamente vía factory.
+     */
+    public function test_shows_who_marked_the_exemption_and_the_exact_date(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $deliverable->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        $this->actingAs($admin);
+        $evidence->markExempt('Licencia médica certificada.');
+
+        $html = Livewire::actingAs($leader)->test(ExemptEvidenceIndex::class)
+            ->set('periodFilter', $period->id)
+            ->html();
+
+        $this->assertStringContainsString($admin->name, $html);
+        $this->assertStringContainsString(\App\Models\AuditLog::where('action', 'evidence_marked_exempt')->first()->created_at->toReadable(), $html);
+        $this->assertStringNotContainsString('Ver histórico', $html);
+    }
+
+    /**
+     * Punto 8: si hubo varias marcas/retiros, se muestra el histórico
+     * completo (fila expandible) en vez de solo la última marca.
+     */
+    public function test_shows_the_exemption_history_when_marked_and_removed_more_than_once(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $deliverable->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        $this->actingAs($admin);
+        $evidence->markExempt('Primera razón.');
+        $evidence->removeExemption();
+        $evidence->markExempt('Segunda razón.');
+
+        $html = Livewire::actingAs($leader)->test(ExemptEvidenceIndex::class)
+            ->set('periodFilter', $period->id)
+            ->html();
+
+        $this->assertStringContainsString('Ver histórico (3)', $html);
+        $this->assertStringContainsString('Retirada', $html);
+    }
+
+    /**
+     * Sin ningún registro de auditoría para la exención (evidencia creada
+     * directamente, como en el resto de este archivo, sin pasar por
+     * markExempt()) cae de vuelta a `updated_at`, sin atribuir a nadie —
+     * el mismo comportamiento que había antes de este punto.
+     */
+    public function test_falls_back_to_updated_at_when_there_is_no_audit_trail(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'deliverable_id' => $deliverable->id,
+            'status' => EvidenceStatus::Exempt,
+        ]);
+
+        $html = Livewire::actingAs($leader)->test(ExemptEvidenceIndex::class)
+            ->set('periodFilter', $period->id)
+            ->html();
+
+        $this->assertStringContainsString($evidence->updated_at->toReadable(), $html);
+        $this->assertStringNotContainsString('Usuario eliminado', $html);
+        $this->assertStringNotContainsString('Ver histórico', $html);
+    }
 }

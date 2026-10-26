@@ -30,7 +30,7 @@
                     <th class="table-header-cell">Entregable</th>
                     <th class="table-header-cell">Actividad</th>
                     <th class="table-header-cell">Fecha límite</th>
-                    <th class="table-header-cell">Exenta desde</th>
+                    <th class="table-header-cell">Exención</th>
                     <th class="table-header-cell">Razón</th>
                 </tr>
             </thead>
@@ -50,7 +50,33 @@
                             @endif
                         </td>
                         <td class="table-cell text-text-secondary">{{ $evidence->deliverable->due_at->toReadable() }}</td>
-                        <td class="table-cell text-text-secondary">{{ $evidence->updated_at->toReadable() }}</td>
+                        <td class="table-cell text-text-secondary">
+                            @php
+                                $history = $exemptionHistory->get($evidence->id, collect());
+                                $currentMark = $history->where('action', 'evidence_marked_exempt')->last();
+                            @endphp
+                            @if ($currentMark)
+                                <p>{{ $currentMark->user?->name ?? 'Usuario eliminado' }}</p>
+                                <p class="text-sm">{{ $currentMark->created_at->toReadable() }}</p>
+                            @else
+                                {{ $evidence->updated_at->toReadable() }}
+                            @endif
+
+                            @if ($history->count() > 1)
+                                <details class="mt-1">
+                                    <summary class="cursor-pointer text-sm text-brand-primary">Ver histórico ({{ $history->count() }})</summary>
+                                    <ul class="mt-1 space-y-1 text-sm">
+                                        @foreach ($history as $entry)
+                                            <li>
+                                                {{ $entry->action === 'evidence_marked_exempt' ? 'Marcada' : 'Retirada' }}
+                                                por {{ $entry->user?->name ?? 'Usuario eliminado' }}
+                                                — {{ $entry->created_at->toReadable() }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </details>
+                            @endif
+                        </td>
                         <td class="table-cell truncate text-text-secondary" title="{{ $evidence->exemption_reason }}">
                             {{ $evidence->exemption_reason }}
                         </td>
