@@ -1090,6 +1090,82 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertSee(route('evidence-files.download', $oldFile), false);
     }
 
+    /**
+     * evidence_version_id=5 real en Neon (evidencia id=4 del despliegue):
+     * la versión 1 nunca tuvo ninguna fila en evidence_files — no es que
+     * el archivo se haya perdido del disco, nunca existió uno. El
+     * historial debe decirlo explícitamente en vez de no mostrar nada.
+     */
+    public function test_a_previous_version_with_no_files_shows_a_clear_empty_state(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'allowed_evidence_types' => [EvidenceType::Text->value],
+        ]);
+        $evidence = Evidence::factory()->create([
+            'deliverable_id' => $deliverable->id,
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        // Versión 1: enviada solo con texto, sin ningún archivo adjunto.
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Avance descrito en texto, sin archivo adjunto.')
+            ->call('submit');
+
+        $evidence->refresh();
+        $this->assertCount(0, $evidence->currentVersion->files);
+
+        $evidence->returnCurrentReviewForAdjustment($leader, 'Ajusta el documento.');
+        $evidence->startOrGetDraftVersion($teacher);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Historial de versiones')
+            ->assertSee('Sin archivos adjuntos.');
+    }
+
+    /**
+     * Archivo que sí quedó registrado en la base pero cuyo físico ya no
+     * existe (disco efímero de Render) — debe avisarse, no ocultarse.
+     */
+    public function test_a_previous_version_with_a_missing_physical_file_shows_a_warning(): void
+    {
+        [$evidence, $teacher, , $oldFile] = $this->evidenceWithAReturnedPreviousVersion();
+
+        Storage::disk('local')->delete($oldFile->disk_path);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Historial de versiones')
+            ->assertSee($oldFile->original_name)
+            ->assertSee('Archivo no disponible')
+            ->assertDontSee(route('evidence-files.download', $oldFile), false);
+    }
+
     public function test_an_unrelated_teacher_cannot_download_a_file_from_a_previous_version(): void
     {
         [, , , $oldFile] = $this->evidenceWithAReturnedPreviousVersion();

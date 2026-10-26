@@ -324,9 +324,9 @@
                             @endif
                         </p>
 
-                        {{-- La versión actual ya muestra sus archivos arriba, con sus
-                             propios controles de quitar/adjuntar — no se repiten aquí. --}}
-                        @if ($version->id !== $evidence->current_version_id && $version->files->isNotEmpty())
+                        @if ($version->files->isEmpty())
+                            <p class="mt-1 pl-4 text-sm text-text-secondary">Sin archivos adjuntos.</p>
+                        @else
                             <ul class="mt-1 space-y-1 pl-4">
                                 @foreach ($version->files as $file)
                                     <li class="flex items-center gap-2">
