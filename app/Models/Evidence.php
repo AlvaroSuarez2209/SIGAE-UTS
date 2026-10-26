@@ -284,18 +284,25 @@ class Evidence extends Model
     /**
      * Solo el Líder asignado revisa (RS-005, RF-027, RF-056 a RF-059 del
      * documento de alcance: siempre "el líder deberá...", nunca
-     * Coordinación ni Administrador — Coordinación "supervisa
-     * cumplimiento" y "obtiene informes", no revisa evidencias). Única
-     * excepción: los compromisos transversales no tienen actividad, así
-     * que estructuralmente nunca pueden tener un líder que los cubra
-     * (matchingTeacherAssignment() siempre null para ellos) — para que no
-     * queden sin nadie que los apruebe/devuelva, Administrador los revisa
-     * (Coordinación sigue sin poder, ni siquiera ahí).
+     * Coordinación — Coordinación "supervisa cumplimiento" y "obtiene
+     * informes", no revisa evidencias, ni siquiera en los dos casos sin
+     * líder posible de abajo). Dos excepciones, ambas exclusivas de
+     * Administrador:
+     *
+     * - Compromisos transversales: no tienen actividad, así que
+     *   estructuralmente nunca pueden tener un líder que los cubra
+     *   (matchingTeacherAssignment() siempre null para ellos).
+     * - Actividad sin ningún líder vigente en este momento (nadie fue
+     *   asignado, o su liderazgo ya terminó): sin este respaldo, esas
+     *   evidencias quedarían permanentemente sin nadie que las apruebe o
+     *   devuelva. Si en algún momento un líder vigente llega a cubrir ese
+     *   ámbito, vuelve a ser el único revisor — este respaldo nunca
+     *   compite con un líder vigente, solo cubre su ausencia.
      */
     public function isReviewableBy(User $user): bool
     {
         // Nadie revisa su propia evidencia, incluso si también tiene rol de
-        // líder (conflicto de interés).
+        // líder o Administrador (conflicto de interés).
         if ($user->id === $this->user_id) {
             return false;
         }
@@ -304,13 +311,35 @@ class Evidence extends Model
             return $user->hasRole(RoleName::Administrator);
         }
 
-        if ($user->hasRole(RoleName::Leader)) {
-            $assignment = $this->matchingTeacherAssignment();
+        $assignment = $this->matchingTeacherAssignment();
 
-            return $assignment && $user->canLeadAssignment($assignment);
+        if ($user->hasRole(RoleName::Leader) && $assignment && $user->canLeadAssignment($assignment)) {
+            return true;
         }
 
-        return false;
+        return $user->hasRole(RoleName::Administrator) && ! self::hasAnyLeaderCoveringAssignment($assignment);
+    }
+
+    /**
+     * Mismo criterio de vigencia que User::canLeadAssignment(), pero sin
+     * acotar a un usuario: ¿existe AL MENOS UN líder vigente para este
+     * ámbito, sea quien sea? Si no hay ninguna asignación que mirar
+     * (actividad fuera de cualquier distribución docente — no debería
+     * pasar en la práctica, pero no hay líder posible sin ella), se trata
+     * igual que "sin líder vigente".
+     */
+    private static function hasAnyLeaderCoveringAssignment(?TeacherAssignment $assignment): bool
+    {
+        if (! $assignment) {
+            return false;
+        }
+
+        return Leadership::where('academic_period_id', $assignment->academic_period_id)
+            ->where('program_unit_id', $assignment->program_unit_id)
+            ->where(fn ($q) => $q->whereNull('activity_id')->orWhere('activity_id', $assignment->activity_id))
+            ->where('starts_at', '<=', now())
+            ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+            ->exists();
     }
 
     /**
@@ -361,34 +390,36 @@ class Evidence extends Model
      * cual para el chequeo de una sola evidencia (EvidencePolicy::review()),
      * donde no tiene sentido montar un JOIN para una fila.
      *
-     * Los LEFT JOIN (no INNER) son necesarios porque hay dos caminos
+     * Los LEFT JOIN (no INNER) son necesarios porque hay tres caminos
      * independientes para que una fila cuente como revisable — liderazgo
-     * vigente (empareja por user_id + activity_id + academic_period_id vía
-     * teacher_assignments, luego liderazgo vigente en leaderships: mismo
-     * período + programa, actividad-o-null, dentro de starts_at/ends_at) o
-     * ser Administrador sobre un compromiso transversal — y ambos deben
-     * poder ser ciertos a la vez para alguien con los dos roles (si fueran
-     * INNER JOIN, una fila que no matchea el camino de liderazgo se
-     * descartaría antes de llegar al WHERE, sin darle chance al camino de
-     * Administrador). Si esta regla cambia, hay que actualizar también
-     * isReviewableBy().
+     * vigente de $user (empareja por user_id + activity_id +
+     * academic_period_id vía teacher_assignments, luego liderazgo vigente
+     * en leaderships: mismo período + programa, actividad-o-null, dentro
+     * de starts_at/ends_at), ser Administrador sobre un compromiso
+     * transversal, o ser Administrador sobre una actividad sin NINGÚN
+     * líder vigente (el segundo join a "leaderships", sin acotar a
+     * $user->id, detecta si existe al menos uno) — y los tres deben poder
+     * ser ciertos a la vez para alguien con varios roles (si fueran INNER
+     * JOIN, una fila que no matchea el primer camino se descartaría antes
+     * de llegar al WHERE, sin darle chance a los otros). Si esta regla
+     * cambia, hay que actualizar también isReviewableBy().
      *
-     * $onlyViaLeaderRole: true excluye el camino de Administrador (aunque
-     * $user lo sea) — para cuando interesa específicamente lo que depende
-     * del rol Líder de $user, no todo lo que podría revisar por cualquier
-     * otro motivo. Dashboard::leaderPanel() lo usa para su contador "en tu
-     * ámbito" (no debe mezclar compromisos transversales ahí aunque el
-     * líder también sea Administrador), y
-     * UserForm::pendingReviewCountForLeader() lo usa para no bloquear
-     * quitar el rol Líder por evidencias que en realidad dependen del rol
-     * Administrador de esa misma persona.
+     * $onlyViaLeaderRole: true excluye los dos caminos de Administrador
+     * (aunque $user lo sea) — para cuando interesa específicamente lo que
+     * depende del rol Líder de $user, no todo lo que podría revisar por
+     * cualquier otro motivo. Dashboard::leaderPanel() lo usa para su
+     * contador "en tu ámbito" (no debe mezclar compromisos transversales
+     * ni actividades sin líder ahí aunque el líder también sea
+     * Administrador), y UserForm::pendingReviewCountForLeader() lo usa
+     * para no bloquear quitar el rol Líder por evidencias que en realidad
+     * dependen del rol Administrador de esa misma persona.
      */
     public function scopeReviewableBy(Builder $query, User $user, bool $onlyViaLeaderRole = false): Builder
     {
         $viaLeader = $user->hasRole(RoleName::Leader);
-        $viaAdminOnCrossCutting = ! $onlyViaLeaderRole && $user->hasRole(RoleName::Administrator);
+        $viaAdmin = ! $onlyViaLeaderRole && $user->hasRole(RoleName::Administrator);
 
-        if (! $viaLeader && ! $viaAdminOnCrossCutting) {
+        if (! $viaLeader && ! $viaAdmin) {
             return $query->whereRaw('1 = 0');
         }
 
@@ -412,13 +443,30 @@ class Evidence extends Model
                         $q->whereNull('leaderships.ends_at')->orWhere('leaderships.ends_at', '>=', now());
                     });
             })
-            ->where(function ($query) use ($viaLeader, $viaAdminOnCrossCutting) {
+            ->leftJoin('leaderships as any_leaderships', function ($join) {
+                $join->on('any_leaderships.academic_period_id', '=', 'teacher_assignments.academic_period_id')
+                    ->on('any_leaderships.program_unit_id', '=', 'teacher_assignments.program_unit_id')
+                    ->where(function ($q) {
+                        $q->whereNull('any_leaderships.activity_id')
+                            ->orWhereColumn('any_leaderships.activity_id', 'teacher_assignments.activity_id');
+                    })
+                    ->where('any_leaderships.starts_at', '<=', now())
+                    ->where(function ($q) {
+                        $q->whereNull('any_leaderships.ends_at')->orWhere('any_leaderships.ends_at', '>=', now());
+                    });
+            })
+            ->where(function ($query) use ($viaLeader, $viaAdmin) {
                 if ($viaLeader) {
                     $query->orWhereNotNull('leaderships.id');
                 }
 
-                if ($viaAdminOnCrossCutting) {
+                if ($viaAdmin) {
                     $query->orWhereNull('deliverables.activity_id');
+
+                    $query->orWhere(function ($q) {
+                        $q->whereNotNull('deliverables.activity_id')
+                            ->whereNull('any_leaderships.id');
+                    });
                 }
             })
             ->where('evidences.user_id', '!=', $user->id)

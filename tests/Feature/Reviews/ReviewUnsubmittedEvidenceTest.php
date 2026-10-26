@@ -105,6 +105,38 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
     }
 
     /**
+     * Punto 7: misma actividad que activityEvidenceLedByLeader(), pero sin
+     * ningún Leadership — el respaldo de Administrador (ningún líder
+     * vigente cubre la actividad) también debe pasar por este mismo Gate
+     * de mount(), igual que el camino de compromisos transversales.
+     */
+    private function activityEvidenceWithNoLeader(EvidenceStatus $status): Evidence
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => Deliverable::factory()->create([
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ])->id,
+        ]);
+
+        return $this->applyStatus($evidence, $teacher, $status);
+    }
+
+    /**
      * `Pending` se deja tal cual sale del factory (sin versión alguna).
      * `Draft` se alcanza igual que en la aplicación real: creando una
      * versión real con startOrGetDraftVersion() y sin enviarla.
@@ -176,5 +208,22 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         [$evidence, $leader] = $this->activityEvidenceLedByLeader(EvidenceStatus::Draft);
 
         $this->actingAs($leader)->get('/reviews/'.$evidence->id)->assertOk();
+    }
+
+    public function test_administrator_opening_a_pending_evidence_with_no_leader_at_all_is_redirected_not_a_crash(): void
+    {
+        $evidence = $this->activityEvidenceWithNoLeader(EvidenceStatus::Pending);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/reviews/'.$evidence->id)
+            ->assertRedirect(route('reviews.index'));
+    }
+
+    public function test_administrator_opening_a_draft_evidence_with_no_leader_at_all_does_not_crash(): void
+    {
+        $evidence = $this->activityEvidenceWithNoLeader(EvidenceStatus::Draft);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/reviews/'.$evidence->id)->assertOk();
     }
 }

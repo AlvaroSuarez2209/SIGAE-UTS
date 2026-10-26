@@ -225,18 +225,51 @@ class ReviewShowTest extends TestCase
     }
 
     /**
-     * RS-005/RF-027/RF-056 a RF-059 del documento de alcance: solo el
-     * líder asignado revisa — Administrador ya no tiene un atajo general
-     * para evidencias de actividad, ni siquiera cuando ningún líder cubre
-     * ese ámbito. Ver test_administrator_can_review_a_cross_cutting_evidence()
-     * para la única excepción real (compromisos transversales).
+     * RS-005/RF-027/RF-056 a RF-059 del documento de alcance: mientras un
+     * líder vigente cubra la actividad, sigue siendo el único revisor —
+     * Administrador no tiene ningún atajo general, ni siquiera si ese
+     * líder todavía no ha actuado. Ver
+     * test_administrator_can_review_evidence_from_an_activity_with_no_leader_at_all()
+     * para el respaldo real (punto 7): solo aplica cuando NINGÚN líder
+     * cubre la actividad en este momento.
      */
-    public function test_administrator_cannot_review_evidence_outside_any_leadership_scope(): void
+    public function test_administrator_cannot_review_evidence_when_a_leader_currently_covers_its_scope(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: true);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/reviews/'.$evidence->id)->assertForbidden();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * Punto 7: respaldo de Administrador para actividades sin ningún
+     * líder vigente (nadie fue asignado, o su liderazgo ya terminó) — sin
+     * esto, esas evidencias quedarían permanentemente sin nadie que las
+     * apruebe o devuelva. Coordinación sigue sin poder, ni siquiera aquí
+     * (reviewerRecipients() ya le avisa por correo, pero eso no cambia su
+     * autorización — ver Evidence::reviewerRecipients()).
+     */
+    public function test_administrator_can_review_evidence_from_an_activity_with_no_leader_at_all(): void
     {
         [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: false);
         $admin = $this->userWithRole(RoleName::Administrator);
 
-        $this->actingAs($admin)->get('/reviews/'.$evidence->id)->assertForbidden();
+        Livewire::actingAs($admin)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->call('approve')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
+    }
+
+    public function test_coordination_cannot_review_evidence_from_an_activity_with_no_leader_at_all(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: false);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertForbidden();
 
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
