@@ -48,6 +48,18 @@ Coordinación, exclusivamente el Administrador puede:
   ya decidida, el botón "Reabrir (permiso especial)" permite que el
   docente vuelva a ajustarla. Es una acción excepcional que queda
   registrada en la auditoría.
+- **Respaldo en la revisión de evidencias**: aunque el rol pensado para
+  revisar evidencias es Líder, Administrador puede aprobar o devolver
+  una evidencia en dos casos puntuales donde estructuralmente no puede
+  haber un líder que decida: evidencias de **compromisos transversales**
+  (no dependen de una actividad, así que nunca tienen un líder propio) y
+  evidencias de una **actividad sin ningún líder vigente en este
+  momento** (nadie fue asignado, o su liderazgo ya terminó). En cuanto
+  un líder vigente cubre esa actividad, vuelve a ser el único revisor —
+  este respaldo nunca compite con uno, solo cubre su ausencia.
+  **Coordinación nunca tiene esta capacidad, ni siquiera en estos dos
+  casos** — solo recibe el aviso por correo cuando nadie más puede
+  decidir, para poder gestionar que se asigne un líder.
 
 ## Coordinación
 
@@ -85,10 +97,13 @@ seguimiento. Desde el menú puede acceder a:
   mínimos — individual por docente, por actividad, de compromisos
   transversales y consolidado por periodo — cada uno exportable a PDF
   y Excel.
-- **Revisión**: aunque el rol pensado para revisar evidencias es Líder,
-  Coordinación también puede aprobar o devolver cualquier evidencia
-  enviada (respaldo cuando una actividad no tiene líder asignado, o para
-  compromisos transversales, que no tienen un líder propio).
+- **Revisión**: Coordinación no aprueba ni devuelve evidencias — esa
+  decisión es siempre del líder vigente de la actividad, o de
+  Administrador en los dos casos puntuales donde estructuralmente no
+  puede haber un líder (ver "Respaldo en la revisión de evidencias" en
+  la sección de Administrador). Coordinación sí recibe el aviso por
+  correo cuando una evidencia se envía y nadie lidera ese ámbito en ese
+  momento, para poder gestionar que se asigne un líder.
 - **Evidencias exentas** (menú "Revisión" → `/reviews/exempt`): a
   diferencia del Líder, aquí Coordinación (y Administrador) ven **todas**
   las evidencias exentas de cualquier actividad o compromiso
@@ -120,6 +135,12 @@ completo, para un periodo dado).
   ven todas) — docente, entregable, actividad, fecha límite, desde
   cuándo está exenta y el motivo. Antes, una exención solo se avisaba por
   correo; ahora también queda visible en pantalla.
+- **Mi ámbito** (menú "Mi ámbito" → `/my-leadership`): listado de solo
+  lectura (sin ninguna acción) de sus propios liderazgos — actividad (o
+  "Todo el programa" si el liderazgo cubre un programa completo sin
+  acotar a una actividad puntual), componente, periodo, fecha de inicio
+  y fin, y si está vigente hoy. Solo ve sus propias asignaciones; ningún
+  otro rol tiene acceso a esta pantalla.
 - **Panel líder** (en el Dashboard): cuántas evidencias tiene pendientes
   de revisar, una tabla de cumplimiento por actividad, y la tarjeta
   "Exentas" (siempre visible, también en 0) con el conteo de su ámbito —
