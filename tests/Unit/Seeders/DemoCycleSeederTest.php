@@ -9,8 +9,10 @@ use App\Livewire\Evidence\EvidenceWorkspace;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
+use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\Evidence;
+use App\Models\Leadership;
 use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
@@ -18,6 +20,7 @@ use Database\Seeders\DemoCycleSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use RuntimeException;
@@ -84,7 +87,7 @@ class DemoCycleSeederTest extends TestCase
         (new DemoCycleSeeder)->run();
 
         $deliverables = Deliverable::where('name', 'like', '[DEMO] %')->get()->keyBy('name');
-        $this->assertCount(6, $deliverables);
+        $this->assertCount(10, $deliverables);
 
         $pending = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Pendiente sin carga'))->first();
@@ -160,16 +163,151 @@ class DemoCycleSeederTest extends TestCase
         (new DemoCycleSeeder)->run();
         (new DemoCycleSeeder)->run();
 
-        $this->assertCount(6, Deliverable::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(10, Deliverable::where('name', 'like', '[DEMO] %')->get());
         $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_EMAIL)->get());
-        $this->assertCount(1, Activity::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->get());
+        $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->get());
+        $this->assertCount(3, Activity::where('name', 'like', '[DEMO] %')->get());
         $this->assertCount(1, Component::where('name', 'like', '[DEMO] %')->get());
-        $this->assertCount(1, ProgramUnit::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(3, ProgramUnit::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(1, CrossCuttingCommitment::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(2, Leadership::where('activity_id', Activity::where('name', '[DEMO] Ciclo de demostración')->first()->id)->get());
 
         // La versión devuelta no debe duplicar su historial al reintentar.
         $returned = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Devuelto, listo para reenviar'))->first();
         $this->assertCount(2, $returned->versions);
         $this->assertCount(1, $returned->reviews);
+    }
+
+    /**
+     * Punto 10: lider.demo.b queda como SEGUNDO líder vigente de la misma
+     * actividad original (junto a lider.demo) — mismo ámbito, dos líderes.
+     */
+    public function test_leader_b_is_a_second_leader_over_the_original_activity(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $activity = Activity::where('name', '[DEMO] Ciclo de demostración')->first();
+        $leaderB = User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->first();
+
+        $this->assertNotNull($leaderB);
+        $this->assertTrue($leaderB->hasRole(RoleName::Leader));
+        $this->assertTrue(
+            Leadership::where('user_id', $leaderB->id)->where('activity_id', $activity->id)->exists()
+        );
+    }
+
+    /**
+     * Punto 10: lider.demo.c tiene su propio ámbito exclusivo (otra
+     * actividad/programa "[DEMO]"), distinto del de A y B.
+     */
+    public function test_leader_c_has_its_own_exclusive_scope(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $activityC = Activity::where('name', '[DEMO] Actividad de Líder C')->first();
+        $leaderC = User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->first();
+
+        $this->assertNotNull($activityC);
+        $this->assertNotNull($leaderC);
+        $this->assertTrue($leaderC->hasRole(RoleName::Leader));
+        $this->assertTrue(
+            Leadership::where('user_id', $leaderC->id)->where('activity_id', $activityC->id)->exists()
+        );
+
+        // Ningún otro líder cubre esta actividad.
+        $this->assertFalse(
+            Leadership::where('activity_id', $activityC->id)
+                ->whereNot('user_id', $leaderC->id)
+                ->exists()
+        );
+    }
+
+    /**
+     * Punto 7/10: la actividad "[DEMO] Actividad sin líder" no tiene
+     * ningún Leadership — demuestra el respaldo de Administrador.
+     */
+    public function test_the_orphan_activity_has_no_leadership_at_all(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $orphanActivity = Activity::where('name', '[DEMO] Actividad sin líder')->first();
+
+        $this->assertNotNull($orphanActivity);
+        $this->assertFalse(Leadership::where('activity_id', $orphanActivity->id)->exists());
+
+        $orphanEvidence = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Sin ningún líder vigente'))->first();
+        $this->assertEquals(EvidenceStatus::Pending, $orphanEvidence->status);
+    }
+
+    /**
+     * Punto 10: una evidencia exenta en el ámbito de cada líder nuevo.
+     */
+    public function test_each_new_leader_has_one_exempt_evidence_in_their_own_scope(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $exemptB = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Exenta en ámbito de Líder B'))->first();
+        $exemptC = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Exenta en ámbito de Líder C'))->first();
+
+        $this->assertEquals(EvidenceStatus::Exempt, $exemptB->status);
+        $this->assertEquals(EvidenceStatus::Exempt, $exemptC->status);
+
+        $leaderB = User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->first();
+        $this->assertFalse($exemptC->isReviewableBy($leaderB));
+    }
+
+    /**
+     * Punto 10: compromiso transversal "[DEMO]" con su propio entregable
+     * y evidencia — ya cubierto por isCrossCutting(), solo lo hace
+     * visible también en el recorrido de demostración.
+     */
+    public function test_creates_a_cross_cutting_commitment_with_its_own_deliverable(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $commitment = CrossCuttingCommitment::where('name', '[DEMO] Compromiso transversal')->first();
+        $this->assertNotNull($commitment);
+
+        $deliverable = Deliverable::where('name', '[DEMO] Entregable transversal')->first();
+        $this->assertNotNull($deliverable);
+        $this->assertTrue($deliverable->isCrossCutting());
+        $this->assertEquals($commitment->id, $deliverable->cross_cutting_commitment_id);
+    }
+
+    /**
+     * Las contraseñas de B y C se leen de variables de entorno propias,
+     * nunca hardcodeadas — mismo criterio que el líder original.
+     */
+    public function test_leaders_b_and_c_passwords_come_from_their_own_env_vars(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        config(['seeding.demo_cycle_leader_b_password' => 'clave-b-de-prueba']);
+        config(['seeding.demo_cycle_leader_c_password' => 'clave-c-de-prueba']);
+
+        (new DemoCycleSeeder)->run();
+
+        $leaderB = User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->first();
+        $leaderC = User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->first();
+
+        $this->assertTrue(Hash::check('clave-b-de-prueba', $leaderB->password));
+        $this->assertTrue(Hash::check('clave-c-de-prueba', $leaderC->password));
     }
 
     public function test_does_not_touch_deliverables_the_teacher_already_had(): void
@@ -223,7 +361,7 @@ class DemoCycleSeederTest extends TestCase
         $this->artisan('db:seed', ['--class' => DemoCycleSeeder::class, '--force' => true])
             ->assertExitCode(0);
 
-        $this->assertSame(6, Deliverable::where('name', 'like', '[DEMO] %')->count());
+        $this->assertSame(10, Deliverable::where('name', 'like', '[DEMO] %')->count());
     }
 
     /**

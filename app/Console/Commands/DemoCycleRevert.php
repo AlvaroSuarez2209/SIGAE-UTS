@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Activity;
 use App\Models\Component;
+use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\Leadership;
 use App\Models\ProgramUnit;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Deshace exactamente lo que crea DemoCycleSeeder — nunca toca al docente
- * real (config('seeding.demo_cycle_teacher_email')), solo lo que cuelga
- * de la actividad "[DEMO] Ciclo de demostración" y el líder sintético
- * (DemoCycleSeeder::DEMO_LEADER_EMAIL). Seguro de correr aunque ya se
- * haya revertido antes (reporta 0 en cada paso, sin error).
+ * real (config('seeding.demo_cycle_teacher_email')), solo lo que cuelga de
+ * cualquier actividad, programa o compromiso transversal con el prefijo
+ * "[DEMO] " y los líderes sintéticos (DemoCycleSeeder::DEMO_LEADER_EMAIL y,
+ * desde el punto 10, DEMO_LEADER_B_EMAIL/DEMO_LEADER_C_EMAIL). Seguro de
+ * correr aunque ya se haya revertido antes (reporta 0 en cada paso, sin
+ * error).
  */
 class DemoCycleRevert extends Command
 {
@@ -34,15 +37,24 @@ class DemoCycleRevert extends Command
             return self::FAILURE;
         }
 
-        $activity = Activity::where('name', DemoCycleSeeder::PREFIX.'Ciclo de demostración')->first();
+        $activities = Activity::where('name', 'like', DemoCycleSeeder::PREFIX.'%')->get();
+        $commitment = CrossCuttingCommitment::where('name', DemoCycleSeeder::PREFIX.'Compromiso transversal')->first();
 
-        if (! $activity) {
+        if ($activities->isEmpty() && ! $commitment) {
             $this->info('No hay datos de DemoCycleSeeder que revertir.');
 
             return self::SUCCESS;
         }
 
-        $deliverables = Deliverable::where('activity_id', $activity->id)->get();
+        $activityIds = $activities->pluck('id');
+
+        $deliverables = Deliverable::where(function ($query) use ($activityIds, $commitment) {
+            $query->whereIn('activity_id', $activityIds);
+
+            if ($commitment) {
+                $query->orWhere('cross_cutting_commitment_id', $commitment->id);
+            }
+        })->get();
 
         // Los archivos físicos no se van solos con el CASCADE de la base
         // (ese solo borra filas) — hay que borrarlos del disco antes de
@@ -64,26 +76,36 @@ class DemoCycleRevert extends Command
         // cascadeOnDelete hasta aquí (ver migraciones) — basta con borrar
         // el Deliverable.
         $deliverableCount = $deliverables->count();
-        Deliverable::where('activity_id', $activity->id)->each(fn (Deliverable $d) => $d->delete());
+        $deliverables->each(fn (Deliverable $d) => $d->delete());
 
-        $assignmentCount = TeacherAssignment::where('activity_id', $activity->id)->delete();
-        $leadershipCount = Leadership::where('activity_id', $activity->id)->delete();
+        $assignmentCount = TeacherAssignment::whereIn('activity_id', $activityIds)->delete();
+        $leadershipCount = Leadership::whereIn('activity_id', $activityIds)->delete();
 
         // activity_id en deliverables es restrictOnDelete — solo se puede
-        // borrar la actividad una vez que ya no quede ningún entregable
-        // apuntándole, que es justo lo que se acaba de hacer arriba.
-        $activity->delete();
-        Component::where('name', DemoCycleSeeder::PREFIX.'Componente de prueba')->delete();
-        ProgramUnit::where('name', DemoCycleSeeder::PREFIX.'Programa de prueba')->delete();
+        // borrar cada actividad una vez que ya no quede ningún entregable
+        // apuntándole, que es justo lo que se acaba de hacer arriba. Mismo
+        // motivo para esperar a borrar los ProgramUnit hasta después de
+        // limpiar TeacherAssignment/Leadership.
+        $activities->each(fn (Activity $a) => $a->delete());
+        Component::where('name', 'like', DemoCycleSeeder::PREFIX.'%')->delete();
+        $programUnitCount = ProgramUnit::where('name', 'like', DemoCycleSeeder::PREFIX.'%')->delete();
 
-        // El líder sintético se borra al final: reviews.reviewer_id es
+        $commitment?->delete();
+
+        // Los líderes sintéticos se borran al final: reviews.reviewer_id es
         // restrictOnDelete, y esas filas solo terminaron de desaparecer
         // cuando se borraron los Deliverable arriba (cascada hacia abajo).
-        $leaderDeleted = User::where('email', DemoCycleSeeder::DEMO_LEADER_EMAIL)->delete();
+        $leadersDeleted = User::whereIn('email', [
+            DemoCycleSeeder::DEMO_LEADER_EMAIL,
+            DemoCycleSeeder::DEMO_LEADER_B_EMAIL,
+            DemoCycleSeeder::DEMO_LEADER_C_EMAIL,
+        ])->delete();
 
         $this->info("Revertido: {$deliverableCount} entregable(s), {$fileCount} archivo(s) físico(s), "
             ."{$assignmentCount} asignación(es) docente, {$leadershipCount} liderazgo(s), "
-            .($leaderDeleted ? 1 : 0)." líder sintético.");
+            ."{$activities->count()} actividad(es), {$programUnitCount} programa(s), "
+            .($commitment ? 1 : 0)." compromiso(s) transversal(es), "
+            ."{$leadersDeleted} líder(es) sintético(s).");
 
         return self::SUCCESS;
     }

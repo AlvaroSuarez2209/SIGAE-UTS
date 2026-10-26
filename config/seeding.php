@@ -35,4 +35,9 @@ return [
 
     'demo_cycle_leader_password' => env('DEMO_CYCLE_LEADER_PASSWORD'),
 
+    // Mismo criterio que arriba, para los dos líderes sintéticos adicionales
+    // del punto 10 (lider.demo.b@sigae-uts.local, lider.demo.c@sigae-uts.local).
+    'demo_cycle_leader_b_password' => env('DEMO_CYCLE_LEADER_B_PASSWORD'),
+    'demo_cycle_leader_c_password' => env('DEMO_CYCLE_LEADER_C_PASSWORD'),
+
 ];

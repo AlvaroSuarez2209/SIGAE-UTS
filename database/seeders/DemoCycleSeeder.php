@@ -10,6 +10,7 @@ use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
+use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\Evidence;
 use App\Models\EvidenceVersion;
@@ -36,6 +37,17 @@ use RuntimeException;
  * así nunca puede tocar, ni por accidente, los entregables reales que la
  * directora ya revisó (viven en una actividad distinta).
  *
+ * Punto 10 amplía el recorrido con dos líderes sintéticos más
+ * (lider.demo.b@sigae-uts.local, lider.demo.c@sigae-uts.local, mismo
+ * criterio de contraseña por variable de entorno que el primero): B se
+ * agrega como segundo líder vigente de la MISMA actividad existente (para
+ * poder probar qué pasa cuando dos líderes comparten ámbito — ver
+ * ReviewInboxTest::test_two_leaders_over_the_same_scope_both_see_it_until_one_decides()),
+ * C recibe su propio ámbito exclusivo (otra actividad/programa "[DEMO]"
+ * nuevos). También agrega una actividad "[DEMO]" sin ningún líder (para el
+ * respaldo de Administrador del punto 7) y un compromiso transversal
+ * "[DEMO]" con su propio entregable.
+ *
  * Revertir: `php artisan demo:cycle-revert` (App\Console\Commands\DemoCycleRevert).
  */
 class DemoCycleSeeder extends Seeder
@@ -46,6 +58,10 @@ class DemoCycleSeeder extends Seeder
 
     public const DEMO_LEADER_EMAIL = 'lider.demo@sigae-uts.local';
 
+    public const DEMO_LEADER_B_EMAIL = 'lider.demo.b@sigae-uts.local';
+
+    public const DEMO_LEADER_C_EMAIL = 'lider.demo.c@sigae-uts.local';
+
     public function run(): void
     {
         if ($this->abortIfProduction()) {
@@ -54,7 +70,9 @@ class DemoCycleSeeder extends Seeder
 
         $teacher = $this->resolveTeacher();
         $period = $this->resolveActivePeriod();
-        $leader = $this->resolveDemoLeader();
+        $leader = $this->resolveDemoUser(self::DEMO_LEADER_EMAIL, 'Líder de prueba', '9999999999', 'demo_cycle_leader_password');
+        $leaderB = $this->resolveDemoUser(self::DEMO_LEADER_B_EMAIL, 'Líder de prueba B', '9999999998', 'demo_cycle_leader_b_password');
+        $leaderC = $this->resolveDemoUser(self::DEMO_LEADER_C_EMAIL, 'Líder de prueba C', '9999999997', 'demo_cycle_leader_c_password');
         [$component, $activity, $programUnit] = $this->resolveDemoScope();
 
         TeacherAssignment::firstOrCreate([
@@ -68,6 +86,20 @@ class DemoCycleSeeder extends Seeder
 
         Leadership::firstOrCreate([
             'user_id' => $leader->id,
+            'activity_id' => $activity->id,
+            'academic_period_id' => $period->id,
+        ], [
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        // Punto 10: segundo líder vigente sobre la MISMA actividad — mismo
+        // patrón exacto que el líder original (incluido activity_id, no
+        // null), para que demo:cycle-revert siga limpiándolo con su mismo
+        // filtro `Leadership::where('activity_id', ...)`.
+        Leadership::firstOrCreate([
+            'user_id' => $leaderB->id,
             'activity_id' => $activity->id,
             'academic_period_id' => $period->id,
         ], [
@@ -164,7 +196,103 @@ class DemoCycleSeeder extends Seeder
         ]);
         $this->ensureEvidence($optionalDeliverable, $teacher);
 
-        $this->command?->info('DemoCycleSeeder: 6 entregables [DEMO] listos para '.$teacher->email.'.');
+        // Punto 10: ámbito propio y exclusivo del líder C — programa y
+        // actividad "[DEMO]" nuevos, distintos de los del líder original (y
+        // de los del líder B, que comparte el original). Mismo componente
+        // compartido: el componente no participa del emparejamiento de
+        // ámbito (solo program_unit_id + activity_id + academic_period_id lo
+        // hacen), así que no hace falta uno nuevo por cada actividad.
+        [$programUnitC, $activityC] = $this->resolveSecondaryScope($component, 'Programa de Líder C', 'Actividad de Líder C');
+
+        TeacherAssignment::firstOrCreate([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activityC->id,
+            'program_unit_id' => $programUnitC->id,
+        ], [
+            'assigned_hours' => 2,
+        ]);
+
+        Leadership::firstOrCreate([
+            'user_id' => $leaderC->id,
+            'activity_id' => $activityC->id,
+            'academic_period_id' => $period->id,
+        ], [
+            'program_unit_id' => $programUnitC->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        // Una evidencia exenta en el ámbito de cada líder nuevo. La de la
+        // actividad original cae dentro del ámbito de B (ahora segundo
+        // líder vigente ahí); la de la actividad C, en el de C. Esta
+        // segunda también sirve para demostrar el 403: B NO tiene ningún
+        // líderazgo sobre la actividad de C, así que cualquier intento suyo
+        // de abrir o revisar esta evidencia debe rechazarse.
+        $exemptBDeliverable = $this->demoDeliverable($period, $activity, 'Exenta en ámbito de Líder B', [
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $exemptBEvidence = $this->ensureEvidence($exemptBDeliverable, $teacher);
+        if ($exemptBEvidence->status === EvidenceStatus::Pending) {
+            $exemptBEvidence->markExempt('[DEMO] Justificación de ejemplo, ámbito del líder B.');
+        }
+
+        $exemptCDeliverable = $this->demoDeliverable($period, $activityC, 'Exenta en ámbito de Líder C', [
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $exemptCEvidence = $this->ensureEvidence($exemptCDeliverable, $teacher);
+        if ($exemptCEvidence->status === EvidenceStatus::Pending) {
+            $exemptCEvidence->markExempt('[DEMO] Justificación de ejemplo, ámbito del líder C.');
+        }
+
+        // Punto 7 / punto 10: actividad "[DEMO]" sin ningún Leadership —
+        // demuestra el respaldo de Administrador para actividades sin
+        // ningún líder vigente en este momento (Evidence::isReviewableBy()).
+        [$programUnitOrphan, $activityOrphan] = $this->resolveSecondaryScope($component, 'Programa sin líder', 'Actividad sin líder');
+
+        TeacherAssignment::firstOrCreate([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activityOrphan->id,
+            'program_unit_id' => $programUnitOrphan->id,
+        ], [
+            'assigned_hours' => 2,
+        ]);
+
+        $orphanDeliverable = $this->demoDeliverable($period, $activityOrphan, 'Sin ningún líder vigente', [
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $this->ensureEvidence($orphanDeliverable, $teacher);
+
+        // Compromiso transversal "[DEMO]" con su propio entregable — ya
+        // cubierto por isCrossCutting()/isReviewableBy() (Administrador),
+        // esto solo lo hace visible también en el recorrido de demostración.
+        $commitment = CrossCuttingCommitment::firstOrCreate([
+            'name' => self::PREFIX.'Compromiso transversal',
+        ], [
+            'is_active' => true,
+        ]);
+
+        $transversalDeliverable = Deliverable::firstOrCreate([
+            'name' => self::PREFIX.'Entregable transversal',
+            'academic_period_id' => $period->id,
+        ], [
+            'cross_cutting_commitment_id' => $commitment->id,
+            'periodicity_type' => PeriodicityType::Single,
+            'allowed_evidence_types' => [EvidenceType::File->value],
+            'allowed_file_types' => ['pdf'],
+            'max_files' => 1,
+            'max_file_size_mb' => 10,
+            'opens_at' => now()->subDay(),
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $this->ensureEvidence($transversalDeliverable, $teacher);
+
+        $this->command?->info('DemoCycleSeeder: 6 entregables [DEMO] listos para '.$teacher->email.', más el ámbito de los líderes B y C.');
     }
 
     private function resolveTeacher(): User
@@ -202,16 +330,16 @@ class DemoCycleSeeder extends Seeder
         return $period;
     }
 
-    private function resolveDemoLeader(): User
+    private function resolveDemoUser(string $email, string $name, string $documentNumber, string $passwordConfigKey): User
     {
         $role = Role::where('name', RoleName::Leader->value)->first();
 
         $leader = User::firstOrCreate(
-            ['email' => self::DEMO_LEADER_EMAIL],
+            ['email' => $email],
             [
-                'name' => self::PREFIX.'Líder de prueba',
-                'document_number' => '9999999999',
-                'password' => Hash::make(config('seeding.demo_cycle_leader_password') ?: str()->random(32)),
+                'name' => self::PREFIX.$name,
+                'document_number' => $documentNumber,
+                'password' => Hash::make(config("seeding.{$passwordConfigKey}") ?: str()->random(32)),
                 'is_active' => true,
             ]
         );
@@ -236,6 +364,25 @@ class DemoCycleSeeder extends Seeder
         $programUnit = ProgramUnit::firstOrCreate(['name' => self::PREFIX.'Programa de prueba']);
 
         return [$component, $activity, $programUnit];
+    }
+
+    /**
+     * Punto 10: un programa + actividad "[DEMO]" propios, bajo el mismo
+     * componente compartido — program_unit_id es parte de la clave de
+     * ámbito (TeacherAssignment/Leadership), así que cada ámbito nuevo
+     * necesita su propio ProgramUnit aunque reutilice el Component.
+     *
+     * @return array{0: ProgramUnit, 1: Activity}
+     */
+    private function resolveSecondaryScope(Component $component, string $programUnitName, string $activityName): array
+    {
+        $programUnit = ProgramUnit::firstOrCreate(['name' => self::PREFIX.$programUnitName]);
+        $activity = Activity::firstOrCreate([
+            'name' => self::PREFIX.$activityName,
+            'component_id' => $component->id,
+        ]);
+
+        return [$programUnit, $activity];
     }
 
     private function demoDeliverable(AcademicPeriod $period, Activity $activity, string $name, array $attributes): Deliverable

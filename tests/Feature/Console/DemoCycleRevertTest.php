@@ -7,8 +7,10 @@ use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
+use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
 use App\Models\EvidenceFile;
+use App\Models\Leadership;
 use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
@@ -64,7 +66,11 @@ class DemoCycleRevertTest extends TestCase
         $this->assertSame(0, Activity::where('name', 'like', '[DEMO] %')->count());
         $this->assertSame(0, Component::where('name', 'like', '[DEMO] %')->count());
         $this->assertSame(0, ProgramUnit::where('name', 'like', '[DEMO] %')->count());
+        $this->assertSame(0, CrossCuttingCommitment::where('name', 'like', '[DEMO] %')->count());
+        $this->assertSame(0, Leadership::count());
         $this->assertSame(0, User::where('email', DemoCycleSeeder::DEMO_LEADER_EMAIL)->count());
+        $this->assertSame(0, User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->count());
+        $this->assertSame(0, User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->count());
         $this->assertSame(0, EvidenceFile::whereIn('id', $fileIds)->count());
 
         foreach ($paths as $path) {
