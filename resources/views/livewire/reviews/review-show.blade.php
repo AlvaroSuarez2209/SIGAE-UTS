@@ -42,6 +42,20 @@
     @endif
 
     <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
+        <p><span class="font-medium text-text-primary">Periodo:</span> {{ $deliverable->academicPeriod->name }}</p>
+        <p>
+            <span class="font-medium text-text-primary">Actividad:</span>
+            @if ($deliverable->isCrossCutting())
+                Transversal: {{ $deliverable->crossCuttingCommitment->name }}
+            @else
+                {{ $deliverable->activity->name }}
+            @endif
+        </p>
+        @unless ($deliverable->isCrossCutting())
+            <p><span class="font-medium text-text-primary">Componente:</span> {{ $deliverable->activity->component->name }}</p>
+        @endunless
+        <p><span class="font-medium text-text-primary">Peso porcentual:</span> {{ $deliverable->weight_percentage !== null ? $deliverable->weight_percentage.'%' : '—' }}</p>
+        <p><span class="font-medium text-text-primary">Obligatorio:</span> {{ $deliverable->is_mandatory ? 'Sí' : 'No' }}</p>
         <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
         <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->toReadable() ?? '—' }}</p>
     </div>

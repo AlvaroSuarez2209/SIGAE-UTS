@@ -367,6 +367,41 @@ class ReviewShowTest extends TestCase
         $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leader->name.'/s', $html);
     }
 
+    public function test_metadata_card_shows_period_activity_component_weight_and_mandatory(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $deliverable = $evidence->deliverable;
+        $deliverable->update(['weight_percentage' => 40, 'is_mandatory' => true]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString($deliverable->academicPeriod->name, $html);
+        $this->assertStringContainsString($deliverable->activity->component->name, $html);
+        $this->assertStringContainsString($deliverable->activity->name, $html);
+        $this->assertStringContainsString('40%', $html);
+        $this->assertStringContainsString('Obligatorio', $html);
+    }
+
+    public function test_metadata_card_shows_transversal_commitment_name_for_cross_cutting_deliverables(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->crossCutting()->create();
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => $deliverable->id,
+        ]);
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $version->update(['description' => 'Contenido de prueba']);
+        $evidence->submitCurrentVersion();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('Transversal: '.$deliverable->crossCuttingCommitment->name, $html);
+    }
+
     public function test_leader_outside_scope_cannot_download_a_file_from_a_previous_version(): void
     {
         [$evidence, , , $v1File] = $this->returnedThenResubmittedEvidence();

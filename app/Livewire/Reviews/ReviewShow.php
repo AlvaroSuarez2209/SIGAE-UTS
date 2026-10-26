@@ -121,6 +121,7 @@ class ReviewShow extends Component
     public function render()
     {
         $this->evidence->load([
+            'deliverable.academicPeriod',
             'deliverable.activity.component',
             'deliverable.crossCuttingCommitment',
             'currentVersion.files',
