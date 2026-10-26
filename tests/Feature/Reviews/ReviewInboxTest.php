@@ -189,6 +189,41 @@ class ReviewInboxTest extends TestCase
         $this->assertLessThan(10, $queryCount, "Se esperaban menos de 10 consultas independientemente del número de evidencias, hubo {$queryCount}.");
     }
 
+    public function test_shows_the_late_submission_indicator_for_a_row_submitted_after_the_due_date(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $activity = Activity::factory()->create();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'due_at' => now()->subDays(3),
+        ]);
+        $this->submitEvidence($teacher, $deliverable);
+
+        Livewire::actingAs($leader)->test(ReviewInbox::class)
+            ->assertSee('3 días después de la fecha límite');
+    }
+
     public function test_period_filter_defaults_to_the_active_period_when_the_query_string_has_no_filter_at_all(): void
     {
         $leader = $this->userWithRole(RoleName::Leader);

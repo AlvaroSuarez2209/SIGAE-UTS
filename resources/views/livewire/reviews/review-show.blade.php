@@ -58,6 +58,12 @@
         <p><span class="font-medium text-text-primary">Obligatorio:</span> {{ $deliverable->is_mandatory ? 'Sí' : 'No' }}</p>
         <p><span class="font-medium text-text-primary">Fecha límite:</span> {{ $deliverable->due_at->toReadable() }}</p>
         <p><span class="font-medium text-text-primary">Enviado:</span> {{ $version->submitted_at?->toReadable() ?? '—' }}</p>
+        @php $lateDays = $deliverable->lateSubmissionDays($version->submitted_at); @endphp
+        @if ($lateDays !== null)
+            <p class="text-sm font-medium text-status-warning">
+                Enviado {{ $lateDays }} {{ $lateDays === 1 ? 'día' : 'días' }} después de la fecha límite.
+            </p>
+        @endif
     </div>
 
     <div class="card mb-6 space-y-4 p-6">

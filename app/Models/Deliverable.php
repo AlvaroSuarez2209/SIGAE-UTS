@@ -153,6 +153,20 @@ class Deliverable extends Model
     }
 
     /**
+     * Días completos entre due_at y el envío — null si no se envió tarde.
+     * Puramente informativo (no bloquea nada, a diferencia de
+     * isPastClosingDate(), que compara contra closes_at, no due_at).
+     */
+    public function lateSubmissionDays(?\Illuminate\Support\Carbon $submittedAt): ?int
+    {
+        if ($submittedAt === null || $submittedAt->lte($this->due_at)) {
+            return null;
+        }
+
+        return $this->due_at->diffInDays($submittedAt);
+    }
+
+    /**
      * Extensiones realmente aceptadas al validar un archivo subido: las
      * configuradas explícitamente, o DEFAULT_ALLOWED_FILE_TYPES si el
      * campo quedó vacío. Nunca hay que leer `allowed_file_types` a secas

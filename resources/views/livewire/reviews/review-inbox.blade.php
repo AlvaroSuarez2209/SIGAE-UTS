@@ -40,7 +40,15 @@
                                 {{ $evidence->deliverable->activity->component->name }} — {{ $evidence->deliverable->activity->name }}
                             @endif
                         </td>
-                        <td class="table-cell text-text-secondary">{{ $evidence->currentVersion->submitted_at->toReadable() }}</td>
+                        <td class="table-cell text-text-secondary">
+                            {{ $evidence->currentVersion->submitted_at->toReadable() }}
+                            @php $lateDays = $evidence->deliverable->lateSubmissionDays($evidence->currentVersion->submitted_at); @endphp
+                            @if ($lateDays !== null)
+                                <p class="text-sm font-medium text-status-warning">
+                                    {{ $lateDays }} {{ $lateDays === 1 ? 'día' : 'días' }} después de la fecha límite
+                                </p>
+                            @endif
+                        </td>
                         <td class="table-cell text-right">
                             <a href="{{ route('reviews.show', $evidence) }}" class="btn-text">Revisar</a>
                         </td>

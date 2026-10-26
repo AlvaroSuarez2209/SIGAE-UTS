@@ -402,6 +402,26 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString('Transversal: '.$deliverable->crossCuttingCommitment->name, $html);
     }
 
+    public function test_shows_the_late_submission_indicator_when_submitted_after_the_due_date(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update(['due_at' => now()->subDays(5)]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('5 días después de la fecha límite', $html);
+    }
+
+    public function test_does_not_show_the_late_submission_indicator_when_submitted_on_time(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        // due_at de la factory por defecto está en el futuro (now()+2 semanas).
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringNotContainsString('después de la fecha límite', $html);
+    }
+
     public function test_leader_outside_scope_cannot_download_a_file_from_a_previous_version(): void
     {
         [$evidence, , , $v1File] = $this->returnedThenResubmittedEvidence();
