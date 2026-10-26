@@ -20,6 +20,7 @@
         $isAdmin = $user?->hasRole(\App\Enums\RoleName::Administrator) ?? false;
         $isCoordination = $user?->hasAnyRole(['administrator', 'coordination']) ?? false;
         $isReviewer = $user?->hasAnyRole(['administrator', 'coordination', 'leader']) ?? false;
+        $isLeader = $user?->hasRole('leader') ?? false;
         $canSeeReports = $user?->hasAnyRole(['administrator', 'coordination', 'auditor']) ?? false;
         $canSeeAudit = $user?->hasAnyRole(['administrator', 'auditor']) ?? false;
 
@@ -33,6 +34,7 @@
                 'links' => collect([
                     $isTeacher ? ['route' => 'my-deliverables.index', 'label' => 'Mis entregables', 'icon' => 'document'] : null,
                     $isReviewer ? ['route' => 'reviews.index', 'label' => 'Revisión', 'icon' => 'inbox'] : null,
+                    $isLeader ? ['route' => 'my-leadership.index', 'label' => 'Mi ámbito', 'icon' => 'shield-check'] : null,
                 ])->filter(),
             ],
             $isCoordination ? [

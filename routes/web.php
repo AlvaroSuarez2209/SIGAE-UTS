@@ -34,6 +34,7 @@ use App\Livewire\Evidence\EvidenceWorkspace;
 use App\Livewire\Evidence\MyDeliverables;
 use App\Livewire\Leaderships\LeadershipForm;
 use App\Livewire\Leaderships\LeadershipIndex;
+use App\Livewire\Leaderships\MyLeadership;
 use App\Livewire\Periods\PeriodIndex;
 use App\Livewire\Profile;
 use App\Livewire\Reports\ActivityReport;
@@ -98,6 +99,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/', ReviewInbox::class)->name('index');
         Route::get('/exempt', ExemptEvidenceIndex::class)->name('exempt');
         Route::get('/{evidence}', ReviewShow::class)->name('show');
+    });
+
+    // "Mi ámbito": de solo lectura y exclusiva del rol Líder — a diferencia
+    // de /leaderships (Administrador/Coordinación, ver más abajo), aquí
+    // cada líder ve únicamente sus propios liderazgos.
+    Route::middleware('role:leader')->prefix('my-leadership')->name('my-leadership.')->group(function () {
+        Route::get('/', MyLeadership::class)->name('index');
     });
 
     Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
