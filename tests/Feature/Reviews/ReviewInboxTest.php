@@ -188,4 +188,43 @@ class ReviewInboxTest extends TestCase
 
         $this->assertLessThan(10, $queryCount, "Se esperaban menos de 10 consultas independientemente del número de evidencias, hubo {$queryCount}.");
     }
+
+    public function test_period_filter_defaults_to_the_active_period_when_the_query_string_has_no_filter_at_all(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        Livewire::actingAs($leader)->test(ReviewInbox::class)
+            ->assertSet('periodFilter', $period->id);
+    }
+
+    /**
+     * Antes, mount() pisaba SIEMPRE $periodFilter con el periodo activo,
+     * sin importar lo que llegara en la URL — "Todos los periodos"
+     * (valor vacío/null) nunca sobrevivía a un "Volver" o a una recarga.
+     * Con #[Url], mount() solo aplica el valor por defecto cuando la
+     * clave ni siquiera está en el query string.
+     */
+    public function test_period_filter_persists_all_periods_when_explicitly_present_and_empty_in_the_query_string(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        Livewire::withQueryParams(['periodFilter' => ''])
+            ->actingAs($leader)
+            ->test(ReviewInbox::class)
+            ->assertSet('periodFilter', null);
+    }
+
+    public function test_period_filter_persists_a_specific_period_present_in_the_query_string(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $otherPeriod = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed]);
+
+        Livewire::withQueryParams(['periodFilter' => (string) $otherPeriod->id])
+            ->actingAs($leader)
+            ->test(ReviewInbox::class)
+            ->assertSet('periodFilter', $otherPeriod->id);
+    }
 }

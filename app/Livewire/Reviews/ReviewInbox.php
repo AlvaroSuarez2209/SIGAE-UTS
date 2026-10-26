@@ -7,17 +7,28 @@ use App\Models\AcademicPeriod;
 use App\Models\Evidence;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 #[Title('Revisión')]
 class ReviewInbox extends Component
 {
+    #[Url]
     public ?int $periodFilter = null;
 
+    /**
+     * El atributo #[Url] ya puebla $periodFilter desde el query string
+     * antes de que este mount() se ejecute (incluido el caso explícito
+     * "Todos los periodos", que llega como valor vacío/null) — solo se
+     * aplica el periodo activo por defecto cuando el query string ni
+     * siquiera trae la clave, es decir, en una primera visita sin filtro.
+     */
     public function mount(): void
     {
-        $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        if (! request()->has('periodFilter')) {
+            $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        }
     }
 
     public function render()
