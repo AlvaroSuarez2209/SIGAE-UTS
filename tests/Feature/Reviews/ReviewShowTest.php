@@ -18,6 +18,8 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -30,6 +32,43 @@ class ReviewShowTest extends TestCase
         parent::setUp();
 
         $this->seed(RoleSeeder::class);
+        Storage::fake('local');
+    }
+
+    private function attachFile(\App\Models\EvidenceVersion $version, string $name): \App\Models\EvidenceFile
+    {
+        $file = UploadedFile::fake()->create($name, 50, 'application/pdf');
+        $storedPath = $file->store('evidence/'.$version->id, 'local');
+
+        return $version->files()->create([
+            'original_name' => $name,
+            'stored_name' => basename($storedPath),
+            'disk_path' => $storedPath,
+            'mime_type' => 'application/pdf',
+            'size_bytes' => $file->getSize(),
+        ]);
+    }
+
+    /**
+     * Evidencia devuelta una vez por el líder vigente (versión 1, con un
+     * archivo) y luego reenviada (versión 2, actual) — dos versiones y dos
+     * entradas en el histórico de revisiones, lo mínimo para probar el
+     * historial de versiones y el "Versión N" junto a cada revisión.
+     */
+    private function returnedThenResubmittedEvidence(): array
+    {
+        [$evidence, $leader, $teacher] = $this->submittedEvidenceWithLeader();
+
+        $v1 = $evidence->currentVersion;
+        $v1File = $this->attachFile($v1, 'version-1.pdf');
+
+        $evidence->returnCurrentReviewForAdjustment($leader, 'Ajusta el documento.');
+
+        $v2 = $evidence->startOrGetDraftVersion($teacher);
+        $v2->update(['description' => 'Contenido corregido']);
+        $evidence->submitCurrentVersion();
+
+        return [$evidence->fresh(), $leader, $teacher, $v1File];
     }
 
     private function userWithRole(RoleName $role): User
@@ -301,5 +340,40 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString('wire:target="reopen"', $html);
         $this->assertStringContainsString('wire:loading.attr="disabled"', $html);
         $this->assertStringContainsString('Reabriendo...', $html);
+    }
+
+    public function test_version_history_shows_each_version_with_its_files_and_the_missing_file_indicator(): void
+    {
+        [$evidence, $leader, , $v1File] = $this->returnedThenResubmittedEvidence();
+
+        // Simula el disco efímero de Render: la fila sigue en la base,
+        // pero el archivo físico de la versión 1 ya no existe.
+        Storage::disk('local')->delete($v1File->disk_path);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('Historial de versiones', $html);
+        $this->assertStringContainsString('Versión 1', $html);
+        $this->assertStringContainsString('Versión 2', $html);
+        $this->assertStringContainsString('Archivo no disponible', $html);
+    }
+
+    public function test_review_history_shows_the_version_number_next_to_each_review(): void
+    {
+        [$evidence, $leader] = $this->returnedThenResubmittedEvidence();
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leader->name.'/s', $html);
+    }
+
+    public function test_leader_outside_scope_cannot_download_a_file_from_a_previous_version(): void
+    {
+        [$evidence, , , $v1File] = $this->returnedThenResubmittedEvidence();
+        $outsideLeader = $this->userWithRole(RoleName::Leader);
+
+        $this->actingAs($outsideLeader)
+            ->get(route('evidence-files.download', $v1File))
+            ->assertForbidden();
     }
 }

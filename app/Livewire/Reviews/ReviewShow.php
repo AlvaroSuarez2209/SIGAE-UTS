@@ -125,8 +125,10 @@ class ReviewShow extends Component
             'deliverable.crossCuttingCommitment',
             'currentVersion.files',
             'currentVersion.links',
+            'versions.files',
             'reviews.reviewer',
             'reviews.observations',
+            'reviews.version',
         ]);
 
         return view('livewire.reviews.review-show', [

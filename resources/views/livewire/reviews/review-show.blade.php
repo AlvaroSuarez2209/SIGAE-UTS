@@ -74,6 +74,43 @@
         @endif
     </div>
 
+    @if ($evidence->versions->count() > 1)
+        <div class="card mb-6 p-6">
+            <h2 class="form-section-title mb-2">Historial de versiones</h2>
+            <ul class="space-y-2 text-base text-text-secondary">
+                @foreach ($evidence->versions as $historyVersion)
+                    <li>
+                        <p>
+                            Versión {{ $historyVersion->version_number }} —
+                            {{ $historyVersion->submitted_at ? 'enviada el '.$historyVersion->submitted_at->toReadable() : 'en edición' }}
+                            @if ($historyVersion->id === $evidence->current_version_id)
+                                (actual)
+                            @endif
+                        </p>
+
+                        @if ($historyVersion->files->isEmpty())
+                            <p class="mt-1 pl-4 text-sm text-text-secondary">Sin archivos adjuntos.</p>
+                        @else
+                            <ul class="mt-1 space-y-1 pl-4">
+                                @foreach ($historyVersion->files as $file)
+                                    <li class="flex items-center gap-2">
+                                        <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                        <span class="truncate">{{ $file->original_name }}</span>
+                                        @if ($file->existsOnDisk())
+                                            <a href="{{ route('evidence-files.download', $file) }}" class="btn-text shrink-0">Descargar</a>
+                                        @else
+                                            <span class="shrink-0 text-sm font-medium text-status-error">Archivo no disponible</span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     @if ($evidence->status->value === 'submitted')
         <div class="card space-y-4 p-6">
             <div>
@@ -159,7 +196,9 @@
                 @foreach ($evidence->reviews as $review)
                     <li class="card p-3 text-base">
                         <x-status-badge :status="$review->decision" class="mb-1" />
-                        <p class="text-text-secondary">por {{ $review->reviewer->name }} — {{ $review->decided_at->toReadable() }}</p>
+                        <p class="text-text-secondary">
+                            Versión {{ $review->version->version_number }} · por {{ $review->reviewer->name }} — {{ $review->decided_at->toReadable() }}
+                        </p>
                         @foreach ($review->observations as $observation)
                             <p class="mt-1 text-text-secondary">{{ $observation->body }}</p>
                         @endforeach
