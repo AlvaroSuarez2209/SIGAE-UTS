@@ -6,6 +6,7 @@ use App\Enums\EvidenceStatus;
 use App\Models\Evidence;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -14,6 +15,35 @@ class ReviewShow extends Component
     public Evidence $evidence;
 
     public string $observation = '';
+
+    /**
+     * Bug "el filtro de periodo se pierde al pulsar Volver": nunca es
+     * esta pantalla la que decide su valor (a diferencia de
+     * ReviewInbox::$periodFilter) — solo lo recibe por la URL (puesto
+     * ahí por el enlace "Revisar" de la bandeja) y lo reenvía tal cual en
+     * "Volver" y en cada redirect de vuelta a la bandeja, para que el
+     * filtro sobreviva el viaje de ida y vuelta. #[Url] (no
+     * request()->query() a mano) es necesario para que siga disponible
+     * también dentro de approve()/returnForAdjustment(), que llegan en
+     * una petición AJAX de Livewire distinta de la carga inicial de la
+     * página.
+     */
+    #[Url]
+    public ?int $periodFilter = null;
+
+    /**
+     * "Todos los periodos" se representa como null — y route() omite de
+     * la URL cualquier parámetro en null, indistinguible entonces de "no
+     * venía ningún filtro". ReviewInbox::mount() solo respeta un filtro
+     * ausente-pero-vacío (`request()->has('periodFilter')` en vez de
+     * comparar contra null) — para que eso funcione, hay que forzar la
+     * clave a estar SIEMPRE presente en la URL, aunque su valor sea una
+     * cadena vacía (`?periodFilter=`, no la ausencia del parámetro).
+     */
+    public function reviewsIndexUrl(): string
+    {
+        return route('reviews.index', ['periodFilter' => $this->periodFilter ?? '']);
+    }
 
     public function mount(Evidence $evidence): void
     {
@@ -47,7 +77,7 @@ class ReviewShow extends Component
         // acceso que ya tenía.
         if (! $evidence->currentVersion) {
             session()->flash('error', 'Esta evidencia todavía no tiene ninguna versión enviada; no hay nada que revisar.');
-            $this->redirect(route('reviews.index'), navigate: false);
+            $this->redirect($this->reviewsIndexUrl(), navigate: false);
 
             return;
         }
@@ -70,7 +100,7 @@ class ReviewShow extends Component
         $this->evidence->approveCurrentReview(auth()->user(), $this->observation ?: null);
 
         session()->flash('status', 'Evidencia aprobada.');
-        $this->redirect(route('reviews.index'), navigate: false);
+        $this->redirect($this->reviewsIndexUrl(), navigate: false);
     }
 
     public function returnForAdjustment(): void
@@ -90,7 +120,7 @@ class ReviewShow extends Component
         $this->evidence->returnCurrentReviewForAdjustment(auth()->user(), $this->observation);
 
         session()->flash('status', 'Evidencia devuelta al docente para ajustes.');
-        $this->redirect(route('reviews.index'), navigate: false);
+        $this->redirect($this->reviewsIndexUrl(), navigate: false);
     }
 
     private function isStillPendingReview(): bool

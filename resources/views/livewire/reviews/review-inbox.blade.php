@@ -50,7 +50,7 @@
                             @endif
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('reviews.show', $evidence) }}" class="btn-text">Revisar</a>
+                            <a href="{{ route('reviews.show', [$evidence, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text">Revisar</a>
                         </td>
                     </tr>
                 @empty

@@ -155,7 +155,7 @@ class ReviewShowTest extends TestCase
             ->test(ReviewShow::class, ['evidence' => $evidence])
             ->call('approve')
             ->assertHasNoErrors()
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
 
         $evidence->refresh();
         $this->assertEquals(EvidenceStatus::Approved, $evidence->status);
@@ -197,7 +197,7 @@ class ReviewShowTest extends TestCase
             ->set('observation', 'Falta el archivo de soporte.')
             ->call('returnForAdjustment')
             ->assertHasNoErrors()
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
 
         $evidence->refresh();
         $this->assertEquals(EvidenceStatus::NeedsAdjustment, $evidence->status);

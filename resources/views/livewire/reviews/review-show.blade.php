@@ -180,7 +180,7 @@
                     </span>
                     <span wire:loading wire:target="returnForAdjustment">Devolviendo...</span>
                 </button>
-                <a href="{{ route('reviews.index') }}" class="btn-text text-text-secondary">Volver</a>
+                <a href="{{ $this->reviewsIndexUrl() }}" class="btn-text text-text-secondary">Volver</a>
             </div>
         </div>
     @else
@@ -206,7 +206,7 @@
                 </div>
             @endif
         @endcan
-        <a href="{{ route('reviews.index') }}" class="btn-text inline-block text-text-secondary">Volver</a>
+        <a href="{{ $this->reviewsIndexUrl() }}" class="btn-text inline-block text-text-secondary">Volver</a>
     @endif
 
     @if ($evidence->reviews->isNotEmpty())

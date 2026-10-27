@@ -164,7 +164,7 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         $coordination = $this->userWithRole(RoleName::Coordination);
 
         $this->actingAs($coordination)->get('/reviews/'.$evidence->id)
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
     }
 
     public function test_coordination_opening_a_draft_cross_cutting_evidence_does_not_crash(): void
@@ -194,7 +194,7 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         $admin = $this->userWithRole(RoleName::Administrator);
 
         $this->actingAs($admin)->get('/reviews/'.$evidence->id)
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
     }
 
     public function test_administrator_opening_a_draft_cross_cutting_evidence_does_not_crash(): void
@@ -210,7 +210,7 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         [$evidence, $leader] = $this->activityEvidenceLedByLeader(EvidenceStatus::Pending);
 
         $this->actingAs($leader)->get('/reviews/'.$evidence->id)
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
     }
 
     public function test_redirecting_away_from_a_pending_evidence_flashes_an_explanatory_message(): void
@@ -238,7 +238,7 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         $admin = $this->userWithRole(RoleName::Administrator);
 
         $this->actingAs($admin)->get('/reviews/'.$evidence->id)
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
     }
 
     public function test_administrator_opening_a_draft_evidence_with_no_leader_at_all_does_not_crash(): void
@@ -259,7 +259,7 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         $coordination = $this->userWithRole(RoleName::Coordination);
 
         $this->actingAs($coordination)->get('/reviews/'.$evidence->id)
-            ->assertRedirect(route('reviews.index'));
+            ->assertRedirect(route('reviews.index', ['periodFilter' => '']));
     }
 
     public function test_coordination_opening_a_draft_evidence_with_no_leader_at_all_does_not_crash(): void
