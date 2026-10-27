@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -26,6 +27,22 @@ class DeliverableForm extends Component
     use WithFileUploads;
 
     public ?Deliverable $deliverable = null;
+
+    /**
+     * Bug "el filtro de periodo se pierde al pulsar Volver" (mismo
+     * patrón que ReviewShow, commit 3be7623): esta pantalla nunca decide
+     * su valor, solo lo recibe por la URL (puesto ahí por el enlace
+     * "Nuevo entregable"/"Editar" de DeliverableIndex) y lo reenvía tal
+     * cual en "Volver"/"Cancelar" y en los redirects de
+     * saveAsDraft()/save().
+     */
+    #[Url]
+    public ?int $periodFilter = null;
+
+    public function deliverablesIndexUrl(): string
+    {
+        return route('deliverables.index', ['periodFilter' => $this->periodFilter ?? '']);
+    }
 
     public string $scope_type = 'activity';
 
@@ -485,7 +502,7 @@ class DeliverableForm extends Component
 
         session()->flash('status', 'Entregable guardado como borrador. No es visible para los docentes todavía.');
 
-        $this->redirect(route('deliverables.index'), navigate: false);
+        $this->redirect($this->deliverablesIndexUrl(), navigate: false);
     }
 
     /**
@@ -530,7 +547,7 @@ class DeliverableForm extends Component
 
         session()->flash('status', 'Entregable guardado correctamente.');
 
-        $this->redirect(route('deliverables.index'), navigate: false);
+        $this->redirect($this->deliverablesIndexUrl(), navigate: false);
     }
 
     /**

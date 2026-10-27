@@ -67,7 +67,7 @@
         </div>
 
         <div class="mt-6">
-            <a href="{{ route('deliverables.index') }}" class="btn-text text-text-secondary">Volver</a>
+            <a href="{{ $this->deliverablesIndexUrl() }}" class="btn-text text-text-secondary">Volver</a>
         </div>
     @else
         {{-- Indicador de pasos --}}
@@ -566,7 +566,7 @@
                     @endif
                 @endif
 
-                <a href="{{ route('deliverables.index') }}" class="btn-text text-text-secondary">Cancelar</a>
+                <a href="{{ $this->deliverablesIndexUrl() }}" class="btn-text text-text-secondary">Cancelar</a>
             </div>
         </form>
     @endif

@@ -1,7 +1,7 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Entregables</h1>
-        <a href="{{ route('deliverables.create') }}" class="btn-primary">
+        <a href="{{ route('deliverables.create', ['periodFilter' => $periodFilter ?? '']) }}" class="btn-primary">
             Nuevo entregable
         </a>
     </div>
@@ -51,12 +51,12 @@
                         <td class="table-cell text-text-secondary">{{ $deliverable->is_mandatory ? 'Sí' : 'No' }}</td>
                         <td class="table-cell text-text-secondary">{{ $deliverable->due_at->toReadable() }}</td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('deliverables.recipients', $deliverable) }}" class="btn-text text-text-secondary">
+                            <a href="{{ route('deliverables.recipients', [$deliverable, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text text-text-secondary">
                                 {{ $deliverable->recipients->count() }}
                             </a>
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('deliverables.edit', $deliverable) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('deliverables.edit', [$deliverable, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text">Editar</a>
                         </td>
                     </tr>
                 @empty

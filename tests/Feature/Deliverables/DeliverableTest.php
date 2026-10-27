@@ -997,7 +997,7 @@ class DeliverableTest extends TestCase
             ->call('nextStep')->assertSet('step', 6)
             ->call('save')
             ->assertHasNoErrors()
-            ->assertRedirect(route('deliverables.index'));
+            ->assertRedirect(route('deliverables.index', ['periodFilter' => '']));
 
         $deliverable = Deliverable::firstOrFail();
         $this->assertEquals('Entregable de prueba', $deliverable->name);

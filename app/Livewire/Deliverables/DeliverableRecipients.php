@@ -4,6 +4,7 @@ namespace App\Livewire\Deliverables;
 
 use App\Models\Deliverable;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -21,9 +22,23 @@ class DeliverableRecipients extends Component
 {
     public Deliverable $deliverable;
 
+    /**
+     * Mismo patrón que ReviewShow/DeliverableForm: solo recibe el
+     * filtro de periodo por la URL y lo reenvía en "Volver a
+     * Entregables", para que sobreviva el viaje de ida y vuelta desde
+     * DeliverableIndex.
+     */
+    #[Url]
+    public ?int $periodFilter = null;
+
     public function mount(Deliverable $deliverable): void
     {
         $this->deliverable = $deliverable;
+    }
+
+    public function deliverablesIndexUrl(): string
+    {
+        return route('deliverables.index', ['periodFilter' => $this->periodFilter ?? '']);
     }
 
     public function render()

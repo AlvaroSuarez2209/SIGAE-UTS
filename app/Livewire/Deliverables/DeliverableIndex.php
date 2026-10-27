@@ -8,6 +8,7 @@ use App\Models\AcademicPeriod;
 use App\Models\Deliverable;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,11 +18,21 @@ class DeliverableIndex extends Component
 {
     use HasStandardPagination, WithPagination;
 
+    #[Url]
     public ?int $periodFilter = null;
 
+    /**
+     * Mismo bug/fix que ReviewInbox (commit 285f3a3): mount() pisaba
+     * siempre $periodFilter con el periodo activo, sin importar lo que
+     * viniera en la URL — "Todos los periodos" nunca sobrevivía a un
+     * "Volver" ni a una recarga. Solo se aplica el valor por defecto
+     * cuando el query string ni siquiera trae la clave.
+     */
     public function mount(): void
     {
-        $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        if (! request()->has('periodFilter')) {
+            $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        }
     }
 
     public function updatingPeriodFilter(): void

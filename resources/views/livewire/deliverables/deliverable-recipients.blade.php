@@ -10,7 +10,7 @@
                 @endif
             </p>
         </div>
-        <a href="{{ route('deliverables.index') }}" class="btn-text text-text-secondary">Volver a Entregables</a>
+        <a href="{{ $this->deliverablesIndexUrl() }}" class="btn-text text-text-secondary">Volver a Entregables</a>
     </div>
 
     <div class="table-shell">
