@@ -81,7 +81,7 @@ class UserManagementTest extends TestCase
             ->set('document_type', 'CC')
             ->set('program_unit_id', $programUnit->id)
             ->call('save')
-            ->assertRedirect(route('admin.users.index'));
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
 
         // Bloque de ajustes de interfaz, punto 5: este flash se perdía —
         // redirigía a admin.users.index, que no tenía ningún bloque que lo
@@ -115,7 +115,7 @@ class UserManagementTest extends TestCase
             ->set('document_type', 'CC')
             ->set('program_unit_id', $programUnit->id)
             ->call('save')
-            ->assertRedirect(route('admin.users.index'));
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
 
         $created = User::where('email', 'nuevo.docente.datos@sigae.local')->first();
         $this->assertEquals('CC', $created->document_type);
@@ -126,7 +126,7 @@ class UserManagementTest extends TestCase
             ->set('document_type', 'CE')
             ->set('program_unit_id', $otherProgramUnit->id)
             ->call('save')
-            ->assertRedirect(route('admin.users.index'));
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
 
         $created->refresh();
         $this->assertEquals('CE', $created->document_type);
@@ -166,7 +166,7 @@ class UserManagementTest extends TestCase
             ->set('password', 'Password123!')
             ->set('selectedRoles', [RoleName::Coordination->value])
             ->call('save')
-            ->assertRedirect(route('admin.users.index'));
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
 
         $created = User::where('email', 'coordinadora.sinprograma@sigae.local')->first();
         $this->assertNull($created->document_type);
@@ -316,7 +316,7 @@ class UserManagementTest extends TestCase
             ->set('name', 'Nombre Actualizado')
             ->set('password', '')
             ->call('save')
-            ->assertRedirect(route('admin.users.index'));
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
 
         $existing->refresh();
         $this->assertEquals('Nombre Actualizado', $existing->name);

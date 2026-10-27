@@ -89,7 +89,7 @@
                 <span wire:loading.remove wire:target="save">Guardar</span>
                 <span wire:loading wire:target="save">Guardando...</span>
             </button>
-            <a href="{{ route('admin.users.index') }}" class="btn-text text-text-secondary">Cancelar</a>
+            <a href="{{ $this->usersIndexUrl() }}" class="btn-text text-text-secondary">Cancelar</a>
         </div>
     </form>
 </div>

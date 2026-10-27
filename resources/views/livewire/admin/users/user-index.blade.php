@@ -2,10 +2,10 @@
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Usuarios</h1>
         <div class="flex items-center gap-3">
-            <a href="{{ route('admin.users.import') }}" class="btn-secondary">
+            <a href="{{ route('admin.users.import', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
                 Importar docentes
             </a>
-            <a href="{{ route('admin.users.create') }}" class="btn-primary">
+            <a href="{{ route('admin.users.create', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-primary">
                 Nuevo usuario
             </a>
         </div>
@@ -49,7 +49,7 @@
                             <x-active-badge :active="$user->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('admin.users.edit', $user) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('admin.users.edit', [$user, 'search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-text">Editar</a>
 
                             @if (! auth()->user()->is($user))
                                 @if ($user->is_active)

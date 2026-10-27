@@ -1,7 +1,7 @@
 <div class="mx-auto max-w-5xl">
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Importar docentes</h1>
-        <a href="{{ route('admin.users.index') }}" class="btn-text text-text-secondary">Volver a Usuarios</a>
+        <a href="{{ $this->usersIndexUrl() }}" class="btn-text text-text-secondary">Volver a Usuarios</a>
     </div>
 
     @php
@@ -167,7 +167,7 @@
                         Descargar reporte de rechazadas
                     </button>
                 @endif
-                <a href="{{ route('admin.users.index') }}" class="btn-primary">Ir a Usuarios</a>
+                <a href="{{ $this->usersIndexUrl() }}" class="btn-primary">Ir a Usuarios</a>
                 <button type="button" wire:click="startOver" class="btn-text text-text-secondary">Importar otro archivo</button>
             </div>
         </div>

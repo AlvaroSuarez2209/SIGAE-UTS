@@ -16,12 +16,29 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class UserForm extends Component
 {
     public ?User $user = null;
+
+    /**
+     * Mismo patrón que las demás pantallas: solo recibe estos filtros
+     * por la URL (puestos ahí por los enlaces de UserIndex) y los
+     * reenvía en "Cancelar" y en el redirect final de save().
+     */
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public string $roleFilter = '';
+
+    public function usersIndexUrl(): string
+    {
+        return route('admin.users.index', ['search' => $this->search, 'roleFilter' => $this->roleFilter]);
+    }
 
     public string $name = '';
 
@@ -140,7 +157,7 @@ class UserForm extends Component
 
         session()->flash('status', 'Usuario guardado correctamente.');
 
-        $this->redirect(route('admin.users.index'), navigate: false);
+        $this->redirect($this->usersIndexUrl(), navigate: false);
     }
 
     /**

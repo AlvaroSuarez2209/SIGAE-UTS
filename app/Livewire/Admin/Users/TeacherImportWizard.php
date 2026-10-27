@@ -10,6 +10,7 @@ use App\Services\TeacherImport\TeacherImportService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,6 +23,22 @@ class TeacherImportWizard extends Component
     use WithFileUploads;
 
     public $file = null;
+
+    /**
+     * Mismo patrón que UserForm: solo recibe estos filtros por la URL
+     * (puestos ahí por el enlace "Importar" de UserIndex) y los reenvía
+     * en "Volver a Usuarios"/"Ir a Usuarios".
+     */
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public string $roleFilter = '';
+
+    public function usersIndexUrl(): string
+    {
+        return route('admin.users.index', ['search' => $this->search, 'roleFilter' => $this->roleFilter]);
+    }
 
     /** upload | preview | result */
     public string $step = 'upload';
