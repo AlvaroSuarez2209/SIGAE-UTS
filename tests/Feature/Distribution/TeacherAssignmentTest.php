@@ -81,7 +81,7 @@ class TeacherAssignmentTest extends TestCase
             ->set('assigned_hours', '5')
             ->call('save')
             ->assertHasNoErrors()
-            ->assertRedirect(route('distribution.index'));
+            ->assertRedirect(route('distribution.index', ['search' => '', 'periodFilter' => '']));
 
         $this->assertDatabaseHas('teacher_assignments', [
             'user_id' => $teacher->id,

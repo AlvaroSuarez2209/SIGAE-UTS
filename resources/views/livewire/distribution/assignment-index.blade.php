@@ -1,7 +1,7 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Distribución docente</h1>
-        <a href="{{ route('distribution.create') }}" class="btn-primary">
+        <a href="{{ route('distribution.create', ['search' => $search, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-primary">
             Nueva asignación
         </a>
     </div>
@@ -53,7 +53,7 @@
                         <td class="table-cell text-text-secondary">{{ $assignment->programUnit->name }}</td>
                         <td class="table-cell text-right text-text-secondary">{{ rtrim(rtrim($assignment->assigned_hours, '0'), '.') }}</td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('distribution.edit', $assignment) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('distribution.edit', [$assignment, 'search' => $search, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text">Editar</a>
                         </td>
                     </tr>
                 @empty

@@ -10,12 +10,29 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class AssignmentForm extends Component
 {
     public ?TeacherAssignment $assignment = null;
+
+    /**
+     * Mismo patrón que LeadershipForm: solo recibe estos filtros por la
+     * URL (puestos ahí por los enlaces de AssignmentIndex) y los
+     * reenvía en "Cancelar" y en el redirect de save().
+     */
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public ?int $periodFilter = null;
+
+    public function distributionIndexUrl(): string
+    {
+        return route('distribution.index', ['search' => $this->search, 'periodFilter' => $this->periodFilter ?? '']);
+    }
 
     public ?int $user_id = null;
 
@@ -92,7 +109,7 @@ class AssignmentForm extends Component
 
         session()->flash('status', 'Asignación guardada correctamente.');
 
-        $this->redirect(route('distribution.index'), navigate: false);
+        $this->redirect($this->distributionIndexUrl(), navigate: false);
     }
 
     public function render()
