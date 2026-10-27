@@ -185,16 +185,73 @@ class ReviewInboxTest extends TestCase
                 && $pending->first()->id === $orphanEvidence->id);
     }
 
-    public function test_coordination_sees_nothing_in_the_review_inbox(): void
+    /**
+     * Punto 1 de la revisión de perfil Coordinación (opción A completa):
+     * mismo respaldo que Administrador, con el mismo límite — mientras un
+     * líder vigente cubra la actividad, Coordinación no la ve, solo
+     * compromisos transversales.
+     */
+    public function test_coordination_only_sees_cross_cutting_evidence_when_a_leader_covers_the_activity(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        $activityDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $crossCuttingDeliverable = Deliverable::factory()->crossCutting()->create(['academic_period_id' => $period->id]);
+
+        $this->submitEvidence($teacher, $activityDeliverable);
+        $crossCuttingEvidence = $this->submitEvidence($teacher, $crossCuttingDeliverable);
+
+        Livewire::actingAs($coordination)->test(ReviewInbox::class)
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1
+                && $pending->first()->id === $crossCuttingEvidence->id);
+    }
+
+    /**
+     * Punto 1: mismo respaldo que Administrador para actividades sin
+     * ningún líder vigente en este momento.
+     */
+    public function test_coordination_also_sees_evidence_from_an_activity_with_no_leader_at_all(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
         $teacher = $this->userWithRole(RoleName::Teacher);
         $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
-        $deliverable = Deliverable::factory()->crossCutting()->create(['academic_period_id' => $period->id]);
-        $this->submitEvidence($teacher, $deliverable);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        // Sin ningún Leadership para esta actividad/programa.
+
+        $activityDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+        $orphanEvidence = $this->submitEvidence($teacher, $activityDeliverable);
 
         Livewire::actingAs($coordination)->test(ReviewInbox::class)
-            ->assertViewHas('pending', fn ($pending) => $pending->count() === 0);
+            ->assertViewHas('pending', fn ($pending) => $pending->count() === 1
+                && $pending->first()->id === $orphanEvidence->id);
     }
 
     public function test_query_count_does_not_grow_with_submitted_evidence_count(): void

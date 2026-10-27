@@ -22,19 +22,23 @@ use Tests\TestCase;
  * Investigación: ¿qué pasa al abrir /reviews/{evidence} por URL directa
  * sobre una evidencia que nunca fue enviada (Pendiente o Borrador)?
  *
- * Coordinación nunca llega a renderizar la página para ninguna evidencia
- * (Evidence::isReviewableBy() le niega el paso siempre, sin importar el
- * estado) — ya responde 403 hoy, sin cambios.
+ * Desde el punto 1 de la revisión de perfil Coordinación, Coordinación
+ * pasa por el mismo Gate que Administrador para los dos casos de
+ * respaldo (compromiso transversal, actividad sin líder vigente) — ya no
+ * responde 403 incondicionalmente. Cuando SÍ hay un líder vigente que
+ * cubre la actividad, sigue respondiendo 403 sin cambios (ver
+ * test_coordination_opening_a_pending_evidence_led_by_a_leader_is_forbidden_not_a_crash()).
  *
- * Administrador (solo sobre un compromiso transversal) y Líder (dentro de
- * su ámbito, sobre cualquier estado — isReviewableBy() no mira el estado)
- * SÍ pasan el Gate de mount() para una evidencia Pendiente o Borrador. Ahí
- * es donde aparece el problema real: review-show.blade.php asume
- * `$evidence->currentVersion` (línea 2: `$version = $evidence->currentVersion`)
- * y lo usa sin null-safe en `$version->submitted_at` (línea 31) y
- * `$version->version_number` (línea 35) — una evidencia Pendiente nunca
- * tiene versión (`current_version_id` es null), así que esas dos líneas
- * truenan con un 500 real.
+ * Administrador/Coordinación (compromiso transversal o actividad sin
+ * líder) y Líder (dentro de su ámbito, sobre cualquier estado —
+ * isReviewableBy() no mira el estado) SÍ pasan el Gate de mount() para
+ * una evidencia Pendiente o Borrador. Ahí es donde aparece el problema
+ * real: review-show.blade.php asume `$evidence->currentVersion` (línea 2:
+ * `$version = $evidence->currentVersion`) y lo usa sin null-safe en
+ * `$version->submitted_at` (línea 31) y `$version->version_number`
+ * (línea 35) — una evidencia Pendiente nunca tiene versión
+ * (`current_version_id` es null), así que esas dos líneas truenan con un
+ * 500 real.
  */
 class ReviewUnsubmittedEvidenceTest extends TestCase
 {
@@ -150,17 +154,35 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         return $evidence->fresh();
     }
 
-    public function test_coordination_opening_a_pending_evidence_is_forbidden_not_a_crash(): void
+    /**
+     * Punto 1: Coordinación ahora pasa el mismo Gate que Administrador
+     * para un compromiso transversal — ya no es 403 incondicional.
+     */
+    public function test_coordination_opening_a_pending_cross_cutting_evidence_is_redirected_not_a_crash(): void
     {
         $evidence = $this->crossCuttingEvidence(EvidenceStatus::Pending);
         $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertForbidden();
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)
+            ->assertRedirect(route('reviews.index'));
     }
 
-    public function test_coordination_opening_a_draft_evidence_is_forbidden_not_a_crash(): void
+    public function test_coordination_opening_a_draft_cross_cutting_evidence_does_not_crash(): void
     {
         $evidence = $this->crossCuttingEvidence(EvidenceStatus::Draft);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertOk();
+    }
+
+    /**
+     * Cuando SÍ hay un líder vigente que cubre la actividad, Coordinación
+     * sigue recibiendo 403 sin cambios — el respaldo del punto 1 nunca
+     * compite con un líder vigente.
+     */
+    public function test_coordination_opening_a_pending_evidence_led_by_a_leader_is_forbidden_not_a_crash(): void
+    {
+        [$evidence] = $this->activityEvidenceLedByLeader(EvidenceStatus::Pending);
         $coordination = $this->userWithRole(RoleName::Coordination);
 
         $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertForbidden();
@@ -225,5 +247,26 @@ class ReviewUnsubmittedEvidenceTest extends TestCase
         $admin = $this->userWithRole(RoleName::Administrator);
 
         $this->actingAs($admin)->get('/reviews/'.$evidence->id)->assertOk();
+    }
+
+    /**
+     * Punto 1: mismo respaldo que Administrador para una actividad sin
+     * ningún líder vigente.
+     */
+    public function test_coordination_opening_a_pending_evidence_with_no_leader_at_all_is_redirected_not_a_crash(): void
+    {
+        $evidence = $this->activityEvidenceWithNoLeader(EvidenceStatus::Pending);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)
+            ->assertRedirect(route('reviews.index'));
+    }
+
+    public function test_coordination_opening_a_draft_evidence_with_no_leader_at_all_does_not_crash(): void
+    {
+        $evidence = $this->activityEvidenceWithNoLeader(EvidenceStatus::Draft);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertOk();
     }
 }

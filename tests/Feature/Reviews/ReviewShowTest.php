@@ -230,8 +230,9 @@ class ReviewShowTest extends TestCase
      * Administrador no tiene ningún atajo general, ni siquiera si ese
      * líder todavía no ha actuado. Ver
      * test_administrator_can_review_evidence_from_an_activity_with_no_leader_at_all()
-     * para el respaldo real (punto 7): solo aplica cuando NINGÚN líder
-     * cubre la actividad en este momento.
+     * para el respaldo real (punto 7, ampliado a Coordinación en el punto
+     * 1 de la revisión de perfil Coordinación): solo aplica cuando NINGÚN
+     * líder cubre la actividad en este momento.
      */
     public function test_administrator_cannot_review_evidence_when_a_leader_currently_covers_its_scope(): void
     {
@@ -244,12 +245,26 @@ class ReviewShowTest extends TestCase
     }
 
     /**
-     * Punto 7: respaldo de Administrador para actividades sin ningún
-     * líder vigente (nadie fue asignado, o su liderazgo ya terminó) — sin
-     * esto, esas evidencias quedarían permanentemente sin nadie que las
-     * apruebe o devuelva. Coordinación sigue sin poder, ni siquiera aquí
-     * (reviewerRecipients() ya le avisa por correo, pero eso no cambia su
-     * autorización — ver Evidence::reviewerRecipients()).
+     * Mismo respaldo, mismo límite: mientras exista un líder vigente,
+     * Coordinación tampoco tiene ningún atajo — ni siquiera con el
+     * respaldo del punto 1, que solo cubre la AUSENCIA de un líder, nunca
+     * compite con uno que ya existe.
+     */
+    public function test_coordination_cannot_review_evidence_when_a_leader_currently_covers_its_scope(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: true);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertForbidden();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * Punto 7: respaldo para actividades sin ningún líder vigente (nadie
+     * fue asignado, o su liderazgo ya terminó) — sin esto, esas
+     * evidencias quedarían permanentemente sin nadie que las apruebe o
+     * devuelva.
      */
     public function test_administrator_can_review_evidence_from_an_activity_with_no_leader_at_all(): void
     {
@@ -264,22 +279,28 @@ class ReviewShowTest extends TestCase
         $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
     }
 
-    public function test_coordination_cannot_review_evidence_from_an_activity_with_no_leader_at_all(): void
+    /**
+     * Punto 1 de la revisión de perfil Coordinación (opción A completa):
+     * el mismo respaldo del punto 7 ahora también cubre a Coordinación,
+     * no solo a Administrador.
+     */
+    public function test_coordination_can_review_evidence_from_an_activity_with_no_leader_at_all(): void
     {
         [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: false);
         $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $this->actingAs($coordination)->get('/reviews/'.$evidence->id)->assertForbidden();
+        Livewire::actingAs($coordination)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->call('approve')
+            ->assertHasNoErrors();
 
-        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
     }
 
     /**
      * Los compromisos transversales no tienen actividad, así que
      * estructuralmente nunca pueden tener un líder que los cubra — sin
      * esta excepción quedarían sin nadie que los apruebe/devuelva.
-     * Coordinación sigue sin poder, ni siquiera aquí (ver
-     * test_coordination_cannot_review_a_cross_cutting_evidence()).
      */
     public function test_administrator_can_review_a_cross_cutting_evidence(): void
     {
@@ -304,7 +325,11 @@ class ReviewShowTest extends TestCase
         $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
     }
 
-    public function test_coordination_cannot_review_a_cross_cutting_evidence(): void
+    /**
+     * Punto 1: el mismo respaldo para compromisos transversales ahora
+     * también cubre a Coordinación.
+     */
+    public function test_coordination_can_review_a_cross_cutting_evidence(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);
         $deliverable = Deliverable::factory()->crossCutting()->create();
@@ -319,7 +344,12 @@ class ReviewShowTest extends TestCase
 
         $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $this->actingAs($coordination)->get('/reviews/'.$evidence->fresh()->id)->assertForbidden();
+        Livewire::actingAs($coordination)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->call('approve')
+            ->assertHasNoErrors();
+
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
     }
 
     public function test_cannot_act_on_an_evidence_that_is_no_longer_pending_review(): void

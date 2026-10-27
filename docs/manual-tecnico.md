@@ -923,36 +923,70 @@ la app cambia, hay que actualizarla también aquí (ver §2 de
   proporcional a la cantidad de evidencias a un número fijo, verificado
   con un test que lo mantiene por debajo de un umbral aunque la cantidad
   de evidencias crezca.
-- **Solo el Líder asignado revisa/aprueba/devuelve evidencias — se quitó
-  el atajo de Administrador/Coordinación.** El documento de alcance es
-  explícito: RS-005 y RF-027/RF-056 a RF-059 enuncian la revisión siempre
-  como "el líder deberá...", nunca como capacidad de Coordinación
-  (que "supervisa cumplimiento" y "obtiene informes", no revisa
-  evidencias) ni de Administrador. `Evidence::isReviewableBy()` y
-  `scopeReviewableBy()` ya no tienen ningún atajo por rol — solo cuentan
-  un liderazgo vigente sobre el ámbito de la evidencia.
-  **Única excepción real: los compromisos transversales**, que al no
-  tener actividad nunca pueden tener un líder que los cubra
-  (`matchingTeacherAssignment()` siempre `null` para ellos) — sin ninguna
-  vía de aprobación quedarían atascados en "Enviada" para siempre, así
-  que ahí (y solo ahí) Administrador conserva la capacidad de revisar
-  (Coordinación sigue sin poder, ni siquiera en este caso).
-  `scopeReviewableBy()` mantiene `$onlyViaLeaderRole` (antes existía para
-  otro motivo — omitir el atajo general — ahora sirve para excluir
-  específicamente el camino de Administrador sobre transversales, para
-  alguien que sea Administrador y Líder a la vez):
+- **El líder vigente de la actividad es siempre el revisor primario —
+  Administrador y Coordinación solo respaldan dos casos puntuales donde
+  estructuralmente no puede haber un líder que decida.** Historial de la
+  regla, porque el documento de alcance original motivó un diseño más
+  estricto que luego tuvo que ampliarse dos veces:
+  1. Diseño original: RS-005 y RF-027/RF-056 a RF-059 enuncian la
+     revisión siempre como "el líder deberá...", nunca como capacidad de
+     Coordinación (que "supervisa cumplimiento" y "obtiene informes", no
+     revisa evidencias) ni de Administrador — así que
+     `Evidence::isReviewableBy()`/`scopeReviewableBy()` no tenían ningún
+     atajo por rol, solo liderazgo vigente, con la única excepción de los
+     compromisos transversales (sin actividad, nunca pueden tener un
+     líder — `matchingTeacherAssignment()` siempre `null` para ellos),
+     donde Administrador revisaba y Coordinación no.
+  2. Primera ampliación: una actividad sin **ningún** líder vigente en un
+     momento dado (nadie fue asignado, o su liderazgo ya terminó) dejaba
+     sus evidencias igual de atascadas que un compromiso transversal —
+     se agregó la misma excepción de Administrador para este segundo
+     caso (`hasAnyLeaderCoveringAssignment()`), Coordinación seguía sin
+     poder en ninguno de los dos.
+  3. Ampliación actual (revisión de perfil Coordinación, opción A
+     completa): en el despliegue, Coordinación recibía 403 al abrir
+     cualquier evidencia y su bandeja salía vacía incluso para estos dos
+     casos de respaldo — un vacío real de operación (nadie podía revisar
+     un compromiso transversal ni una actividad huérfana sin pedirle a un
+     Administrador que entrara). Se extendieron **los mismos dos casos**
+     (nunca un tercero, y nunca compitiendo con un líder vigente) para
+     que Coordinación también pueda aprobar/devolver: `isReviewableBy()`
+     cambia `hasRole(Administrator)` por
+     `hasAnyRole([Administrator, Coordination])` en ambas ramas, y
+     `scopeReviewableBy()` renombra `$viaAdmin` a `$viaBackup` con el
+     mismo criterio. **RF-027/RF-056/RF-059 deben reinterpretarse** (no
+     reescribirse en el documento de alcance, que sigue siendo la fuente
+     de la regla primaria): "el líder deberá revisar..." se mantiene
+     como la vía normal y única mientras exista un líder vigente, y el
+     respaldo de Administrador/Coordinación se lee como una extensión
+     operativa para los dos casos donde el propio documento de alcance
+     no previó que pudiera no haber ningún líder (transversales nunca
+     tienen uno por diseño; una actividad puede quedar sin uno vigente
+     por una baja de liderazgo sin reemplazo inmediato) — RS-005 no
+     necesita cambiar, ya que sigue siendo cierto que "el líder revisa"
+     es la regla general.
+  En los tres casos, en cuanto un líder vigente cubre la actividad,
+  vuelve a ser el único revisor — el respaldo nunca compite con uno, solo
+  cubre su ausencia. `Evidence::reviewerRecipients()` (a quién avisar por
+  correo cuando se envía una evidencia) no cambió en ninguna de las tres
+  rondas: ya caía a Coordinación cuando nadie cubre el ámbito, antes de
+  que Coordinación pudiera además revisar.
+  `scopeReviewableBy()` mantiene `$onlyViaLeaderRole` (antes excluía solo
+  el camino de Administrador; ahora excluye los dos caminos de respaldo,
+  sin importar si `$user` es Administrador, Coordinación o ambos):
   `Dashboard::leaderPanel()` lo usa en su contador "en tu ámbito" (no debe
-  sumar transversales que ese usuario solo pueda revisar por ser también
-  Administrador) y `UserForm::pendingReviewCountForLeader()` lo usa para
-  no bloquear quitar el rol Líder por evidencias que en realidad dependen
-  del rol Administrador de esa misma persona; `ReviewInbox` lo deja en su
-  valor por defecto porque ahí sí interesa todo lo que el usuario puede
-  revisar por cualquier vía. `ReviewShow::mount()` autoriza la página si
-  el usuario puede revisar **o** reabrir (`EvidencePolicy::reopen()`,
-  exclusivo de Administrador sobre una evidencia ya `Approved`) — sin
-  este OR, un Administrador que solo puede reabrir (no revisar, porque la
-  evidencia es de una actividad fuera de su ámbito) se habría quedado sin
-  poder ni siquiera entrar a la página.
+  sumar transversales ni actividades huérfanas que ese usuario solo pueda
+  revisar por otro rol) y `UserForm::pendingReviewCountForLeader()` lo
+  usa para no bloquear quitar el rol Líder por evidencias que en
+  realidad dependen de otro rol de esa misma persona; `ReviewInbox` lo
+  deja en su valor por defecto porque ahí sí interesa todo lo que el
+  usuario puede revisar por cualquier vía. `ReviewShow::mount()` autoriza
+  la página si el usuario puede revisar **o** reabrir
+  (`EvidencePolicy::reopen()`, exclusivo de Administrador sobre una
+  evidencia ya `Approved` — Coordinación no lo tiene, no forma parte de
+  esta ampliación) — sin este OR, un Administrador que solo puede
+  reabrir (no revisar, porque la evidencia es de una actividad fuera de
+  su ámbito) se habría quedado sin poder ni siquiera entrar a la página.
 - **Índices faltantes en `evidences`, `deliverables`, `teacher_assignments`
   y `leaderships`** (migración
   `2026_09_25_..._add_indexes_for_dashboard_and_review_queries`): mismo

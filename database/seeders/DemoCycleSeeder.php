@@ -261,15 +261,22 @@ class DemoCycleSeeder extends Seeder
             'assigned_hours' => 2,
         ]);
 
+        // Punto 1 (revisión de perfil Coordinación): ENVIADA, no solo
+        // Pendiente — así aparece de una vez en la bandeja de Coordinación/
+        // Administrador (filtrada por status Submitted), demostrando el
+        // respaldo del punto 7 sin necesitar que el docente la envíe antes.
         $orphanDeliverable = $this->demoDeliverable($period, $activityOrphan, 'Sin ningún líder vigente', [
             'due_at' => now()->addDays(10),
             'closes_at' => now()->addDays(30),
         ]);
-        $this->ensureEvidence($orphanDeliverable, $teacher);
+        $orphanEvidence = $this->ensureEvidence($orphanDeliverable, $teacher);
+        $this->submitDemoEvidence($orphanEvidence, $teacher, 'sin-lider-ejemplo.pdf');
 
         // Compromiso transversal "[DEMO]" con su propio entregable — ya
-        // cubierto por isCrossCutting()/isReviewableBy() (Administrador),
-        // esto solo lo hace visible también en el recorrido de demostración.
+        // cubierto por isCrossCutting()/isReviewableBy() (Administrador y,
+        // desde el punto 1, también Coordinación), esto solo lo hace
+        // visible también en el recorrido de demostración. También
+        // ENVIADA, mismo motivo que la de arriba.
         $commitment = CrossCuttingCommitment::firstOrCreate([
             'name' => self::PREFIX.'Compromiso transversal',
         ], [
@@ -290,7 +297,8 @@ class DemoCycleSeeder extends Seeder
             'due_at' => now()->addDays(10),
             'closes_at' => now()->addDays(30),
         ]);
-        $this->ensureEvidence($transversalDeliverable, $teacher);
+        $transversalEvidence = $this->ensureEvidence($transversalDeliverable, $teacher);
+        $this->submitDemoEvidence($transversalEvidence, $teacher, 'transversal-ejemplo.pdf');
 
         $this->command?->info('DemoCycleSeeder: 6 entregables [DEMO] listos para '.$teacher->email.', más el ámbito de los líderes B y C.');
     }
@@ -407,6 +415,22 @@ class DemoCycleSeeder extends Seeder
         $deliverable->ensureEvidencesForRecipients([$teacher->id]);
 
         return $deliverable->evidences()->where('user_id', $teacher->id)->firstOrFail();
+    }
+
+    /**
+     * Envía una evidencia Pendiente de una sola vez (un archivo + enviar)
+     * — idempotente igual que el resto del seeder: si ya no está
+     * Pendiente (ya se envió en una corrida anterior), no hace nada.
+     */
+    private function submitDemoEvidence(Evidence $evidence, User $teacher, string $fileName): void
+    {
+        if ($evidence->status !== EvidenceStatus::Pending) {
+            return;
+        }
+
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $this->attachDemoFile($version, $fileName);
+        $evidence->submitCurrentVersion();
     }
 
     private function attachDemoFile(EvidenceVersion $version, string $name): void

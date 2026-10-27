@@ -246,7 +246,7 @@ class DemoCycleSeederTest extends TestCase
         $this->assertFalse(Leadership::where('activity_id', $orphanActivity->id)->exists());
 
         $orphanEvidence = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Sin ningún líder vigente'))->first();
-        $this->assertEquals(EvidenceStatus::Pending, $orphanEvidence->status);
+        $this->assertEquals(EvidenceStatus::Submitted, $orphanEvidence->status);
     }
 
     /**
@@ -288,6 +288,36 @@ class DemoCycleSeederTest extends TestCase
         $this->assertNotNull($deliverable);
         $this->assertTrue($deliverable->isCrossCutting());
         $this->assertEquals($commitment->id, $deliverable->cross_cutting_commitment_id);
+
+        // Punto 1: ENVIADA, no solo Pendiente — para que aparezca de una
+        // vez en la bandeja de Coordinación/Administrador.
+        $evidence = Evidence::where('deliverable_id', $deliverable->id)->first();
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->status);
+    }
+
+    /**
+     * Punto 1 de la revisión de perfil Coordinación: las dos evidencias
+     * ENVIADAS del seeder (actividad sin líder, compromiso transversal)
+     * deben aparecer de una vez en su bandeja real, no solo tener el
+     * status correcto en la base.
+     */
+    public function test_coordination_sees_the_orphan_and_cross_cutting_demo_evidences_in_their_inbox(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        (new DemoCycleSeeder)->run();
+
+        $coordination = User::factory()->create(['is_active' => true]);
+        $coordination->roles()->attach(Role::where('name', RoleName::Coordination->value)->first());
+
+        $pendingNames = Livewire::actingAs($coordination)
+            ->test(\App\Livewire\Reviews\ReviewInbox::class)
+            ->viewData('pending')
+            ->map(fn (Evidence $e) => $e->deliverable->name);
+
+        $this->assertContains('[DEMO] Sin ningún líder vigente', $pendingNames);
+        $this->assertContains('[DEMO] Entregable transversal', $pendingNames);
     }
 
     /**
