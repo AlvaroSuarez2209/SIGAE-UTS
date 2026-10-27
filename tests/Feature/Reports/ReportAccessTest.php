@@ -215,6 +215,63 @@ class ReportAccessTest extends TestCase
     }
 
     /**
+     * Reporte de la directora, punto 5: el Excel exportado no dejaba
+     * ningún rastro de los filtros aplicados (periodo, docente,
+     * actividad, estado) — a diferencia del PDF, que ya los mostraba.
+     * Mismo umbral que el PDF (ExportsTabularReport::pdf(),
+     * $minFiltersToShow = 2 para los informes del módulo 9): con periodo
+     * + docente activos, debe verse la línea completa, incluido estado.
+     */
+    public function test_excel_export_includes_the_applied_filters_summary(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['name' => '2026-1']);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        $response = $this->actingAs($admin)->get(
+            "/reports/consolidated/excel?period={$period->id}&teacher={$teacher->id}&status=approved"
+        );
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+        $cellA4 = (string) $sheet->getCell('A4')->getValue();
+
+        $this->assertStringContainsString('Filtros aplicados:', $cellA4);
+        $this->assertStringContainsString('Periodo: 2026-1', $cellA4);
+        $this->assertStringContainsString("Docente: {$teacher->name}", $cellA4);
+        $this->assertStringContainsString('Estado: Aprobado', $cellA4);
+
+        unlink($tempPath);
+    }
+
+    /**
+     * Mismo umbral que el PDF: con un solo filtro activo (el periodo,
+     * siempre presente en los 4 informes del módulo 9), la línea de
+     * filtros no debe aparecer — repetirla sería redundante con el
+     * título del informe, que ya deja claro de qué periodo se trata.
+     */
+    public function test_excel_export_omits_the_filters_summary_with_only_one_filter_active(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create();
+
+        $response = $this->actingAs($admin)->get("/reports/consolidated/excel?period={$period->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+
+        $this->assertStringNotContainsString('Filtros aplicados:', (string) $sheet->getCell('A4')->getValue());
+
+        unlink($tempPath);
+    }
+
+    /**
      * Prioridad 6, punto 6: cuando hay más de un filtro activo, el PDF debe
      * mostrar una sección explícita "Filtros aplicados:" en vez de dejarlo
      * solo implícito en el título — probado directamente sobre la plantilla

@@ -177,6 +177,7 @@ class ReportTheme
         array $headings,
         array $rows,
         ?array $summary,
+        ?array $filtersSummary = null,
     ): void {
         $columnCount = max(count($headings), 1);
         $lastColumn = Coordinate::stringFromColumnIndex($columnCount);
@@ -190,7 +191,7 @@ class ReportTheme
         // para que ambos canales de exportación muestren la misma
         // identidad configurable en Administración > Identidad
         // institucional.
-        $extraRows = 4 + ($summary ? 1 : 0);
+        $extraRows = 4 + ($summary ? 1 : 0) + ($filtersSummary ? 1 : 0);
         $sheet->insertNewRowBefore(1, $extraRows);
 
         $logoPath = self::logoPath();
@@ -238,21 +239,42 @@ class ReportTheme
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
         ]);
 
-        $sheet->setCellValue('A4', $sectionTitle);
-        $sheet->mergeCells("A4:{$lastColumn}4");
-        $sheet->getStyle('A4')->applyFromArray([
+        // Mismo formato ("Filtros aplicados: Etiqueta: valor · ...") y
+        // mismo lugar relativo (justo después de "Generado el...") que ya
+        // usa el PDF — antes, el Excel no dejaba ningún rastro de qué
+        // filtros se habían aplicado a la exportación.
+        $row = 4;
+
+        if ($filtersSummary) {
+            $filtersText = 'Filtros aplicados: '.collect($filtersSummary)
+                ->map(fn ($value, $label) => "{$label}: {$value}")
+                ->join(' · ');
+
+            $sheet->setCellValue("A{$row}", $filtersText);
+            $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+            $sheet->getStyle("A{$row}")->applyFromArray([
+                'font' => ['italic' => true, 'size' => 9, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
+            ]);
+            $row++;
+        }
+
+        $sectionRow = $row;
+        $sheet->setCellValue("A{$sectionRow}", $sectionTitle);
+        $sheet->mergeCells("A{$sectionRow}:{$lastColumn}{$sectionRow}");
+        $sheet->getStyle("A{$sectionRow}")->applyFromArray([
             'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
             'fill' => self::solidFill(self::SURFACE_MUTED),
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
         ]);
 
-        $headerRow = 4;
+        $headerRow = $sectionRow;
 
         if ($summary) {
-            $headerRow = 5;
-            $sheet->setCellValue('A5', "{$summary['label']}: {$summary['value']} ({$summary['detail']})");
-            $sheet->mergeCells("A5:{$lastColumn}5");
-            $sheet->getStyle('A5')->applyFromArray([
+            $headerRow = $sectionRow + 1;
+            $sheet->setCellValue("A{$headerRow}", "{$summary['label']}: {$summary['value']} ({$summary['detail']})");
+            $sheet->mergeCells("A{$headerRow}:{$lastColumn}{$headerRow}");
+            $sheet->getStyle("A{$headerRow}")->applyFromArray([
                 'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => self::rgb(self::BRAND_PRIMARY_DARK)]],
                 'fill' => self::solidFill(self::BRAND_PRIMARY_SUBTLE),
                 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],

@@ -71,9 +71,18 @@ trait ExportsTabularReport
         return $pdf->download($this->fileName($report, 'pdf'));
     }
 
-    private function excel(array $report)
+    /**
+     * Mismo criterio que pdf(): el Excel también debe dejar constancia de
+     * qué filtros se aplicaron (periodo, docente, actividad, estado,
+     * etc.) en una línea de encabezado visible — antes, el PDF ya lo
+     * hacía (ver la llamada a filtersSummary() en cada método del
+     * controlador) pero el Excel no recibía nada.
+     */
+    private function excel(array $report, array $filters = [], int $minFiltersToShow = 2)
     {
-        return Excel::download(new ReportExport($report), $this->fileName($report, 'xlsx'));
+        $filtersSummary = count($filters) >= $minFiltersToShow ? $filters : null;
+
+        return Excel::download(new ReportExport($report, $filtersSummary), $this->fileName($report, 'xlsx'));
     }
 
     /**

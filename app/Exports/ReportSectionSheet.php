@@ -26,6 +26,7 @@ class ReportSectionSheet implements Export, FromArray, ShouldAutoSize, WithEvent
 {
     /**
      * @param  array{label: string, value: string, detail: string}|null  $summary
+     * @param  array<string, string>|null  $filtersSummary
      */
     public function __construct(
         private readonly string $reportTitle,
@@ -33,6 +34,7 @@ class ReportSectionSheet implements Export, FromArray, ShouldAutoSize, WithEvent
         private readonly array $headings,
         private readonly array $rows,
         private readonly ?array $summary = null,
+        private readonly ?array $filtersSummary = null,
     ) {}
 
     public function array(): array
@@ -68,6 +70,7 @@ class ReportSectionSheet implements Export, FromArray, ShouldAutoSize, WithEvent
                     $this->headings,
                     $this->rows,
                     $this->summary,
+                    $this->filtersSummary,
                 );
             },
         ];

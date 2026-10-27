@@ -40,6 +40,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.teacher', $request->query(), fn () => $this->excel(
             ReportBuilder::teacher($teacher, $period, $this->statusFromQuery($request)),
+            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
@@ -61,6 +62,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.activity', $request->query(), fn () => $this->excel(
             ReportBuilder::activity($activity, $period, $this->statusFromQuery($request)),
+            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
@@ -86,6 +88,11 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.cross-cutting', $request->query(), fn () => $this->excel(
             ReportBuilder::crossCutting($period, $commitment, $this->statusFromQuery($request)),
+            $this->filtersSummary([
+                'Periodo' => $period->name,
+                'Compromiso' => $commitment?->name,
+                'Estado' => $this->statusFromQuery($request)?->label(),
+            ]),
         ));
     }
 
@@ -121,6 +128,14 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.consolidated', $request->query(), fn () => $this->excel(
             ReportBuilder::consolidated($period, $program, $teacher, $activity, $leader, $this->statusFromQuery($request)),
+            $this->filtersSummary([
+                'Periodo' => $period->name,
+                'Programa' => $program?->name,
+                'Docente' => $teacher?->name,
+                'Actividad' => $activity ? "{$activity->component->name} — {$activity->name}" : null,
+                'Líder' => $leader?->name,
+                'Estado' => $this->statusFromQuery($request)?->label(),
+            ]),
         ));
     }
 }
