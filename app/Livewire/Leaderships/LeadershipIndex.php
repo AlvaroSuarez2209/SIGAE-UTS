@@ -7,6 +7,7 @@ use App\Models\AcademicPeriod;
 use App\Models\Leadership;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -16,13 +17,22 @@ class LeadershipIndex extends Component
 {
     use HasStandardPagination, WithPagination;
 
+    #[Url]
     public string $search = '';
 
+    #[Url]
     public ?int $periodFilter = null;
 
+    /**
+     * Mismo bug/fix que ReviewInbox/DeliverableIndex: mount() pisaba
+     * siempre $periodFilter con el periodo activo — "Todos los
+     * periodos" nunca sobrevivía a un "Volver" ni a una recarga.
+     */
     public function mount(): void
     {
-        $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        if (! request()->has('periodFilter')) {
+            $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        }
     }
 
     public function updatingSearch(): void

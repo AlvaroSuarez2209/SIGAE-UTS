@@ -79,7 +79,7 @@ class LeadershipTest extends TestCase
             ->set('starts_at', now()->toDateString())
             ->call('save')
             ->assertHasNoErrors()
-            ->assertRedirect(route('leaderships.index'));
+            ->assertRedirect(route('leaderships.index', ['search' => '', 'periodFilter' => '']));
 
         $this->assertDatabaseHas('leaderships', [
             'user_id' => $leader->id,

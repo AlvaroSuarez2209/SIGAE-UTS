@@ -1,7 +1,7 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Líderes</h1>
-        <a href="{{ route('leaderships.create') }}" class="btn-primary">
+        <a href="{{ route('leaderships.create', ['search' => $search, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-primary">
             Nuevo liderazgo
         </a>
     </div>
@@ -55,7 +55,7 @@
                             {{ $leadership->ends_at?->toReadable() ?? 'vigente' }}
                         </td>
                         <td class="table-cell text-right whitespace-nowrap">
-                            <a href="{{ route('leaderships.edit', $leadership) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('leaderships.edit', [$leadership, 'search' => $search, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text">Editar</a>
                             @unless ($leadership->ends_at)
                                 <button
                                     type="button"

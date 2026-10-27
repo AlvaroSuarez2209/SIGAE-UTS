@@ -11,12 +11,30 @@ use App\Models\User;
 use App\Notifications\Leadership\LeadershipAssignedNotification;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class LeadershipForm extends Component
 {
     public ?Leadership $leadership = null;
+
+    /**
+     * Mismo patrón que ReviewShow/DeliverableForm: esta pantalla nunca
+     * decide estos valores, solo los recibe por la URL (puestos ahí por
+     * los enlaces de LeadershipIndex) y los reenvía en "Cancelar" y en
+     * el redirect de save().
+     */
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public ?int $periodFilter = null;
+
+    public function leadershipsIndexUrl(): string
+    {
+        return route('leaderships.index', ['search' => $this->search, 'periodFilter' => $this->periodFilter ?? '']);
+    }
 
     public ?int $user_id = null;
 
@@ -83,7 +101,7 @@ class LeadershipForm extends Component
 
         session()->flash('status', 'Liderazgo guardado correctamente.');
 
-        $this->redirect(route('leaderships.index'), navigate: false);
+        $this->redirect($this->leadershipsIndexUrl(), navigate: false);
     }
 
     public function render()

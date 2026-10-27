@@ -81,7 +81,7 @@
                     <span wire:loading wire:target="save">Guardando...</span>
                 </button>
             @endunless
-            <a href="{{ route('leaderships.index') }}" class="btn-text text-text-secondary">
+            <a href="{{ $this->leadershipsIndexUrl() }}" class="btn-text text-text-secondary">
                 {{ $periodLocked ? 'Volver' : 'Cancelar' }}
             </a>
         </div>
