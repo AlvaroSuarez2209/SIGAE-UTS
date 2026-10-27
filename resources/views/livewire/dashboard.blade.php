@@ -239,13 +239,33 @@
                 <x-loading-indicator />
             </div>
 
+            @php
+                // Bug "al abrir la tarjeta de cumplimiento se pierde el
+                // filtro del docente": estas tarjetas/barras navegan a
+                // reports.consolidated (que sí soporta los 5 filtros, con
+                // #[Url]), pero antes solo pasaban 'period' (y, aparte,
+                // 'status' o 'program') — cualquier otro filtro activo del
+                // panel (docente, actividad, líder) se perdía al hacer
+                // clic. $coordinationFilters lleva TODOS los filtros
+                // activos de este panel, y cada enlace solo sobrescribe el
+                // suyo propio (status/program) encima de ellos.
+                $coordinationFilters = [
+                    'period' => $periodFilter,
+                    'program' => $programFilter ?: null,
+                    'teacher' => $teacherFilter ?: null,
+                    'activity' => $activityFilter ?: null,
+                    'leader' => $leaderFilter ?: null,
+                    'status' => $evidenceStatusFilter ?: null,
+                ];
+            @endphp
+
             <div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-8">
                 <x-kpi-card
                     :value="$coordinationPanel['globalCompliance'] !== null ? $coordinationPanel['globalCompliance'].'%' : '—'"
                     label="% cumplimiento global"
                     :color="$coordinationPanel['globalCompliance'] !== null ? 'success' : 'neutral'"
                     icon="check-circle"
-                    :url="route('reports.consolidated', ['period' => $periodFilter])"
+                    :url="route('reports.consolidated', $coordinationFilters)"
                 />
                 @foreach (\App\Enums\EvidenceStatus::cases() as $status)
                     <x-kpi-card
@@ -253,7 +273,7 @@
                         :label="$status->label()"
                         :color="$status->color()"
                         :icon="$status->icon()"
-                        :url="route('reports.consolidated', ['period' => $periodFilter, 'status' => $status->value])"
+                        :url="route('reports.consolidated', [...$coordinationFilters, 'status' => $status->value])"
                     />
                 @endforeach
             </div>
@@ -261,7 +281,7 @@
             @php
                 $programBars = $coordinationPanel['programCompliance']->map(fn ($bar) => [
                     ...$bar,
-                    'url' => route('reports.consolidated', ['period' => $periodFilter, 'program' => $bar['programUnitId']]),
+                    'url' => route('reports.consolidated', [...$coordinationFilters, 'program' => $bar['programUnitId']]),
                 ])->all();
             @endphp
             <div class="card mb-6 p-5">

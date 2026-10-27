@@ -407,6 +407,54 @@ class DashboardTest extends TestCase
                 && $panel['programCompliance']->isEmpty());
     }
 
+    /**
+     * Reporte de la directora, punto 2(c): "al filtrar por docente,
+     * algunos vencimientos de otros docentes aparecen como «Todo
+     * enviado»". Causa exacta: la consulta de $upcoming traía TODOS los
+     * entregables publicados que vencen en la ventana (solo acotados por
+     * activityFilter, si hay) sin importar si algún docente filtrado era
+     * destinatario — un entregable del que el docente filtrado NO es
+     * destinatario llegaba con 'total' => 0, y 'pending' === 0 de forma
+     * vacía se mostraba como "Todo enviado" en vez de no aparecer. Esa
+     * fila en realidad reflejaba un entregable de OTRO docente (no del
+     * filtrado), todavía con evidencias Pendientes de verdad.
+     */
+    public function test_teacher_filter_hides_upcoming_deadlines_that_do_not_belong_to_that_teacher(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+
+        $teacherA = $this->userWithRole(RoleName::Teacher);
+        $teacherB = $this->userWithRole(RoleName::Teacher);
+
+        // Entregable de A: sin relación alguna con B.
+        $deliverableA = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'due_at' => now()->addDays(3),
+        ]);
+        $deliverableA->recipients()->attach($teacherA->id);
+        Evidence::factory()->create(['user_id' => $teacherA->id, 'deliverable_id' => $deliverableA->id, 'status' => EvidenceStatus::Pending]);
+
+        // Entregable de B: sigue genuinamente pendiente, A no es destinatario.
+        $deliverableB = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'due_at' => now()->addDays(5),
+        ]);
+        $deliverableB->recipients()->attach($teacherB->id);
+        Evidence::factory()->create(['user_id' => $teacherB->id, 'deliverable_id' => $deliverableB->id, 'status' => EvidenceStatus::Pending]);
+
+        $html = Livewire::actingAs($admin)->test(Dashboard::class)
+            ->set('periodFilter', $period->id)
+            ->set('teacherFilter', $teacherA->id)
+            ->assertViewHas('coordinationPanel', fn ($panel) => $panel['upcoming']->count() === 1
+                && $panel['upcoming']->first()['deliverable']->id === $deliverableA->id
+                && $panel['upcoming']->first()['pending'] === 1)
+            ->html();
+
+        $this->assertStringContainsString($deliverableA->name, $html);
+        $this->assertStringNotContainsString($deliverableB->name, $html);
+    }
+
     public function test_due_label_marks_today_and_tomorrow_as_warning(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);
@@ -443,8 +491,11 @@ class DashboardTest extends TestCase
     public function test_coordination_panel_shows_a_warning_badge_for_a_deliverable_due_tomorrow(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
         $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
-        Deliverable::factory()->create(['academic_period_id' => $period->id, 'due_at' => now()->addDay()]);
+        $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'due_at' => now()->addDay()]);
+        $deliverable->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Pending]);
 
         $html = Livewire::actingAs($admin)->test(Dashboard::class)->html();
 
@@ -814,5 +865,139 @@ class DashboardTest extends TestCase
 
         // Fila de "Consolidado por docente" -> Informe individual con periodo + docente.
         $component->assertSee(route('reports.teacher', ['period' => $period->id, 'teacher' => $teacher->id]));
+    }
+
+    /**
+     * Reporte de la directora, punto 2(a): "al abrir la tarjeta de
+     * cumplimiento se pierde el filtro del docente". Causa exacta: las
+     * tres URL de arriba (tarjeta global, tarjetas por estado, barras por
+     * programa) solo llevaban 'period' (y, cada una, su propio 'status' o
+     * 'program') — con un $teacherFilter activo en el panel, ese filtro
+     * desaparecía al hacer clic en cualquiera de ellas, aunque
+     * reports.consolidated sí soporta 'teacher' (#[Url(as: 'teacher')]).
+     * Mismo problema para activityFilter/leaderFilter. Corregido llevando
+     * TODOS los filtros activos del panel en cada enlace.
+     */
+    public function test_coordination_drill_down_links_preserve_every_other_active_filter(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $program = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+        $leader = $this->userWithRole(RoleName::Leader);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher->update(['program_unit_id' => $program->id]);
+        // program_unit_id debe coincidir con el del docente: leaderFilter
+        // acota $teacherIds con LeadershipScope::teacherIdsLedBy(), que
+        // exige que el liderazgo de $leader cubra el ámbito real del
+        // docente — con el program_unit_id aleatorio de la factory, el
+        // docente queda fuera y $teacherIds termina vacío.
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $program->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        // El docente debe seguir calificando con activityFilter puesto
+        // (coordinationPanel() acota $teacherIds por TeacherAssignment en
+        // esa actividad) — si no, el panel queda sin filas y ninguna de
+        // las tres URL de abajo llega a renderizarse para empezar.
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $program->id,
+        ]);
+
+        // activity_id debe coincidir con $activityFilter: coordinationPanel()
+        // también acota $deliverables por esa actividad, así que un
+        // entregable de otra actividad quedaría con cumplimiento 0 y la
+        // fila del docente (y su barra por programa) no se renderizaría.
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+        ]);
+        $deliverable->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Approved]);
+
+        $component = Livewire::actingAs($admin)->test(Dashboard::class)
+            ->set('periodFilter', $period->id)
+            ->set('teacherFilter', $teacher->id)
+            ->set('activityFilter', $activity->id)
+            ->set('leaderFilter', $leader->id);
+
+        // Mismo orden de claves que $coordinationFilters en el blade, para
+        // que la URL generada aquí coincida carácter por carácter con la
+        // que de verdad se renderiza (route() sí preserva el orden de las
+        // claves pasadas).
+        $baseFilters = [
+            'period' => $period->id,
+            'program' => null,
+            'teacher' => $teacher->id,
+            'activity' => $activity->id,
+            'leader' => $leader->id,
+            'status' => null,
+        ];
+
+        // KPI "% cumplimiento global".
+        $component->assertSee(route('reports.consolidated', $baseFilters));
+
+        // Tarjeta KPI por estado (Aprobado).
+        $component->assertSee(route('reports.consolidated', [...$baseFilters, 'status' => EvidenceStatus::Approved->value]));
+
+        // Barra de cumplimiento por programa.
+        $component->assertSee(route('reports.consolidated', [...$baseFilters, 'program' => $program->id]));
+    }
+
+    /**
+     * Reporte de la directora, punto 2(b): "al filtrar por actividad, las
+     * tarjetas de estados pueden contar evidencias de otro ámbito". Causa
+     * exacta: $teacherIds se acotaba por actividad (vía
+     * teacherAssignments), pero $evidences solo se acotaba por esos
+     * docentes y por periodo — un docente con evidencias en MÁS de una
+     * actividad del mismo periodo sumaba igual las de la actividad que no
+     * se estaba filtrando. Corregido acotando también el entregable por
+     * activity_id cuando hay un activityFilter activo.
+     */
+    public function test_activity_filter_excludes_evidence_from_the_teachers_other_activities(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activityA = Activity::factory()->create();
+        $activityB = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher->update(['program_unit_id' => $programUnit->id]);
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activityA->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activityB->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        $deliverableA = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activityA->id]);
+        $deliverableA->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverableA->id, 'status' => EvidenceStatus::Approved]);
+
+        $deliverableB = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activityB->id]);
+        $deliverableB->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverableB->id, 'status' => EvidenceStatus::Pending]);
+
+        Livewire::actingAs($admin)->test(Dashboard::class)
+            ->set('periodFilter', $period->id)
+            ->set('activityFilter', $activityA->id)
+            ->assertViewHas('coordinationPanel', fn ($panel) => $panel['counts']['approved'] === 1
+                && $panel['counts']['pending'] === 0);
     }
 }

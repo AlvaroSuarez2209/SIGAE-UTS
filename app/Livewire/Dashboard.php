@@ -230,8 +230,18 @@ class Dashboard extends Component
         // más abajo — el % de avance (KPI global, gráfico por programa)
         // nunca debe depender de qué estado se esté mirando en las
         // tarjetas, o perdería su sentido.
+        //
+        // Bug "al filtrar por actividad, las tarjetas de estados pueden
+        // contar evidencias de otro ámbito": $teacherIds ya acota QUÉ
+        // DOCENTES entran (vía teacherAssignments en esa actividad), pero
+        // un docente puede tener evidencias de OTRAS actividades en el
+        // mismo periodo — sin repetir el mismo filtro aquí sobre el
+        // entregable, esas evidencias ajenas a la actividad filtrada
+        // igual se contaban en las tarjetas KPI por estado.
         $evidences = Evidence::whereIn('user_id', $teacherIds)
-            ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
+            ->whereHas('deliverable', fn ($q) => $q->where('academic_period_id', $this->periodFilter)
+                ->when($this->activityFilter, fn ($dq) => $dq->where('activity_id', $this->activityFilter))
+            )
             ->get();
 
         // El filtro de estado sí acota lo que se cuenta/lista (tarjetas KPI
@@ -313,6 +323,18 @@ class Dashboard extends Component
                     'pending' => $relevant->whereNotIn('status', [EvidenceStatus::Approved, EvidenceStatus::Exempt])->count(),
                 ];
             })
+            // Bug "al filtrar por docente, algunos vencimientos de otros
+            // docentes aparecen como «Todo enviado»": la consulta de
+            // arriba trae TODOS los entregables publicados que vencen en
+            // la ventana, sin acotar por $teacherIds (solo por actividad,
+            // si hay) — un entregable del que ningún docente filtrado es
+            // destinatario llegaba con $relevant vacío, y 'pending' === 0
+            // de forma vacía se leía como "todo enviado" en vez de "esto
+            // no le corresponde a los docentes filtrados". Se descartan
+            // antes de mostrar: 'total' === 0 significa que ningún
+            // docente dentro del filtro actual tiene ninguna evidencia
+            // (con el estado filtrado, si aplica) para este entregable.
+            ->filter(fn (array $row) => $row['total'] > 0)
             // Lo que de verdad necesita atención (pendientes reales) va
             // primero; lo ya resuelto (todo enviado) queda después, para
             // que no se diluya entre filas ya cerradas. Dentro de cada
