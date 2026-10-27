@@ -465,6 +465,22 @@ class DeliverableForm extends Component
             $this->deliverable = Deliverable::create($data);
         }
 
+        // Punto 3 (revisión de perfil Coordinación): "seleccionar un
+        // docente, guardar como borrador y reabrirlo pierde la
+        // selección" — saveAsDraft() nunca escribía recipient_ids en
+        // deliverable_recipients (solo save() lo hacía), así que
+        // mount() siempre la encontraba vacía al reabrir. Se sincroniza
+        // igual que en save() (mismo criterio: "all" resuelve a quienes
+        // cumplen el ámbito ahora), pero sin ensureEvidencesForRecipients()
+        // — eso sigue siendo exclusivo de la publicación real, para que
+        // ningún docente vea ni pueda actuar sobre nada mientras el
+        // entregable siga en Borrador.
+        $recipientIds = $this->recipient_mode === 'all'
+            ? $this->candidateTeachers()->pluck('id')->all()
+            : $this->recipient_ids;
+
+        $this->deliverable->recipients()->sync($recipientIds);
+
         $this->persistNewReferenceFiles();
 
         session()->flash('status', 'Entregable guardado como borrador. No es visible para los docentes todavía.');

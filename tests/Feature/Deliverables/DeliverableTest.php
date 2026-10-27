@@ -651,7 +651,18 @@ class DeliverableTest extends TestCase
      * evidencia creada) — el entregable existe en BD pero no es accionable
      * para ningún docente todavía.
      */
-    public function test_saving_as_draft_skips_recipient_sync_and_evidence_creation(): void
+    /**
+     * saveAsDraft() nunca crea evidencias (eso sigue siendo exclusivo de
+     * save(), la publicación real) — pero, desde el punto 3 de la
+     * revisión de perfil Coordinación, SÍ sincroniza la selección de
+     * destinatarios resuelta (ver
+     * test_saving_as_draft_preserves_the_recipient_selection_when_reopened()
+     * para el bug concreto que esto corrige). Aquí no hay ningún docente
+     * asignado a la actividad, así que el modo "all" de todas formas
+     * resuelve a una lista vacía — distinto del caso de abajo, donde sí
+     * hay alguien.
+     */
+    public function test_saving_as_draft_never_creates_evidence_even_with_recipients_resolved(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
@@ -671,6 +682,197 @@ class DeliverableTest extends TestCase
         $this->assertEquals(DeliverableStatus::Draft, $deliverable->status);
         $this->assertCount(0, $deliverable->recipients);
         $this->assertDatabaseCount('evidences', 0);
+    }
+
+    /**
+     * Reporte de la directora, punto 3: "seleccionar un docente
+     * específico como destinatario, guardar el entregable como borrador
+     * y reabrirlo: la selección se pierde, aunque aún no existan
+     * evidencias". Causa exacta: saveAsDraft() nunca escribía
+     * recipient_ids en deliverable_recipients (solo save(), la
+     * publicación, lo hacía) — mount() siempre encontraba la tabla vacía
+     * al reabrir, sin importar qué se hubiera seleccionado antes.
+     */
+    public function test_saving_as_draft_preserves_the_recipient_selection_when_reopened(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $teacher = $this->teacher();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id])
+            ->call('saveAsDraft')
+            ->assertHasNoErrors();
+
+        $deliverable = Deliverable::firstOrFail();
+        $this->assertEquals(DeliverableStatus::Draft, $deliverable->status);
+        // Guardar como borrador conserva la selección, pero sigue sin
+        // crear ninguna evidencia ni notificar a nadie — el entregable no
+        // es visible para el docente todavía.
+        $this->assertEquals([$teacher->id], $deliverable->recipients->pluck('id')->all());
+        $this->assertDatabaseCount('evidences', 0);
+
+        // Reabrir: mount() debe encontrar la selección ya guardada.
+        $reopened = Livewire::actingAs($admin)->test(DeliverableForm::class, ['deliverable' => $deliverable->fresh()]);
+        $reopened->assertSet('recipient_mode', 'subset');
+        $reopened->assertSet('recipient_ids', [$teacher->id]);
+    }
+
+    /**
+     * El modo "all" también debe sobrevivir a guardar-como-borrador y
+     * reabrir — se guarda como el subconjunto que resolvía en ese
+     * momento (mismo criterio que ya aplicaba save() al publicar).
+     */
+    public function test_saving_as_draft_preserves_the_recipient_selection_in_all_mode(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $teacherA = $this->teacher();
+        $teacherB = $this->teacher();
+        foreach ([$teacherA, $teacherB] as $t) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $t->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->set('recipient_mode', 'all')
+            ->call('saveAsDraft')
+            ->assertHasNoErrors();
+
+        $deliverable = Deliverable::firstOrFail();
+        $this->assertEqualsCanonicalizing([$teacherA->id, $teacherB->id], $deliverable->recipients->pluck('id')->all());
+        $this->assertDatabaseCount('evidences', 0);
+    }
+
+    /**
+     * Reabrir un borrador y cambiar la selección (quitar un docente,
+     * agregar otro) debe reemplazarla, no sumarse a la anterior —
+     * recipients()->sync(), no attach().
+     */
+    public function test_editing_a_reopened_draft_replaces_the_previous_recipient_selection(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $teacherA = $this->teacher();
+        $teacherB = $this->teacher();
+        foreach ([$teacherA, $teacherB] as $t) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $t->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        $deliverable = Deliverable::factory()->draft()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+        $deliverable->recipients()->sync([$teacherA->id]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable])
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacherB->id])
+            ->call('saveAsDraft')
+            ->assertHasNoErrors();
+
+        $this->assertEquals([$teacherB->id], $deliverable->fresh()->recipients->pluck('id')->all());
+        $this->assertDatabaseCount('evidences', 0);
+    }
+
+    /**
+     * Publicar un borrador reabierto, sin volver a tocar el paso de
+     * destinatarios, debe usar la selección ya conservada — no una lista
+     * vacía.
+     */
+    public function test_publishing_a_reopened_draft_uses_its_preserved_recipient_selection(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $teacher = $this->teacher();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id])
+            ->call('saveAsDraft')
+            ->assertHasNoErrors();
+
+        $deliverable = Deliverable::firstOrFail();
+
+        // Reabre y publica sin volver a tocar recipient_ids/recipient_mode
+        // — mount() debe haberlos restaurado ya.
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class, ['deliverable' => $deliverable->fresh()])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $deliverable->refresh();
+        $this->assertEquals(DeliverableStatus::Published, $deliverable->status);
+        $this->assertEquals([$teacher->id], $deliverable->recipients->pluck('id')->all());
+        $this->assertDatabaseHas('evidences', ['deliverable_id' => $deliverable->id, 'user_id' => $teacher->id]);
+    }
+
+    /**
+     * Efecto colateral deliberado de guardar destinatarios desde el
+     * Borrador: Deliverable::isReferenceFileViewableBy() ya no puede
+     * fiarse solo de "es destinatario" (ahora también cierto para un
+     * Borrador) — debe exigir además que el entregable esté Publicado,
+     * o un docente ya marcado como destinatario podría descargar el
+     * archivo de referencia de algo que todavía no le es visible en
+     * ninguna pantalla.
+     */
+    public function test_a_draft_recipients_reference_file_is_not_downloadable_before_publishing(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $teacher = $this->teacher();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+
+        $deliverable = Deliverable::factory()->draft()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+        ]);
+        $deliverable->recipients()->sync([$teacher->id]);
+
+        $this->assertFalse($deliverable->isReferenceFileViewableBy($teacher));
     }
 
     /**

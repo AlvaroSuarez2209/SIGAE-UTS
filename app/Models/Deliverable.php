@@ -226,7 +226,13 @@ class Deliverable extends Model
     /**
      * RF-038: quién puede descargar un archivo de referencia de este
      * entregable. Administrador/Coordinación/Auditor siempre; el docente
-     * si es destinatario; el líder si puede revisar al menos una
+     * si es destinatario Y el entregable ya está Publicado — desde el
+     * punto 3 de la revisión de perfil Coordinación, un Borrador también
+     * guarda sus destinatarios resueltos (para que la selección no se
+     * pierda al reabrirlo antes de publicar), así que sin este chequeo de
+     * estado un docente ya marcado como destinatario podría descargar el
+     * archivo de referencia de un entregable que todavía no es visible
+     * para él en ninguna pantalla; el líder si puede revisar al menos una
      * evidencia de este entregable dentro de su ámbito vigente —
      * reutiliza Evidence::isReviewableBy() en vez de inventar un segundo
      * criterio de "ámbito": es el mismo que ya usa el resto del sistema
@@ -238,7 +244,7 @@ class Deliverable extends Model
             return true;
         }
 
-        if ($this->recipients->contains('id', $user->id)) {
+        if ($this->status === DeliverableStatus::Published && $this->recipients->contains('id', $user->id)) {
             return true;
         }
 
