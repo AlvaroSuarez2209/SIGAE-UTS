@@ -248,6 +248,62 @@ class ReportAccessTest extends TestCase
     }
 
     /**
+     * Reporte de la directora, punto 5: a diferencia del informe
+     * Consolidado (que ya etiquetaba Docente/Actividad), el informe
+     * individual por docente nunca anunciaba al propio docente como
+     * filtro aplicado, aunque es un parámetro obligatorio tan "filtro"
+     * como el periodo — mismo texto en PDF y Excel, comparten el mismo
+     * arreglo $filtersSummary en el controlador.
+     */
+    public function test_teacher_report_excel_labels_the_teacher_as_an_applied_filter(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['name' => '2026-1']);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        $response = $this->actingAs($admin)->get("/reports/teacher/excel?period={$period->id}&teacher={$teacher->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+        $cellA4 = (string) $sheet->getCell('A4')->getValue();
+
+        $this->assertStringContainsString('Filtros aplicados:', $cellA4);
+        $this->assertStringContainsString('Periodo: 2026-1', $cellA4);
+        $this->assertStringContainsString("Docente: {$teacher->name}", $cellA4);
+
+        unlink($tempPath);
+    }
+
+    /**
+     * Mismo hallazgo que el informe por docente: la actividad nunca se
+     * anunciaba como filtro aplicado en el informe por actividad.
+     */
+    public function test_activity_report_excel_labels_the_activity_as_an_applied_filter(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['name' => '2026-1']);
+        $activity = Activity::factory()->create(['name' => 'Preparación de clase']);
+
+        $response = $this->actingAs($admin)->get("/reports/activity/excel?period={$period->id}&activity={$activity->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+        $cellA4 = (string) $sheet->getCell('A4')->getValue();
+
+        $this->assertStringContainsString('Filtros aplicados:', $cellA4);
+        $this->assertStringContainsString('Periodo: 2026-1', $cellA4);
+        $this->assertStringContainsString("Actividad: {$activity->component->name} — {$activity->name}", $cellA4);
+
+        unlink($tempPath);
+    }
+
+    /**
      * Mismo umbral que el PDF: con un solo filtro activo (el periodo,
      * siempre presente en los 4 informes del módulo 9), la línea de
      * filtros no debe aparecer — repetirla sería redundante con el

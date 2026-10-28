@@ -29,7 +29,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.teacher', $request->query(), fn () => $this->pdf(
             ReportBuilder::teacher($teacher, $period, $this->statusFromQuery($request)),
-            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+            $this->filtersSummary(['Periodo' => $period->name, 'Docente' => $teacher->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
@@ -40,7 +40,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.teacher', $request->query(), fn () => $this->excel(
             ReportBuilder::teacher($teacher, $period, $this->statusFromQuery($request)),
-            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+            $this->filtersSummary(['Periodo' => $period->name, 'Docente' => $teacher->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
@@ -51,7 +51,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.activity', $request->query(), fn () => $this->pdf(
             ReportBuilder::activity($activity, $period, $this->statusFromQuery($request)),
-            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+            $this->filtersSummary(['Periodo' => $period->name, 'Actividad' => "{$activity->component->name} — {$activity->name}", 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
@@ -62,7 +62,7 @@ class ReportExportController extends Controller
 
         return $this->safeExport('reports.activity', $request->query(), fn () => $this->excel(
             ReportBuilder::activity($activity, $period, $this->statusFromQuery($request)),
-            $this->filtersSummary(['Periodo' => $period->name, 'Estado' => $this->statusFromQuery($request)?->label()]),
+            $this->filtersSummary(['Periodo' => $period->name, 'Actividad' => "{$activity->component->name} — {$activity->name}", 'Estado' => $this->statusFromQuery($request)?->label()]),
         ));
     }
 
