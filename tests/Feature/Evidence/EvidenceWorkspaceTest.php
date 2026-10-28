@@ -11,7 +11,9 @@ use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\Deliverable;
+use App\Models\DeliverableReferenceFile;
 use App\Models\Evidence;
+use App\Models\EvidenceFile;
 use App\Models\Leadership;
 use App\Models\ProgramUnit;
 use App\Models\Role;
@@ -305,6 +307,110 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertHasErrors('newFiles');
 
         $this->assertNull($evidence->fresh()->current_version_id);
+    }
+
+    public function test_removing_a_file_deletes_it_from_disk_when_no_other_row_uses_the_same_path(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('a.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+        Storage::disk('local')->assertExists($evidenceFile->disk_path);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeFile', $evidenceFile->id);
+
+        $this->assertDatabaseMissing('evidence_files', ['id' => $evidenceFile->id]);
+        Storage::disk('local')->assertMissing($evidenceFile->disk_path);
+    }
+
+    /**
+     * Revisión de perfil Administrador, punto 4 (condición adicional):
+     * hoy existen filas de evidence_files en producción que comparten un
+     * mismo disk_path por un motivo externo a este código (ver
+     * EvidenceFile::isDiskPathReferencedElsewhere()). Si se borrara el
+     * archivo físico solo porque ESTA fila ya no lo necesita, se dejaría
+     * sin archivo a otra evidencia que todavía lo usa.
+     */
+    public function test_removing_a_file_keeps_the_physical_file_when_another_evidence_file_row_shares_its_path(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('a.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+        Storage::disk('local')->assertExists($evidenceFile->disk_path);
+
+        // Otra fila (de otra evidencia, otra versión) apunta al mismo
+        // disk_path — anomalía real ya observada en producción, no una
+        // situación que el flujo normal de subida pueda producir.
+        $otherEvidence = Evidence::factory()
+            ->for(Deliverable::factory()->create(['academic_period_id' => $evidence->deliverable->academic_period_id]))
+            ->create();
+        $otherVersion = $otherEvidence->startOrGetDraftVersion($otherEvidence->user);
+
+        $sharedRow = EvidenceFile::create([
+            'evidence_version_id' => $otherVersion->id,
+            'original_name' => 'compartido.pdf',
+            'stored_name' => 'otro-nombre-distinto.pdf',
+            'disk_path' => $evidenceFile->disk_path,
+            'mime_type' => 'application/pdf',
+            'size_bytes' => $evidenceFile->size_bytes,
+        ]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeFile', $evidenceFile->id);
+
+        $this->assertDatabaseMissing('evidence_files', ['id' => $evidenceFile->id]);
+        // El archivo físico sigue intacto: $sharedRow todavía lo necesita.
+        Storage::disk('local')->assertExists($evidenceFile->disk_path);
+
+        $this->assertDatabaseHas('evidence_files', ['id' => $sharedRow->id]);
+    }
+
+    /**
+     * Mismo criterio, pero con la otra tabla de archivos que comparte el
+     * disco ('local'): deliverable_reference_files.
+     */
+    public function test_removing_a_file_keeps_the_physical_file_when_a_deliverable_reference_file_shares_its_path(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('a.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+
+        DeliverableReferenceFile::create([
+            'deliverable_id' => $evidence->deliverable->id,
+            'original_name' => 'formato.pdf',
+            'stored_name' => 'otro-nombre-de-referencia.pdf',
+            'disk_path' => $evidenceFile->disk_path,
+            'mime_type' => 'application/pdf',
+            'size_bytes' => $evidenceFile->size_bytes,
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->call('removeFile', $evidenceFile->id);
+
+        $this->assertDatabaseMissing('evidence_files', ['id' => $evidenceFile->id]);
+        Storage::disk('local')->assertExists($evidenceFile->disk_path);
     }
 
     public function test_owner_can_view_their_own_evidence(): void

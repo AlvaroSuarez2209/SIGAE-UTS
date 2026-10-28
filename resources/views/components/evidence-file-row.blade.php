@@ -10,8 +10,14 @@
       confirm-modal hacia $wire.removeFile($file->id) — el llamador debe
       exponer ese método (p. ej. EvidenceWorkspace). La bandeja de
       revisión, de solo lectura, simplemente no pasa esta prop.
+    - available (bool, default true): false muestra "Archivo no
+      disponible" en vez del enlace "Descargar" (ver EvidenceFile::
+      existsOnDisk() — disco efímero de Render). "Quitar" sigue
+      disponible igual: retirar la fila de un archivo ya perdido es
+      justo lo que permite liberar el cupo y poder adjuntar un
+      reemplazo (ver revisión de perfil Administrador, punto 4).
 --}}
-@props(['file', 'removable' => false])
+@props(['file', 'removable' => false, 'available' => true])
 
 <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
     <div class="flex min-w-0 items-center gap-2">
@@ -20,7 +26,11 @@
         <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
     </div>
     <div class="flex shrink-0 items-center gap-3">
-        <a href="{{ route('evidence-files.download', $file) }}" class="btn-text">Descargar</a>
+        @if ($available)
+            <a href="{{ route('evidence-files.download', $file) }}" class="btn-text">Descargar</a>
+        @else
+            <span class="shrink-0 text-sm font-medium text-status-error">Archivo no disponible</span>
+        @endif
         @if ($removable)
             <button
                 type="button"

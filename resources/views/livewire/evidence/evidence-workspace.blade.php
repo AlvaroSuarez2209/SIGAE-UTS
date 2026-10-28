@@ -69,31 +69,37 @@
         @endif
 
         @if (in_array('file', $allowed))
-            @php $fileCount = $evidence->currentVersion?->files->count() ?? 0; @endphp
+            @php
+                $currentFiles = $evidence->currentVersion?->files ?? collect();
+                // Cuenta contra la versión EN EDICIÓN (draftVersionOrNull()),
+                // no contra currentVersion directamente: tras una
+                // reapertura, currentVersion sigue siendo la versión YA
+                // aprobada hasta la primera edición real, así que sus
+                // archivos no deben bloquear la caja de carga de un
+                // reemplazo (ver Evidence::draftVersionOrNull() y el mismo
+                // criterio en EvidenceWorkspace::saveDraft()).
+                $draftFileCount = $evidence->draftVersionOrNull()?->files->count() ?? 0;
+            @endphp
             <div>
                 <label class="field-label">
                     Archivos
                     <span class="field-help inline">{{ $deliverable->fileConstraintsLabel }}</span>
                 </label>
 
-                @if ($fileCount > 0)
+                @if ($currentFiles->isNotEmpty())
                     <ul class="mt-2 space-y-1">
-                        @foreach ($evidence->currentVersion->files as $file)
-                            @if ($file->existsOnDisk())
-                                <x-evidence-file-row :file="$file" :removable="$evidence->status->isEditable()" />
-                            @else
-                                <li class="flex items-center gap-2 rounded-md border border-border-subtle px-3 py-2">
-                                    <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
-                                    <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
-                                    <span class="shrink-0 text-sm font-medium text-status-error">Archivo no disponible</span>
-                                </li>
-                            @endif
+                        @foreach ($currentFiles as $file)
+                            <x-evidence-file-row
+                                :file="$file"
+                                :removable="$evidence->status->isEditable()"
+                                :available="$file->existsOnDisk()"
+                            />
                         @endforeach
                     </ul>
                 @endif
 
                 @if ($evidence->status->isEditable())
-                    @if ($fileCount < $deliverable->max_files)
+                    @if ($draftFileCount < $deliverable->max_files)
                         <x-file-dropzone wire-model="newFiles" :multiple="true" class="mt-2" />
 
                         @if (! empty($newFiles))

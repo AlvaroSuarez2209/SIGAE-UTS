@@ -169,7 +169,14 @@ class EvidenceWorkspace extends Component
         }
 
         if (! empty($this->newFiles)) {
-            $existingCount = $this->evidence->currentVersion?->files()->count() ?? 0;
+            // draftVersionOrNull(), no currentVersion directamente: tras
+            // una reapertura, currentVersion sigue siendo la versión YA
+            // aprobada hasta la primera edición real — contar contra ella
+            // bloqueaba cualquier archivo nuevo por un límite que en
+            // realidad aplica a la versión en edición que startOrGetDraftVersion()
+            // crearía más abajo (ver diagnóstico de la revisión de perfil
+            // Administrador, punto 4).
+            $existingCount = $this->evidence->draftVersionOrNull()?->files()->count() ?? 0;
             if ($existingCount + count($this->newFiles) > $deliverable->max_files) {
                 $this->addError('newFiles', "Este entregable admite máximo {$deliverable->max_files} archivo(s).");
 
@@ -249,7 +256,15 @@ class EvidenceWorkspace extends Component
             return;
         }
 
-        $file->disk()->delete($file->disk_path);
+        // Si el archivo ya no está en disco, no hay nada que borrar ahí
+        // (ver evidence-workspace.blade.php, caso "Archivo no disponible").
+        // Si está, pero otra fila todavía depende de la misma ruta (ver
+        // EvidenceFile::isDiskPathReferencedElsewhere()), se borra solo
+        // esta fila y se deja el archivo físico intacto.
+        if ($file->existsOnDisk() && ! $file->isDiskPathReferencedElsewhere()) {
+            $file->disk()->delete($file->disk_path);
+        }
+
         $file->delete();
         $this->evidence->refresh();
     }

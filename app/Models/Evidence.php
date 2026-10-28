@@ -76,8 +76,8 @@ class Evidence extends Model
      */
     public function startOrGetDraftVersion(User $actor): EvidenceVersion
     {
-        if ($this->currentVersion && $this->currentVersion->submitted_at === null) {
-            return $this->currentVersion;
+        if ($draft = $this->draftVersionOrNull()) {
+            return $draft;
         }
 
         $nextVersionNumber = ($this->versions()->max('version_number') ?? 0) + 1;
@@ -99,6 +99,24 @@ class Evidence extends Model
         $this->setRelation('currentVersion', $version);
 
         return $version;
+    }
+
+    /**
+     * Misma condición que el "if" de arriba, pero de solo lectura — para
+     * poder consultar contra qué versión contaría de verdad un archivo
+     * nuevo (currentVersion solo si todavía no se envió) SIN crear
+     * ninguna versión cuando no hace falta. Ver EvidenceWorkspace::
+     * saveDraft(): antes contaba contra currentVersion directamente, que
+     * tras una reapertura sigue siendo la versión YA aprobada (con
+     * submitted_at ya puesto) hasta la primera edición real — bloqueando
+     * cualquier archivo nuevo contra un límite que en realidad aplica a
+     * una versión distinta, todavía sin crear.
+     */
+    public function draftVersionOrNull(): ?EvidenceVersion
+    {
+        return $this->currentVersion && $this->currentVersion->submitted_at === null
+            ? $this->currentVersion
+            : null;
     }
 
     public function submitCurrentVersion(): void
