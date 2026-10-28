@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
 use App\Models\CrossCuttingCommitment;
@@ -92,6 +93,12 @@ class DemoCycleRevert extends Command
 
         $commitment?->delete();
 
+        // Punto 7(b): el periodo "[DEMO] Periodo cerrado" — sus
+        // entregables ya quedaron borrados arriba (comparten activity_id
+        // con el resto, academic_period_id no determina ese filtro), así
+        // que restrictOnDelete ya no bloquea borrar el periodo mismo.
+        $periodDeleted = AcademicPeriod::where('name', DemoCycleSeeder::PREFIX.'Periodo cerrado')->delete();
+
         // Los líderes sintéticos se borran al final: reviews.reviewer_id es
         // restrictOnDelete, y esas filas solo terminaron de desaparecer
         // cuando se borraron los Deliverable arriba (cascada hacia abajo).
@@ -104,7 +111,7 @@ class DemoCycleRevert extends Command
         $this->info("Revertido: {$deliverableCount} entregable(s), {$fileCount} archivo(s) físico(s), "
             ."{$assignmentCount} asignación(es) docente, {$leadershipCount} liderazgo(s), "
             ."{$activities->count()} actividad(es), {$programUnitCount} programa(s), "
-            .($commitment ? 1 : 0)." compromiso(s) transversal(es), "
+            .($commitment ? 1 : 0)." compromiso(s) transversal(es), {$periodDeleted} periodo(s) cerrado(s), "
             ."{$leadersDeleted} líder(es) sintético(s).");
 
         return self::SUCCESS;

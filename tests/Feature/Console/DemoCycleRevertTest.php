@@ -72,6 +72,7 @@ class DemoCycleRevertTest extends TestCase
         $this->assertSame(0, User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->count());
         $this->assertSame(0, User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->count());
         $this->assertSame(0, EvidenceFile::whereIn('id', $fileIds)->count());
+        $this->assertSame(0, AcademicPeriod::where('name', 'like', '[DEMO] %')->count());
 
         foreach ($paths as $path) {
             Storage::disk('local')->assertMissing($path);

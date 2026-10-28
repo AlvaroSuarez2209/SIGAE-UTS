@@ -300,7 +300,208 @@ class DemoCycleSeeder extends Seeder
         $transversalEvidence = $this->ensureEvidence($transversalDeliverable, $teacher);
         $this->submitDemoEvidence($transversalEvidence, $teacher, 'transversal-ejemplo.pdf');
 
+        // Punto 7 de la revisión de perfil Administrador: tres recorridos
+        // nuevos, cada uno en su propio ámbito "[DEMO]" para no alterar el
+        // % de avance ni los estados ya verificados arriba.
+        $this->seedWeightedComplianceDemo($component, $period, $teacher, $leader);
+        $this->seedClosedPeriodDemo($teacher, $leader);
+        $this->seedLeaderSubstitutionDemo($component, $period, $teacher, $leaderB, $leaderC);
+
         $this->command?->info('DemoCycleSeeder: 6 entregables [DEMO] listos para '.$teacher->email.', más el ámbito de los líderes B y C.');
+    }
+
+    /**
+     * Punto 7(a): un entregable obligatorio con ponderación "combinada" —
+     * dos con peso (60% y 20%) y uno sin peso — más un opcional. Según
+     * ComplianceCalculator::forUser(), basta con que UN obligatorio no
+     * tenga peso para que TODO el conjunto (incluidos los que sí tienen
+     * peso) se calcule por conteo simple, no por promedio ponderado — así
+     * que el resultado esperado aquí es 2 de 3 obligatorios aprobados
+     * (el de 60% y el sin peso) = 66,7% de avance, nunca 75% (60/80
+     * ponderado), que sería el resultado si el conjunto fuera
+     * homogéneo. Ámbito propio para que esta mezcla no distorsione el %
+     * ya verificado de la actividad original.
+     */
+    private function seedWeightedComplianceDemo(Component $component, AcademicPeriod $period, User $teacher, User $leader): void
+    {
+        [$programUnit, $activity] = $this->resolveSecondaryScope($component, 'Programa de ponderación combinada', 'Actividad de ponderación combinada');
+
+        TeacherAssignment::firstOrCreate([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ], [
+            'assigned_hours' => 2,
+        ]);
+
+        Leadership::firstOrCreate([
+            'user_id' => $leader->id,
+            'activity_id' => $activity->id,
+            'academic_period_id' => $period->id,
+        ], [
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDay(),
+            'ends_at' => null,
+        ]);
+
+        $weighted60 = $this->demoDeliverable($period, $activity, 'Ponderado 60%, aprobado', [
+            'is_mandatory' => true,
+            'weight_percentage' => 60,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $weighted60Evidence = $this->ensureEvidence($weighted60, $teacher);
+        if ($weighted60Evidence->status === EvidenceStatus::Pending) {
+            $this->submitDemoEvidence($weighted60Evidence, $teacher, 'ponderado-60-ejemplo.pdf');
+            $weighted60Evidence->approveCurrentReview($leader, '[DEMO] Aprobado para la demostración de ponderación combinada.');
+        }
+
+        $weighted20 = $this->demoDeliverable($period, $activity, 'Ponderado 20%, en revisión', [
+            'is_mandatory' => true,
+            'weight_percentage' => 20,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $weighted20Evidence = $this->ensureEvidence($weighted20, $teacher);
+        $this->submitDemoEvidence($weighted20Evidence, $teacher, 'ponderado-20-ejemplo.pdf');
+
+        $unweighted = $this->demoDeliverable($period, $activity, 'Sin ponderación, aprobado', [
+            'is_mandatory' => true,
+            'weight_percentage' => null,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $unweightedEvidence = $this->ensureEvidence($unweighted, $teacher);
+        if ($unweightedEvidence->status === EvidenceStatus::Pending) {
+            $this->submitDemoEvidence($unweightedEvidence, $teacher, 'sin-ponderacion-ejemplo.pdf');
+            $unweightedEvidence->approveCurrentReview($leader, '[DEMO] Aprobado para la demostración de ponderación combinada.');
+        }
+
+        $optional = $this->demoDeliverable($period, $activity, 'Opcional en ponderación combinada', [
+            'is_mandatory' => false,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $this->ensureEvidence($optional, $teacher);
+    }
+
+    /**
+     * Punto 7(b): un periodo "[DEMO]" ya Cerrado, con un entregable
+     * aprobado dentro de él, para probar el histórico de solo lectura
+     * (Informes/Panel pueden mostrarlo; EvidenceWorkspace ya bloquea
+     * cualquier envío nuevo porque acceptsEvidenceSubmissions() exige
+     * periodo Activo — ver Deliverable::acceptsEvidenceSubmissions()).
+     * Reutiliza la actividad/programa originales: un periodo distinto ya
+     * alcanza para aislar este entregable del resto del recorrido.
+     */
+    private function seedClosedPeriodDemo(User $teacher, User $leader): void
+    {
+        $closedPeriod = AcademicPeriod::firstOrCreate(
+            ['name' => self::PREFIX.'Periodo cerrado'],
+            [
+                'status' => AcademicPeriodStatus::Closed,
+                'start_date' => now()->subMonths(6),
+                'end_date' => now()->subMonths(2),
+            ]
+        );
+
+        [, $activity, $programUnit] = $this->resolveDemoScope();
+
+        TeacherAssignment::firstOrCreate([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $closedPeriod->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ], [
+            'assigned_hours' => 2,
+        ]);
+
+        Leadership::firstOrCreate([
+            'user_id' => $leader->id,
+            'activity_id' => $activity->id,
+            'academic_period_id' => $closedPeriod->id,
+        ], [
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subMonths(6),
+            'ends_at' => null,
+        ]);
+
+        $closedDeliverable = $this->demoDeliverable($closedPeriod, $activity, 'Entregable del periodo cerrado', [
+            'is_mandatory' => true,
+            'weight_percentage' => 100,
+            'opens_at' => now()->subMonths(6),
+            'due_at' => now()->subMonths(3),
+            'closes_at' => now()->subMonths(2)->subDay(),
+        ]);
+        $closedEvidence = $this->ensureEvidence($closedDeliverable, $teacher);
+        if ($closedEvidence->status === EvidenceStatus::Pending) {
+            $version = $closedEvidence->startOrGetDraftVersion($teacher);
+            $this->attachDemoFile($version, 'periodo-cerrado-ejemplo.pdf');
+            $closedEvidence->submitCurrentVersion();
+            $closedEvidence->approveCurrentReview($leader, '[DEMO] Aprobado antes del cierre del periodo.');
+        }
+    }
+
+    /**
+     * Punto 7(c)+(d): una actividad "[DEMO]" propia con un liderazgo
+     * VENCIDO (líder B, ends_at ya pasado) y uno VIGENTE (líder C,
+     * ends_at nulo) sobre el mismo ámbito, más una evidencia pendiente de
+     * revisión (para comprobar que solo el líder vigente puede
+     * revisarla) y una evidencia exenta (punto 7d) en ese mismo ámbito,
+     * demostrando que la exención sigue funcionando con normalidad
+     * durante una sustitución de líder.
+     */
+    private function seedLeaderSubstitutionDemo(Component $component, AcademicPeriod $period, User $teacher, User $leaderB, User $leaderC): void
+    {
+        [$programUnit, $activity] = $this->resolveSecondaryScope($component, 'Programa de sustitución de líder', 'Actividad de sustitución de líder');
+
+        TeacherAssignment::firstOrCreate([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ], [
+            'assigned_hours' => 2,
+        ]);
+
+        Leadership::firstOrCreate([
+            'user_id' => $leaderB->id,
+            'activity_id' => $activity->id,
+            'academic_period_id' => $period->id,
+        ], [
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subMonths(2),
+            'ends_at' => now()->subDays(10),
+        ]);
+
+        Leadership::firstOrCreate([
+            'user_id' => $leaderC->id,
+            'activity_id' => $activity->id,
+            'academic_period_id' => $period->id,
+        ], [
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->subDays(5),
+            'ends_at' => null,
+        ]);
+
+        $pendingDeliverable = $this->demoDeliverable($period, $activity, 'Pendiente de revisión tras sustitución de líder', [
+            'is_mandatory' => true,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $pendingEvidence = $this->ensureEvidence($pendingDeliverable, $teacher);
+        $this->submitDemoEvidence($pendingEvidence, $teacher, 'sustitucion-lider-ejemplo.pdf');
+
+        $exemptDeliverable = $this->demoDeliverable($period, $activity, 'Exenta durante sustitución de líder', [
+            'is_mandatory' => true,
+            'due_at' => now()->addDays(10),
+            'closes_at' => now()->addDays(30),
+        ]);
+        $exemptEvidence = $this->ensureEvidence($exemptDeliverable, $teacher);
+        if ($exemptEvidence->status === EvidenceStatus::Pending) {
+            $exemptEvidence->markExempt('[DEMO] Justificación de ejemplo durante la sustitución de líder.');
+        }
     }
 
     private function resolveTeacher(): User

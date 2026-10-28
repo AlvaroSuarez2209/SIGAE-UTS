@@ -87,7 +87,7 @@ class DemoCycleSeederTest extends TestCase
         (new DemoCycleSeeder)->run();
 
         $deliverables = Deliverable::where('name', 'like', '[DEMO] %')->get()->keyBy('name');
-        $this->assertCount(10, $deliverables);
+        $this->assertCount(17, $deliverables);
 
         $pending = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Pendiente sin carga'))->first();
@@ -127,8 +127,11 @@ class DemoCycleSeederTest extends TestCase
         $this->assertTrue($mandatoryWithWeight->is_mandatory);
         $this->assertEquals(25, $mandatoryWithWeight->weight_percentage);
 
-        // closes_at por caso, tal como se pidió explícitamente.
-        $pastClose = ['[DEMO] Devuelto, listo para reenviar', '[DEMO] Vencido'];
+        // closes_at por caso, tal como se pidió explícitamente. El
+        // entregable del periodo "[DEMO]" ya cerrado (punto 7b) también
+        // tiene fechas en el pasado a propósito, igual que los dos de
+        // arriba.
+        $pastClose = ['[DEMO] Devuelto, listo para reenviar', '[DEMO] Vencido', '[DEMO] Entregable del periodo cerrado'];
         foreach ($deliverables as $name => $deliverable) {
             $this->assertNotNull($deliverable->closes_at, "{$name} debería tener closes_at configurado.");
 
@@ -163,15 +166,18 @@ class DemoCycleSeederTest extends TestCase
         (new DemoCycleSeeder)->run();
         (new DemoCycleSeeder)->run();
 
-        $this->assertCount(10, Deliverable::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(17, Deliverable::where('name', 'like', '[DEMO] %')->get());
         $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_EMAIL)->get());
         $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->get());
         $this->assertCount(1, User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->get());
-        $this->assertCount(3, Activity::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(5, Activity::where('name', 'like', '[DEMO] %')->get());
         $this->assertCount(1, Component::where('name', 'like', '[DEMO] %')->get());
-        $this->assertCount(3, ProgramUnit::where('name', 'like', '[DEMO] %')->get());
+        $this->assertCount(5, ProgramUnit::where('name', 'like', '[DEMO] %')->get());
         $this->assertCount(1, CrossCuttingCommitment::where('name', 'like', '[DEMO] %')->get());
-        $this->assertCount(2, Leadership::where('activity_id', Activity::where('name', '[DEMO] Ciclo de demostración')->first()->id)->get());
+        $this->assertCount(1, AcademicPeriod::where('name', 'like', '[DEMO] %')->get());
+        // 2 en el periodo Activo (líder A y B) + 1 más del líder A en el
+        // periodo "[DEMO] Periodo cerrado" (punto 7b, misma actividad).
+        $this->assertCount(3, Leadership::where('activity_id', Activity::where('name', '[DEMO] Ciclo de demostración')->first()->id)->get());
 
         // La versión devuelta no debe duplicar su historial al reintentar.
         $returned = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Devuelto, listo para reenviar'))->first();
@@ -391,7 +397,7 @@ class DemoCycleSeederTest extends TestCase
         $this->artisan('db:seed', ['--class' => DemoCycleSeeder::class, '--force' => true])
             ->assertExitCode(0);
 
-        $this->assertSame(10, Deliverable::where('name', 'like', '[DEMO] %')->count());
+        $this->assertSame(17, Deliverable::where('name', 'like', '[DEMO] %')->count());
     }
 
     /**
@@ -439,5 +445,115 @@ class DemoCycleSeederTest extends TestCase
             ->assertSet('submissionError', '');
 
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    /**
+     * Punto 7(a): el conjunto obligatorio mixto (60% + 20% + sin peso) se
+     * calcula por conteo simple, no por promedio ponderado — basta con
+     * que UNO no tenga peso para que ComplianceCalculator ignore los
+     * pesos de TODO el conjunto (ver app/Services/ComplianceCalculator.php).
+     * Aprobados: el de 60% y el sin peso (2 de 3) = 66,7%, nunca 75%
+     * (60/80 ponderado). El opcional nunca participa.
+     */
+    public function test_demo_case_7a_weighted_compliance_falls_back_to_simple_count_when_one_mandatory_item_has_no_weight(): void
+    {
+        $teacher = $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $activity = Activity::where('name', '[DEMO] Actividad de ponderación combinada')->first();
+        $this->assertNotNull($activity);
+
+        $weighted60 = Deliverable::where('name', '[DEMO] Ponderado 60%, aprobado')->first();
+        $weighted20 = Deliverable::where('name', '[DEMO] Ponderado 20%, en revisión')->first();
+        $unweighted = Deliverable::where('name', '[DEMO] Sin ponderación, aprobado')->first();
+        $optional = Deliverable::where('name', '[DEMO] Opcional en ponderación combinada')->first();
+
+        $this->assertEquals(60, $weighted60->weight_percentage);
+        $this->assertEquals(20, $weighted20->weight_percentage);
+        $this->assertNull($unweighted->weight_percentage);
+        $this->assertFalse($optional->is_mandatory);
+
+        $this->assertEquals(EvidenceStatus::Approved, Evidence::where('deliverable_id', $weighted60->id)->first()->status);
+        $this->assertEquals(EvidenceStatus::Submitted, Evidence::where('deliverable_id', $weighted20->id)->first()->status);
+        $this->assertEquals(EvidenceStatus::Approved, Evidence::where('deliverable_id', $unweighted->id)->first()->status);
+
+        $deliverablesInScope = Deliverable::where('activity_id', $activity->id)->get();
+        $result = \App\Services\ComplianceCalculator::forUser($teacher, $deliverablesInScope);
+        $this->assertEquals(66.7, $result['percentage']);
+        $this->assertEquals(2, $result['approved']);
+        $this->assertEquals(3, $result['total']);
+    }
+
+    /**
+     * Punto 7(b): el periodo "[DEMO] Periodo cerrado" existe, está Cerrado
+     * y tiene un entregable aprobado — listo para probar el histórico de
+     * solo lectura. Confirma además que un nuevo intento de envío sobre
+     * ese mismo entregable queda bloqueado, porque el periodo ya no está
+     * Activo.
+     */
+    public function test_demo_case_7b_closed_period_has_an_approved_evidence_and_blocks_new_submissions(): void
+    {
+        $teacher = $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $closedPeriod = AcademicPeriod::where('name', '[DEMO] Periodo cerrado')->first();
+        $this->assertNotNull($closedPeriod);
+        $this->assertEquals(AcademicPeriodStatus::Closed, $closedPeriod->status);
+
+        $evidence = Evidence::where('user_id', $teacher->id)
+            ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Entregable del periodo cerrado'))->first();
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->status);
+        $this->assertFalse($evidence->deliverable->acceptsEvidenceSubmissions());
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [UploadedFile::fake()->create('intento.pdf', 50, 'application/pdf')])
+            ->call('saveDraft')
+            ->assertHasErrors('newFiles');
+    }
+
+    /**
+     * Punto 7(c): un liderazgo vencido (líder B) y uno vigente (líder C)
+     * sobre la misma actividad "[DEMO]" — solo el vigente puede revisar
+     * la evidencia pendiente.
+     */
+    public function test_demo_case_7c_expired_leadership_cannot_review_only_the_current_one_can(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $activity = Activity::where('name', '[DEMO] Actividad de sustitución de líder')->first();
+        $leaderB = User::where('email', DemoCycleSeeder::DEMO_LEADER_B_EMAIL)->first();
+        $leaderC = User::where('email', DemoCycleSeeder::DEMO_LEADER_C_EMAIL)->first();
+
+        $expired = Leadership::where('user_id', $leaderB->id)->where('activity_id', $activity->id)->first();
+        $current = Leadership::where('user_id', $leaderC->id)->where('activity_id', $activity->id)->first();
+        $this->assertNotNull($expired);
+        $this->assertNotNull($current);
+        $this->assertTrue($expired->ends_at->isPast());
+        $this->assertNull($current->ends_at);
+
+        $evidence = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Pendiente de revisión tras sustitución de líder'))->first();
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->status);
+        $this->assertFalse($evidence->isReviewableBy($leaderB));
+        $this->assertTrue($evidence->isReviewableBy($leaderC));
+    }
+
+    /**
+     * Punto 7(d): la exención sigue funcionando con normalidad dentro del
+     * mismo ámbito de sustitución de líder.
+     */
+    public function test_demo_case_7d_exemption_works_normally_during_a_leader_substitution(): void
+    {
+        $this->demoTeacher();
+        AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        (new DemoCycleSeeder)->run();
+
+        $evidence = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Exenta durante sustitución de líder'))->first();
+        $this->assertEquals(EvidenceStatus::Exempt, $evidence->status);
+        $this->assertNotEmpty($evidence->exemption_reason);
     }
 }
