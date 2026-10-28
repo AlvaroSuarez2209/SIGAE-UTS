@@ -31,9 +31,23 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * opción de la misma lista sin ambigüedad. Quien necesite ambos roles debe
  * escribirlo a mano ("Docente, Líder") — sigue siendo válido para
  * TeacherImportService, que no depende de cómo se llenó la celda.
+ *
+ * Reporte de la directora, punto 3 de la revisión de perfil Administrador:
+ * el ejemplo usaba "Ingeniería de Sistemas" como codigo_programa — un
+ * nombre real de programa que puede no existir en el catálogo de un
+ * despliegue dado (no lo tenía el de la directora), así que subir la
+ * plantilla sin editarla rechazaba la fila con un error confuso ("no
+ * existe"), dando la impresión de que la importación no funcionaba.
+ * EXAMPLE_PROGRAM_PLACEHOLDER es a propósito un valor que NUNCA existirá
+ * en ningún catálogo real (ver TeacherImportInstructionsSheet, que explica
+ * qué hacer con él) — la plantilla nunca se acopla al catálogo de un
+ * despliegue concreto, y la fila de ejemplo se rechaza siempre de la misma
+ * forma clara, en vez de depender de qué programas existan hoy.
  */
 class TeacherImportTemplateDataSheet implements Export, FromArray, ShouldAutoSize, WithEvents, WithHeadings, WithTitle
 {
+    public const EXAMPLE_PROGRAM_PLACEHOLDER = 'NOMBRE_DE_TU_PROGRAMA_AQUI';
+
     public function headings(): array
     {
         return TeacherImportService::REQUIRED_HEADERS;
@@ -42,7 +56,7 @@ class TeacherImportTemplateDataSheet implements Export, FromArray, ShouldAutoSiz
     public function array(): array
     {
         return [
-            ['CC', '1234567890', 'Ana María Pérez Gómez', 'ana.perez@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+            ['CC', '1234567890', 'Ana María Pérez Gómez', 'ana.perez@uts.edu.co', self::EXAMPLE_PROGRAM_PLACEHOLDER, 'Docente', 'Activo'],
         ];
     }
 
