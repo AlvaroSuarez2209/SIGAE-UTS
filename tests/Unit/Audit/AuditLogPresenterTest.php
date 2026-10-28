@@ -132,6 +132,49 @@ class AuditLogPresenterTest extends TestCase
         );
     }
 
+    /**
+     * Reporte de la directora, punto 2 de la revisión de perfil
+     * Administrador: `teachers_bulk_imported` ya guardaba el lote
+     * (file_name) y los 4 conteos, pero describeChanges() solo recorre
+     * metadata->changes (una forma que esta acción nunca tiene), así
+     * que la columna "Detalle" quedaba vacía a pesar de que el dato sí
+     * estaba guardado.
+     */
+    public function test_teachers_bulk_imported_action_has_a_spanish_label(): void
+    {
+        $this->assertEquals('Importación masiva de docentes', AuditLogPresenter::actionLabel('teachers_bulk_imported'));
+    }
+
+    public function test_teachers_bulk_import_summary_is_shown_in_the_detail_column(): void
+    {
+        $log = AuditLog::create([
+            'action' => 'teachers_bulk_imported',
+            'metadata' => [
+                'file_name' => 'docentes.csv',
+                'processed' => 10,
+                'created' => 3,
+                'updated' => 2,
+                'skipped' => 4,
+                'rejected' => 1,
+            ],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals(
+            'Archivo: docentes.csv — Creadas: 3 · Actualizadas: 2 · Omitidas: 4 · Rechazadas: 1',
+            AuditLogPresenter::describeChanges($log)
+        );
+
+        $this->assertEquals([
+            ['label' => 'Archivo', 'after' => 'docentes.csv', 'before' => null],
+            ['label' => 'Filas procesadas', 'after' => '10', 'before' => null],
+            ['label' => 'Creadas', 'after' => '3', 'before' => null],
+            ['label' => 'Actualizadas', 'after' => '2', 'before' => null],
+            ['label' => 'Omitidas', 'after' => '4', 'before' => null],
+            ['label' => 'Rechazadas', 'after' => '1', 'before' => null],
+        ], AuditLogPresenter::changeEntries($log));
+    }
+
     public function test_academic_period_status_enum_value_is_translated_using_its_own_enum(): void
     {
         $log = AuditLog::create([

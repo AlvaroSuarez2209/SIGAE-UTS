@@ -50,6 +50,7 @@ class AuditLogPresenter
         'evidence_exemption_removed' => 'Exención removida',
         'deliverable_reference_file_attached' => 'Archivo de referencia adjuntado',
         'deliverable_reference_file_removed' => 'Archivo de referencia quitado',
+        'teachers_bulk_imported' => 'Importación masiva de docentes',
     ];
 
     /**
@@ -261,6 +262,10 @@ class AuditLogPresenter
             return self::describeReferenceFileAction($log);
         }
 
+        if ($log->action === 'teachers_bulk_imported') {
+            return self::describeTeachersBulkImport($log);
+        }
+
         $metadata = $log->metadata ?? [];
         $modelBasename = $log->auditable_type ? class_basename($log->auditable_type) : null;
         $previous = (array) ($metadata['previous'] ?? []);
@@ -337,6 +342,28 @@ class AuditLogPresenter
     }
 
     /**
+     * Reporte de la directora, punto 2 de la revisión de perfil
+     * Administrador: `teachers_bulk_imported` ya guardaba el lote
+     * (`file_name`) y los 4 conteos (`created`/`updated`/`skipped`/
+     * `rejected`) desde que existe (ver
+     * TeacherImportWizard::confirm()), pero describeChanges() solo
+     * recorre `metadata->changes` — una forma que esta acción nunca
+     * tiene — así que la columna "Detalle" (lista, PDF, Excel) y el
+     * modal de "Ver detalle" quedaban en blanco a pesar de que el dato
+     * sí estaba guardado. Mismas etiquetas que ya usa la pantalla de
+     * resultado del asistente (teacher-import-wizard.blade.php), para
+     * no introducir una segunda forma de nombrar lo mismo.
+     */
+    private static function describeTeachersBulkImport(AuditLog $log): string
+    {
+        $metadata = $log->metadata ?? [];
+        $fileName = $metadata['file_name'] ?? null;
+        $counts = "Creadas: {$metadata['created']} · Actualizadas: {$metadata['updated']} · Omitidas: {$metadata['skipped']} · Rechazadas: {$metadata['rejected']}";
+
+        return $fileName ? "Archivo: {$fileName} — {$counts}" : $counts;
+    }
+
+    /**
      * Prioridad 7, parte 2: desglose campo por campo para el modal de
      * detalle (describeChanges() sigue siendo la frase compacta de la
      * columna "Detalle" de la tabla) — a diferencia de describeFieldChange(),
@@ -361,6 +388,10 @@ class AuditLogPresenter
             $fileName = $log->metadata['file_name'] ?? null;
 
             return $fileName ? [['label' => 'Archivo', 'after' => $fileName, 'before' => null]] : [];
+        }
+
+        if ($log->action === 'teachers_bulk_imported') {
+            return self::teachersBulkImportEntries($log);
         }
 
         $metadata = $log->metadata ?? [];
@@ -392,6 +423,38 @@ class AuditLogPresenter
                 'after' => 'Actualizado (valor no mostrado por seguridad)',
                 'before' => null,
             ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Desglose campo por campo de `teachers_bulk_imported` para el modal
+     * de "Ver detalle" — mismo dato que ya resume describeTeachersBulkImport()
+     * en una sola línea, aquí uno por fila para que el lote y cada
+     * conteo tengan su propia etiqueta, igual que el resto de acciones
+     * con desglose propio (evidence_marked_exempt, las de archivo de
+     * referencia).
+     */
+    private static function teachersBulkImportEntries(AuditLog $log): array
+    {
+        $metadata = $log->metadata ?? [];
+        $entries = [];
+
+        if ($fileName = $metadata['file_name'] ?? null) {
+            $entries[] = ['label' => 'Archivo', 'after' => $fileName, 'before' => null];
+        }
+
+        foreach ([
+            'processed' => 'Filas procesadas',
+            'created' => 'Creadas',
+            'updated' => 'Actualizadas',
+            'skipped' => 'Omitidas',
+            'rejected' => 'Rechazadas',
+        ] as $key => $label) {
+            if (array_key_exists($key, $metadata)) {
+                $entries[] = ['label' => $label, 'after' => (string) $metadata[$key], 'before' => null];
+            }
         }
 
         return $entries;

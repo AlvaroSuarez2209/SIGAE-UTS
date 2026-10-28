@@ -445,6 +445,34 @@ class AuditLogTest extends TestCase
         $this->assertEquals('Inicio de sesión', $rows[0][2]);
     }
 
+    /**
+     * Reporte de la directora, punto 2 de la revisión de perfil
+     * Administrador: la exportación (PDF y Excel comparten este mismo
+     * builder) debe mostrar el lote y los 4 conteos de
+     * teachers_bulk_imported, no una columna "Detalle" vacía.
+     */
+    public function test_export_builder_shows_the_teachers_bulk_import_summary_in_the_detail_column(): void
+    {
+        AuditLog::create([
+            'action' => 'teachers_bulk_imported',
+            'metadata' => [
+                'file_name' => 'docentes.csv',
+                'processed' => 10,
+                'created' => 3,
+                'updated' => 2,
+                'skipped' => 4,
+                'rejected' => 1,
+            ],
+            'created_at' => now(),
+        ]);
+
+        $report = AuditLogExportBuilder::build([]);
+        $row = $report['sections'][0]['rows'][0];
+
+        $this->assertEquals('Importación masiva de docentes', $row[2]);
+        $this->assertEquals('Archivo: docentes.csv — Creadas: 3 · Actualizadas: 2 · Omitidas: 4 · Rechazadas: 1', $row[5]);
+    }
+
     public function test_audit_log_pdf_download_respects_filters_and_downloads_as_a_pdf_file(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
