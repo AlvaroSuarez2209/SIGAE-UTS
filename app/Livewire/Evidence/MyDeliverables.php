@@ -12,14 +12,22 @@ use Livewire\Component;
 #[Title('Mis entregables')]
 class MyDeliverables extends Component
 {
+    #[Url]
     public ?int $periodFilter = null;
 
     #[Url(as: 'status')]
     public string $statusFilter = '';
 
+    /**
+     * Mismo bug/fix que los demás índices filtrables: mount() pisaba
+     * siempre $periodFilter con el periodo activo — "Todos los
+     * periodos" nunca sobrevivía a un "Volver" ni a una recarga.
+     */
     public function mount(): void
     {
-        $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        if (! request()->has('periodFilter')) {
+            $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id');
+        }
     }
 
     public function render()

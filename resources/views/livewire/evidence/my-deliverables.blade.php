@@ -48,7 +48,7 @@
                                     <x-status-badge :status="$evidence->status" />
                                 </td>
                                 <td class="table-cell text-right">
-                                    <a href="{{ route('my-deliverables.show', $evidence) }}" class="btn-text">
+                                    <a href="{{ route('my-deliverables.show', [$evidence, 'periodFilter' => $periodFilter ?? '', 'status' => $statusFilter]) }}" class="btn-text">
                                         @if ($evidence->status->isEditable())
                                             Cargar evidencia
                                         @else

@@ -10,6 +10,7 @@ use App\Models\EvidenceFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -19,6 +20,22 @@ class EvidenceWorkspace extends Component
     use WithFileUploads;
 
     public Evidence $evidence;
+
+    /**
+     * Mismo patrón que las demás pantallas de detalle: solo recibe
+     * estos filtros por la URL (puestos ahí por el enlace "Ver" de
+     * MyDeliverables) y los reenvía en "Volver".
+     */
+    #[Url]
+    public ?int $periodFilter = null;
+
+    #[Url(as: 'status')]
+    public string $statusFilter = '';
+
+    public function myDeliverablesIndexUrl(): string
+    {
+        return route('my-deliverables.index', ['periodFilter' => $this->periodFilter ?? '', 'status' => $this->statusFilter]);
+    }
 
     public string $description = '';
 

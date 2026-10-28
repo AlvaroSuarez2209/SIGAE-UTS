@@ -191,10 +191,10 @@
                     <span wire:loading.remove wire:target="submit">Enviar evidencia</span>
                     <span wire:loading wire:target="submit">Enviando...</span>
                 </button>
-                <a href="{{ route('my-deliverables.index') }}" class="btn-text">Volver</a>
+                <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-text">Volver</a>
             </div>
         @else
-            <a href="{{ route('my-deliverables.index') }}" class="btn-text inline-block">Volver</a>
+            <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-text inline-block">Volver</a>
         @endif
     </div>
 
