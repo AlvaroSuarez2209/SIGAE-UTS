@@ -275,18 +275,24 @@ class TeacherImportService
                 continue;
             }
 
+            // Bug "al subir dos veces un archivo idéntico, la vista previa
+            // dice «Sin cambios» pero el resumen final cuenta la cuenta
+            // como «actualizada»": commitRow() nunca miraba esta acción ya
+            // resuelta — escribía y contaba "actualizada" sin importar si
+            // había algún cambio real. Una fila sin cambios no debe
+            // tocar la base en absoluto, ni siquiera un UPDATE idéntico.
+            if ($row['action'] === 'skip') {
+                $summary['skipped']++;
+
+                continue;
+            }
+
             try {
                 $action = DB::transaction(fn () => $this->commitRow($row));
             } catch (\Throwable) {
                 $row['errors'][] = 'No se pudo guardar esta fila por un error inesperado.';
                 $summary['rejected']++;
                 $summary['rejected_rows'][] = $row;
-
-                continue;
-            }
-
-            if ($action === 'skip') {
-                $summary['skipped']++;
 
                 continue;
             }

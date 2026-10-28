@@ -218,4 +218,45 @@ class TeacherImportServiceTest extends TestCase
         $this->assertSame(2, $result[0]['row_number']);
         $this->assertSame(3, $result[1]['row_number']);
     }
+
+    /**
+     * Reporte de la directora, punto 1: "al subir dos veces un archivo
+     * idéntico, la vista previa dice «Sin cambios» pero el resumen
+     * final cuenta la cuenta como «actualizada»". Causa exacta:
+     * commit() -> commitRow() nunca miraba $row['action'] (ya resuelto
+     * como 'skip' por resolveAction(), igual que en la vista previa) —
+     * siempre llamaba a User::update() y contaba 'updated', sin importar
+     * si había algún cambio real. Esta prueba reproduce commit() (no
+     * solo validateRows(), ya cubierto por
+     * test_row_identical_to_an_existing_user_is_resolved_as_skip()) y
+     * confirma que ni siquiera debe escribirse nada: updated_at no debe
+     * cambiar.
+     */
+    public function test_committing_a_row_identical_to_an_existing_user_is_counted_as_skipped_and_writes_nothing(): void
+    {
+        $programUnit = ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+        $existing = User::factory()->create([
+            'document_number' => '1000000001',
+            'document_type' => 'CC',
+            'name' => 'Ana María Pérez',
+            'email' => 'ana.perez@uts.edu.co',
+            'program_unit_id' => $programUnit->id,
+            'is_active' => true,
+            'updated_at' => now()->subDay(),
+        ]);
+        $existing->roles()->attach(Role::where('name', 'teacher')->first());
+
+        $result = $this->validate([$this->row()]);
+        $this->assertSame('skip', $result[0]['action']);
+
+        $summary = $this->service->commit($result);
+
+        $this->assertSame(0, $summary['updated']);
+        $this->assertSame(0, $summary['created']);
+        $this->assertSame(1, $summary['skipped']);
+        $this->assertSame(0, $summary['rejected']);
+
+        $existing->refresh();
+        $this->assertTrue($existing->updated_at->isYesterday(), 'No debió escribirse nada sobre una fila sin cambios reales.');
+    }
 }

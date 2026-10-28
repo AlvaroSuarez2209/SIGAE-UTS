@@ -194,6 +194,52 @@ class TeacherImportWizardTest extends TestCase
         Notification::assertNotSentTo($existing, ResetPasswordNotification::class);
     }
 
+    /**
+     * Reporte de la directora, punto 1: "al subir dos veces un archivo
+     * idéntico, la vista previa dice «Sin cambios» pero el resumen
+     * final cuenta la cuenta como «actualizada»" — reproducido tal cual,
+     * subiendo e importando el mismo archivo dos veces seguidas.
+     */
+    public function test_uploading_the_same_file_twice_shows_no_changes_both_in_preview_and_in_the_final_summary(): void
+    {
+        Notification::fake();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        $file = fn () => $this->csv([
+            ['CC', '1', 'Ana María Pérez', 'ana.perez@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+        ]);
+
+        // Primera subida: crea al docente.
+        Livewire::actingAs($admin)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file())
+            ->call('preview')
+            ->call('confirm')
+            ->assertSet('summary.created', 1)
+            ->assertSet('summary.updated', 0)
+            ->assertSet('summary.skipped', 0);
+
+        // Segunda subida del mismo archivo, sin ningún cambio real.
+        $second = Livewire::actingAs($admin)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file())
+            ->call('preview');
+
+        // Vista previa: la fila se resuelve como "Sin cambios".
+        $second->assertSet('rows.0.action', 'skip');
+
+        $second->call('confirm')
+            ->assertSet('summary.created', 0)
+            ->assertSet('summary.updated', 0)
+            ->assertSet('summary.skipped', 1)
+            ->assertSet('summary.rejected', 0);
+
+        // admin + el docente, nunca un segundo usuario ni una fila rechazada.
+        $this->assertDatabaseCount('users', 2);
+    }
+
     public function test_records_an_audit_log_entry_with_the_import_summary(): void
     {
         Notification::fake();
