@@ -101,7 +101,7 @@
                 <span wire:loading.remove wire:target="save">Guardar</span>
                 <span wire:loading wire:target="save">Guardando...</span>
             </button>
-            <a href="{{ route('deliverable-templates.index') }}" class="btn-text text-text-secondary">Cancelar</a>
+            <a href="{{ $this->templatesIndexUrl() }}" class="btn-text text-text-secondary">Cancelar</a>
         </div>
     </form>
 </div>

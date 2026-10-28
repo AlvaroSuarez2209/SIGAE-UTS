@@ -44,7 +44,7 @@ class DeliverableTemplateTest extends TestCase
             ->set('allowed_evidence_types', [EvidenceType::File->value])
             ->call('save')
             ->assertHasNoErrors()
-            ->assertRedirect(route('deliverable-templates.index'));
+            ->assertRedirect(route('deliverable-templates.index', ['search' => '', 'statusFilter' => '']));
 
         $this->assertDatabaseHas('deliverable_templates', ['name' => 'Informe trimestral']);
 

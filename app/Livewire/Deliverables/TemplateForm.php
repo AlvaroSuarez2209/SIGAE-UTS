@@ -7,12 +7,29 @@ use App\Enums\PeriodicityType;
 use App\Models\DeliverableTemplate;
 use App\Rules\CaseAccentInsensitiveUnique;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class TemplateForm extends Component
 {
     public ?DeliverableTemplate $template = null;
+
+    /**
+     * Mismo patrón que las demás pantallas: solo recibe estos filtros
+     * por la URL (puestos ahí por los enlaces de TemplateIndex) y los
+     * reenvía en "Cancelar" y en el redirect de save().
+     */
+    #[Url]
+    public string $search = '';
+
+    #[Url]
+    public string $statusFilter = '';
+
+    public function templatesIndexUrl(): string
+    {
+        return route('deliverable-templates.index', ['search' => $this->search, 'statusFilter' => $this->statusFilter]);
+    }
 
     public string $name = '';
 
@@ -91,7 +108,7 @@ class TemplateForm extends Component
 
         session()->flash('status', 'Plantilla guardada correctamente.');
 
-        $this->redirect(route('deliverable-templates.index'), navigate: false);
+        $this->redirect($this->templatesIndexUrl(), navigate: false);
     }
 
     public function render()

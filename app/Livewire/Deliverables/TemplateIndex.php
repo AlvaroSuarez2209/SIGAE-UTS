@@ -6,14 +6,17 @@ use App\Models\DeliverableTemplate;
 use App\Services\CatalogDependencyChecker;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 #[Title('Plantillas de entregables')]
 class TemplateIndex extends Component
 {
+    #[Url]
     public string $search = '';
 
+    #[Url]
     public string $statusFilter = '';
 
     public string $deactivationError = '';

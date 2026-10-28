@@ -1,7 +1,7 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Plantillas de entregables</h1>
-        <a href="{{ route('deliverable-templates.create') }}" class="btn-primary">
+        <a href="{{ route('deliverable-templates.create', ['search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-primary">
             Nueva plantilla
         </a>
     </div>
@@ -46,7 +46,7 @@
                             <x-active-badge :active="$template->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('deliverable-templates.edit', $template) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('deliverable-templates.edit', [$template, 'search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-text">Editar</a>
                             @if ($template->is_active)
                                 <button
                                     type="button"
