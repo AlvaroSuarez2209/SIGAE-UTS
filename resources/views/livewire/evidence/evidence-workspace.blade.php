@@ -2,7 +2,12 @@
     @php $deliverable = $evidence->deliverable; @endphp
 
     <div class="mb-6 flex items-center justify-between gap-4">
-        <h1 class="page-title">{{ $deliverable->name }}</h1>
+        <div class="flex flex-wrap items-center gap-3">
+            <h1 class="page-title">{{ $deliverable->name }}</h1>
+            @if ($deliverable->activity?->is_mandatory)
+                <span class="badge bg-status-warning-subtle text-status-warning">Obligatoria</span>
+            @endif
+        </div>
         <x-status-badge :status="$evidence->status" />
     </div>
 

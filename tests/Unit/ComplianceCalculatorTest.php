@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Enums\EvidenceStatus;
+use App\Models\Activity;
 use App\Models\Deliverable;
 use App\Models\Evidence;
 use App\Models\User;
@@ -175,6 +176,31 @@ class ComplianceCalculatorTest extends TestCase
 
         $this->assertEquals(100.0, $result['percentage']);
         $this->assertEquals(1, $result['approved']);
+        $this->assertEquals(1, $result['total']);
+    }
+
+    /**
+     * Regresión explícita pedida en la revisión de la directora (punto 4):
+     * Activity::is_mandatory solo fija el valor inicial de un entregable
+     * NUEVO (ver DeliverableForm::defaultIsMandatory()) — el cálculo de
+     * avance sigue leyendo exclusivamente Deliverable::is_mandatory, sin
+     * importar lo que diga la actividad a la que pertenece.
+     */
+    public function test_activity_is_mandatory_flag_is_never_read_by_the_calculator(): void
+    {
+        $user = User::factory()->create();
+        $activity = Activity::factory()->create(['is_mandatory' => false]);
+        $deliverable = Deliverable::factory()->create([
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+            'weight_percentage' => null,
+        ]);
+
+        $this->evidenceFor($user, $deliverable, EvidenceStatus::Approved);
+
+        $result = ComplianceCalculator::forUser($user, new Collection([$deliverable]));
+
+        $this->assertEquals(100.0, $result['percentage']);
         $this->assertEquals(1, $result['total']);
     }
 }

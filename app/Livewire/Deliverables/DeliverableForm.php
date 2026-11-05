@@ -163,7 +163,7 @@ class DeliverableForm extends Component
             $this->description = '';
             $this->instructions = '';
             $this->completion_criteria = '';
-            $this->is_mandatory = true;
+            $this->is_mandatory = $this->defaultIsMandatory();
             $this->periodicity_type = PeriodicityType::Single->value;
             $this->allowed_evidence_types = [];
             $this->allowed_file_types = [];
@@ -205,6 +205,22 @@ class DeliverableForm extends Component
     {
         $this->recipient_ids = [];
         $this->resetErrorBag('recipient_ids');
+        $this->is_mandatory = $this->defaultIsMandatory();
+    }
+
+    /**
+     * Punto 4 de la revisión de la directora: el valor inicial de
+     * is_mandatory se toma de la actividad elegida (se puede editar después
+     * en el paso 4) — nunca al revés, ComplianceCalculator sigue sin leer
+     * Activity::is_mandatory (ver test de regresión en ComplianceCalculatorTest).
+     */
+    private function defaultIsMandatory(): bool
+    {
+        if ($this->scope_type === 'activity' && $this->activity_id) {
+            return Activity::find($this->activity_id)?->is_mandatory ?? true;
+        }
+
+        return true;
     }
 
     public function updatedAcademicPeriodId(): void

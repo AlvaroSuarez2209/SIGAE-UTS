@@ -1210,4 +1210,52 @@ class DeliverableTest extends TestCase
             ->assertSet('max_file_size_mb', 10)
             ->assertSet('weight_percentage', null);
     }
+
+    /**
+     * Punto 4 de la revisión de la directora: el valor inicial de
+     * is_mandatory de un entregable nuevo se toma de la actividad elegida
+     * (nunca al revés) — se puede editar después sin que nada lo revierta.
+     */
+    public function test_choosing_a_mandatory_activity_defaults_the_new_deliverable_to_mandatory(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $activity = Activity::factory()->create(['is_mandatory' => true]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->assertSet('is_mandatory', true);
+    }
+
+    public function test_choosing_a_non_mandatory_activity_defaults_the_new_deliverable_to_not_mandatory(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $activity = Activity::factory()->create(['is_mandatory' => false]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->assertSet('is_mandatory', false);
+    }
+
+    /**
+     * El default heredado de la actividad se puede editar después a mano
+     * sin que la actividad lo revierta (nada vuelve a leerla salvo que el
+     * usuario cambie de actividad otra vez).
+     */
+    public function test_the_inherited_mandatory_default_can_still_be_edited_by_hand(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $activity = Activity::factory()->create(['is_mandatory' => true]);
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->assertSet('is_mandatory', true)
+            ->set('is_mandatory', false)
+            ->assertSet('is_mandatory', false);
+    }
 }

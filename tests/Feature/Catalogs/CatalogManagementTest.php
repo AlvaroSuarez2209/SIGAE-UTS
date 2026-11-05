@@ -131,6 +131,51 @@ class CatalogManagementTest extends TestCase
         ]);
     }
 
+    /**
+     * Puntos 3 y 4 de la revisión de la directora: descripción opcional e
+     * indicador de obligatoriedad (default true, el checkbox nace marcado).
+     */
+    public function test_activity_can_be_created_with_a_description_and_mandatory_flag(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('name', 'Acompañamiento a egresados')
+            ->set('component_id', $component->id)
+            ->set('description', 'Seguimiento semestral a egresados del programa.')
+            ->set('is_mandatory', false)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('activities', [
+            'name' => 'Acompañamiento a egresados',
+            'description' => 'Seguimiento semestral a egresados del programa.',
+            'is_mandatory' => false,
+        ]);
+    }
+
+    public function test_activity_can_be_created_without_a_description(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $component = Component::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->set('name', 'Clases prácticas')
+            ->set('component_id', $component->id)
+            ->set('description', '')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('activities', [
+            'name' => 'Clases prácticas',
+            'description' => null,
+            'is_mandatory' => true,
+        ]);
+    }
+
     public function test_activity_index_lists_newest_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

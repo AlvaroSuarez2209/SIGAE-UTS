@@ -30,6 +30,10 @@ class ActivityIndex extends LivewireComponent
 
     public ?int $subcomponent_id = null;
 
+    public string $description = '';
+
+    public bool $is_mandatory = true;
+
     public bool $is_active = true;
 
     public string $search = '';
@@ -57,8 +61,9 @@ class ActivityIndex extends LivewireComponent
 
     public function openCreate(): void
     {
-        $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'is_active']);
+        $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'description', 'is_mandatory', 'is_active']);
         $this->resetValidation();
+        $this->is_mandatory = true;
         $this->is_active = true;
         $this->showModal = true;
     }
@@ -70,6 +75,8 @@ class ActivityIndex extends LivewireComponent
         $this->name = $activity->name;
         $this->component_id = $activity->component_id;
         $this->subcomponent_id = $activity->subcomponent_id;
+        $this->description = (string) $activity->description;
+        $this->is_mandatory = $activity->is_mandatory;
         $this->is_active = $activity->is_active;
         $this->showModal = true;
     }
@@ -81,7 +88,7 @@ class ActivityIndex extends LivewireComponent
      */
     public function closeModal(): void
     {
-        $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'is_active']);
+        $this->reset(['editing', 'name', 'component_id', 'subcomponent_id', 'description', 'is_mandatory', 'is_active']);
         $this->resetValidation();
         $this->showModal = false;
     }
@@ -98,8 +105,12 @@ class ActivityIndex extends LivewireComponent
             ],
             'component_id' => ['required', 'exists:components,id'],
             'subcomponent_id' => ['nullable', Rule::exists('subcomponents', 'id')->where('component_id', $this->component_id)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'is_mandatory' => ['boolean'],
             'is_active' => ['boolean'],
         ]);
+
+        $data['description'] = $data['description'] ?: null;
 
         if ($this->editing) {
             $this->editing->update($data);

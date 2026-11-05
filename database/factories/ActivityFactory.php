@@ -17,6 +17,8 @@ class ActivityFactory extends Factory
             'component_id' => Component::factory(),
             'subcomponent_id' => null,
             'name' => fake()->unique()->sentence(3),
+            'description' => null,
+            'is_mandatory' => true,
             'is_active' => true,
         ];
     }

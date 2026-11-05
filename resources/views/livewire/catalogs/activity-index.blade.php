@@ -29,6 +29,7 @@
                     <th class="table-header-cell">Nombre</th>
                     <th class="table-header-cell">Componente</th>
                     <th class="table-header-cell">Subcomponente</th>
+                    <th class="table-header-cell">Descripción</th>
                     <th class="table-header-cell">Estado</th>
                     <th class="table-header-cell text-right">Acciones</th>
                 </tr>
@@ -39,6 +40,7 @@
                         <td class="table-cell">{{ $activity->name }}</td>
                         <td class="table-cell text-text-secondary">{{ $activity->component->name }}</td>
                         <td class="table-cell text-text-secondary">{{ $activity->subcomponent?->name ?? '—' }}</td>
+                        <td class="table-cell max-w-xs truncate text-text-secondary" title="{{ $activity->description }}">{{ $activity->description ?: '—' }}</td>
                         <td class="table-cell">
                             <x-active-badge :active="$activity->is_active" />
                         </td>
@@ -65,7 +67,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5">
+                        <td colspan="6">
                             <x-empty-state icon="document" title="No hay actividades registradas" description='Usa el botón "Nueva" para crear la primera.' />
                         </td>
                     </tr>
@@ -120,6 +122,21 @@
                         <label class="field-label">Nombre</label>
                         <input type="text" wire:model="name" class="field-input">
                         @error('name') <p class="field-error">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="field-label">
+                            Descripción <span class="font-normal text-text-secondary">(opcional)</span>
+                        </label>
+                        <textarea wire:model="description" rows="2" class="field-input"></textarea>
+                        @error('description') <p class="field-error">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" wire:model="is_mandatory" id="is_mandatory" class="field-checkbox">
+                        <label for="is_mandatory" class="text-sm text-text-secondary">
+                            Obligatoria <span class="font-normal text-text-secondary">(el docente debe cumplirla; los entregables nuevos de esta actividad nacen obligatorios por defecto)</span>
+                        </label>
                     </div>
 
                     <div class="flex items-center gap-2">

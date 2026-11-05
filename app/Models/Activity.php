@@ -17,6 +17,8 @@ class Activity extends Model
         'component_id',
         'subcomponent_id',
         'name',
+        'description',
+        'is_mandatory',
         'is_active',
     ];
 
@@ -24,6 +26,7 @@ class Activity extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_mandatory' => 'boolean',
         ];
     }
 
