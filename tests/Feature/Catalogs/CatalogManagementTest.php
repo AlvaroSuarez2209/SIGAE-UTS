@@ -176,6 +176,24 @@ class CatalogManagementTest extends TestCase
         ]);
     }
 
+    /**
+     * Corrección puntual (revisión de la directora): el select de
+     * "Componente" del formulario de actividad no filtraba por activos.
+     */
+    public function test_activity_form_component_select_only_offers_active_components(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $active = Component::factory()->create(['is_active' => true]);
+        $inactive = Component::factory()->create(['is_active' => false]);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->assertViewHas('components', function ($components) use ($active, $inactive) {
+                return $components->contains('id', $active->id)
+                    && ! $components->contains('id', $inactive->id);
+            });
+    }
+
     public function test_activity_index_lists_newest_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

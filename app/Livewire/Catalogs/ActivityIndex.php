@@ -178,7 +178,7 @@ class ActivityIndex extends LivewireComponent
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->newestFirst()
                 ->paginate(self::PER_PAGE),
-            'components' => Component::orderBy('name')->get(),
+            'components' => Component::where('is_active', true)->orderBy('name')->get(),
             'availableSubcomponents' => $this->component_id
                 ? Subcomponent::where('component_id', $this->component_id)->orderBy('name')->get()
                 : collect(),
