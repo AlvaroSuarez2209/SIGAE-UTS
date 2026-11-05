@@ -28,6 +28,33 @@ class TeacherReport extends Component
     {
         $this->periodFilter ??= AcademicPeriod::where('status', 'active')->value('id')
             ?? AcademicPeriod::orderByDesc('start_date')->value('id');
+
+        $this->autoselectTeacher();
+    }
+
+    /**
+     * Punto 12 de la revisión de la directora: al cambiar de periodo, el
+     * docente antes seleccionado puede no tener ninguna asignación en el
+     * nuevo — se recalcula siempre (no solo si está vacío), y el usuario
+     * puede volver a cambiarlo a mano después.
+     */
+    public function updatedPeriodFilter(): void
+    {
+        $this->teacherFilter = null;
+        $this->autoselectTeacher();
+    }
+
+    private function autoselectTeacher(): void
+    {
+        if ($this->teacherFilter || ! $this->periodFilter) {
+            return;
+        }
+
+        $this->teacherFilter = User::where('is_active', true)
+            ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
+            ->whereHas('teacherAssignments', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
+            ->orderByAccentInsensitive('name')
+            ->value('id');
     }
 
     public function render()

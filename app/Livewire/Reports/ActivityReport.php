@@ -27,6 +27,30 @@ class ActivityReport extends Component
     {
         $this->periodFilter ??= AcademicPeriod::where('status', 'active')->value('id')
             ?? AcademicPeriod::orderByDesc('start_date')->value('id');
+
+        $this->autoselectActivity();
+    }
+
+    /**
+     * Punto 12 de la revisión de la directora: misma lógica que
+     * TeacherReport::autoselectTeacher() — se recalcula siempre al cambiar
+     * de periodo, nunca solo si está vacío.
+     */
+    public function updatedPeriodFilter(): void
+    {
+        $this->activityFilter = null;
+        $this->autoselectActivity();
+    }
+
+    private function autoselectActivity(): void
+    {
+        if ($this->activityFilter || ! $this->periodFilter) {
+            return;
+        }
+
+        $this->activityFilter = Activity::whereHas('teacherAssignments', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
+            ->orderByAccentInsensitive('name')
+            ->value('id');
     }
 
     public function render()

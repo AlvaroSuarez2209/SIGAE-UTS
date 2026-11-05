@@ -119,5 +119,16 @@ class AppServiceProvider extends ServiceProvider
                 ["%{$value}%"]
             );
         });
+
+        // Mismo translate() de arriba, para ORDER BY en vez de WHERE — punto
+        // 12 de la revisión de la directora (autoselección en informes "el
+        // primero en orden alfabético"). Se reutilizará en el punto 6
+        // (orden A-Z de los selects) cuando se apruebe ese lote.
+        Builder::macro('orderByAccentInsensitive', function (string $column, string $direction = 'asc') {
+            /** @var Builder $this */
+            $direction = $direction === 'desc' ? 'desc' : 'asc';
+
+            return $this->orderByRaw("translate(lower({$column}), 'áéíóúñü', 'aeiounu') {$direction}");
+        });
     }
 }
