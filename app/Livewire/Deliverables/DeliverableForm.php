@@ -148,9 +148,29 @@ class DeliverableForm extends Component
         }
     }
 
+    /**
+     * BUG (revisión de la directora, punto 10): volver a "sin plantilla"
+     * hacía return aquí sin limpiar nada, dejando pegados los 11 campos que
+     * el bloque de abajo copia — reproducible con plantilla → avanzar →
+     * volver → "sin plantilla" → avanzar. Se restablecen a los mismos
+     * valores que tendrían si el componente montara sin plantilla desde el
+     * principio (ver mount(), rama sin $deliverable).
+     */
     public function updatedTemplateId(): void
     {
         if (! $this->template_id) {
+            $this->name = '';
+            $this->description = '';
+            $this->instructions = '';
+            $this->completion_criteria = '';
+            $this->is_mandatory = true;
+            $this->periodicity_type = PeriodicityType::Single->value;
+            $this->allowed_evidence_types = [];
+            $this->allowed_file_types = [];
+            $this->max_files = 1;
+            $this->max_file_size_mb = 10;
+            $this->weight_percentage = null;
+
             return;
         }
 

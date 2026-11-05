@@ -5,6 +5,7 @@ namespace Tests\Feature\Deliverables;
 use App\Enums\AcademicPeriodStatus;
 use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceType;
+use App\Enums\PeriodicityType;
 use App\Enums\RoleName;
 use App\Livewire\Deliverables\DeliverableForm;
 use App\Models\AcademicPeriod;
@@ -1162,5 +1163,51 @@ class DeliverableTest extends TestCase
 
         $this->assertStringNotContainsString("dispatch('confirm-modal'", $html);
         $this->assertStringContainsString('Guardar cambios', $html);
+    }
+
+    /**
+     * BUG corregido (revisión de la directora, punto 10): volver a "sin
+     * plantilla" dejaba pegados los 11 campos que la plantilla había
+     * copiado. Reproduce exactamente el caso descrito: elegir plantilla,
+     * (avanzar/volver no afecta el estado, solo la navegación visual del
+     * wizard), elegir "sin plantilla" — todos los campos deben quedar en
+     * su valor por defecto, el mismo que tendría el componente si nunca
+     * se hubiera tocado el selector de plantilla.
+     */
+    public function test_returning_to_no_template_resets_every_field_the_template_had_copied(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create([
+            'name' => 'Plantilla de informe mensual',
+            'description' => 'Descripción de la plantilla',
+            'instructions' => 'Instrucciones de la plantilla',
+            'completion_criteria' => 'Criterio de la plantilla',
+            'is_mandatory' => false,
+            'periodicity_type' => PeriodicityType::Monthly,
+            'allowed_evidence_types' => [EvidenceType::Text->value],
+            'allowed_file_types' => ['docx'],
+            'max_files' => 5,
+            'max_file_size_mb' => 20,
+            'weight_percentage' => 50,
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->assertSet('name', 'Plantilla de informe mensual')
+            ->assertSet('max_files', 5);
+
+        $component->set('template_id', null)
+            ->assertSet('name', '')
+            ->assertSet('description', '')
+            ->assertSet('instructions', '')
+            ->assertSet('completion_criteria', '')
+            ->assertSet('is_mandatory', true)
+            ->assertSet('periodicity_type', PeriodicityType::Single->value)
+            ->assertSet('allowed_evidence_types', [])
+            ->assertSet('allowed_file_types', [])
+            ->assertSet('max_files', 1)
+            ->assertSet('max_file_size_mb', 10)
+            ->assertSet('weight_percentage', null);
     }
 }
