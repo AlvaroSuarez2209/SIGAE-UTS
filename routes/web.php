@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminImportTemplateController;
 use App\Http\Controllers\Admin\TeacherImportTemplateController;
 use App\Http\Controllers\Audit\AuditLogExportController;
 use App\Http\Controllers\Auth\LogoutController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Deliverable\DeliverableReferenceFileDownloadController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
 use App\Livewire\Admin\InstitutionSettingsForm;
+use App\Livewire\Admin\Users\AdminImportWizard;
 use App\Livewire\Admin\Users\TeacherImportWizard;
 use App\Livewire\Admin\Users\UserForm;
 use App\Livewire\Admin\Users\UserIndex;
@@ -113,6 +115,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/users/create', UserForm::class)->name('users.create');
         Route::get('/users/import', TeacherImportWizard::class)->name('users.import');
         Route::get('/users/import/template', TeacherImportTemplateController::class)->name('users.import.template');
+        // Revisión de la directora, punto 7: importación propia del
+        // Administrador (solo roles Administrador/Coordinación) — separada
+        // de la de arriba (Docente/Líder), que pasa a ser de Coordinación.
+        Route::get('/users/import-admins', AdminImportWizard::class)->name('users.import-admins');
+        Route::get('/users/import-admins/template', AdminImportTemplateController::class)->name('users.import-admins.template');
         Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
         Route::get('/settings/institution', InstitutionSettingsForm::class)->name('settings.institution');
     });

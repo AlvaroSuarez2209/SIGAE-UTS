@@ -58,6 +58,11 @@
                 @endforeach
             </div>
             @error('selectedRoles') <p class="field-error">{{ $message }}</p> @enderror
+            @if ($this->lockedRoleLabels()->isNotEmpty())
+                <p class="field-help">
+                    Este usuario también tiene el rol {{ $this->lockedRoleLabels()->join(' y ') }}, que no se puede modificar desde aquí.
+                </p>
+            @endif
         </div>
 
         <div>

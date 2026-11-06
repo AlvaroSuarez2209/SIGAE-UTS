@@ -52,6 +52,7 @@ class AuditLogPresenter
         'deliverable_reference_file_attached' => 'Archivo de referencia adjuntado',
         'deliverable_reference_file_removed' => 'Archivo de referencia quitado',
         'teachers_bulk_imported' => 'Importación masiva de docentes',
+        'admins_bulk_imported' => 'Importación masiva de administradores/coordinadores',
     ];
 
     /**
@@ -267,8 +268,8 @@ class AuditLogPresenter
             return self::describeReferenceFileAction($log);
         }
 
-        if ($log->action === 'teachers_bulk_imported') {
-            return self::describeTeachersBulkImport($log);
+        if (in_array($log->action, ['teachers_bulk_imported', 'admins_bulk_imported'], true)) {
+            return self::describeBulkImport($log);
         }
 
         $metadata = $log->metadata ?? [];
@@ -371,7 +372,7 @@ class AuditLogPresenter
      * resultado del asistente (teacher-import-wizard.blade.php), para
      * no introducir una segunda forma de nombrar lo mismo.
      */
-    private static function describeTeachersBulkImport(AuditLog $log): string
+    private static function describeBulkImport(AuditLog $log): string
     {
         $metadata = $log->metadata ?? [];
         $fileName = $metadata['file_name'] ?? null;
@@ -413,8 +414,8 @@ class AuditLogPresenter
             return $fileName ? [['label' => 'Archivo', 'after' => $fileName, 'before' => null]] : [];
         }
 
-        if ($log->action === 'teachers_bulk_imported') {
-            return self::teachersBulkImportEntries($log);
+        if (in_array($log->action, ['teachers_bulk_imported', 'admins_bulk_imported'], true)) {
+            return self::bulkImportEntries($log);
         }
 
         $metadata = $log->metadata ?? [];
@@ -459,7 +460,7 @@ class AuditLogPresenter
      * con desglose propio (evidence_marked_exempt, las de archivo de
      * referencia).
      */
-    private static function teachersBulkImportEntries(AuditLog $log): array
+    private static function bulkImportEntries(AuditLog $log): array
     {
         $metadata = $log->metadata ?? [];
         $entries = [];

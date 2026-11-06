@@ -70,10 +70,13 @@ class PasswordPolicyConsistencyTest extends TestCase
     #[DataProvider('borderlinePasswords')]
     public function test_user_form_matches_the_shared_policy(string $password): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        // Coordinación, no Administrador: desde la revisión de la
+        // directora (puntos 7 y 8), crear un Docente es exclusivo de
+        // Coordinación (ver UserPolicy::managedRoleNames()).
+        $coordination = $this->userWithRole(RoleName::Coordination);
         $programUnit = ProgramUnit::factory()->create();
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(UserForm::class)
             ->set('name', 'Nuevo Docente')
             ->set('email', 'nuevo.docente@sigae.local')

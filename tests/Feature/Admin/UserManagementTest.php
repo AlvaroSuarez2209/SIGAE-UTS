@@ -67,12 +67,22 @@ class UserManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_administrator_can_create_a_user_with_roles(): void
+    /**
+     * Revisión de la directora, puntos 7 y 8: crear un Docente/Líder ya no
+     * es un rol que Administración gestione — pasa a ser exclusivo de
+     * Coordinación (ver UserPolicy::managedRoleNames()).
+     */
+    public function test_coordination_can_create_a_user_with_roles(): void
     {
+        // La ruta HTTP /admin/users sigue siendo exclusiva de Administrador
+        // en este punto (punto 8 es quien la abre a Coordinación) — $admin
+        // solo se usa más abajo para la petición real que confirma el
+        // flash, nunca para crear al docente (eso ya es de Coordinación).
         $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         $programUnit = ProgramUnit::factory()->create();
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(UserForm::class)
             ->set('name', 'Nuevo Docente')
             ->set('email', 'nuevo.docente@sigae.local')
@@ -98,15 +108,20 @@ class UserManagementTest extends TestCase
     /**
      * Revisión del diagnóstico de document_type/program_unit_id: antes
      * solo los llenaba la importación masiva — ahora UserForm también
-     * puede crearlos y editarlos, persistiendo ambos.
+     * puede crearlos y editarlos, persistiendo ambos. La creación la hace
+     * Coordinación (dueña del rol Docente desde la revisión de la
+     * directora, puntos 7 y 8); la edición posterior la hace Administración
+     * para confirmar que sigue pudiendo editar tipo_documento/programa en
+     * cuentas de roles que ya no gestiona (ver UserPolicy::canManage()).
      */
     public function test_document_type_and_program_unit_are_saved_on_create_and_on_edit(): void
     {
+        $coordination = $this->userWithRole(RoleName::Coordination);
         $admin = $this->userWithRole(RoleName::Administrator);
         $programUnit = ProgramUnit::factory()->create();
         $otherProgramUnit = ProgramUnit::factory()->create();
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(UserForm::class)
             ->set('name', 'Nuevo Docente')
             ->set('email', 'nuevo.docente.datos@sigae.local')

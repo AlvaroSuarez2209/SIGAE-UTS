@@ -5,6 +5,11 @@
             <a href="{{ route('admin.users.import', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
                 Importar docentes
             </a>
+            @can('importAdministratorAccounts', \App\Models\User::class)
+                <a href="{{ route('admin.users.import-admins', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
+                    Importar administradores/coordinadores
+                </a>
+            @endcan
             <a href="{{ route('admin.users.create', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-primary">
                 Nuevo usuario
             </a>

@@ -9,9 +9,11 @@ use App\Models\AcademicPeriod;
 use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Policies\UserPolicy;
 use App\Services\PasswordPolicy;
 use App\Services\PendingWorkChecker;
 use App\Services\TeacherImport\TeacherImportService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -78,6 +80,45 @@ class UserForm extends Component
     }
 
     /**
+     * Revisión de la directora, puntos 7 y 8: roles que ESTE actor puede
+     * marcar/desmarcar — nunca los del "lado" contrario (ver
+     * UserPolicy::managedRoleNames()). Un rol que el usuario editado ya
+     * tiene pero que no está aquí nunca se muestra como casilla (ver
+     * lockedRoleNames()): no se puede agregar, pero tampoco se puede
+     * quitar desde este formulario.
+     */
+    private function assignableRoleNames(): array
+    {
+        return app(UserPolicy::class)->managedRoleNames(auth()->user());
+    }
+
+    /**
+     * Roles que el usuario editado ya tiene pero que el actor actual no
+     * gestiona — se preservan tal cual al guardar (nunca se agregan ni se
+     * quitan desde este formulario), para que "el Administrador sigue
+     * pudiendo ver [a Docentes/Líderes/Auditores] sin romperlos" aunque ya
+     * no pueda crearlos ni tocar sus roles.
+     */
+    private function lockedRoleNames(): array
+    {
+        if (! $this->user) {
+            return [];
+        }
+
+        return array_values(array_diff($this->user->roles->pluck('name')->all(), $this->assignableRoleNames()));
+    }
+
+    public function assignableRoles(): Collection
+    {
+        return Role::whereIn('name', $this->assignableRoleNames())->orderBy('label')->get();
+    }
+
+    public function lockedRoleLabels(): Collection
+    {
+        return Role::whereIn('name', $this->lockedRoleNames())->orderBy('label')->pluck('label');
+    }
+
+    /**
      * Mismo criterio que la importación masiva (Docente y/o Líder son los
      * únicos roles para los que "tipo de documento"/"programa de
      * adscripción" tienen sentido real) — Administrador/Coordinación/
@@ -117,13 +158,36 @@ class UserForm extends Component
 
         $requiresProgramInfo = $this->requiresProgramInfo();
 
+        // Revisión de la directora, puntos 7 y 8: selectedRoles solo puede
+        // contener roles que este actor gestiona (los que de verdad puede
+        // marcar/desmarcar) o roles que el usuario ya tenía fuera de ese
+        // alcance (preservados tal cual, ver lockedRoleNames()) — nunca un
+        // rol que el actor no gestiona Y que el usuario no tenía antes.
+        // Esto es lo único que de verdad impide crear/escalar un rol fuera
+        // de alcance: los checkboxes de la vista son solo presentación.
         $data = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'document_number' => ['nullable', 'string', 'max:50', Rule::unique('users', 'document_number')->ignore($this->user)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user)],
             'password' => [$this->user ? 'nullable' : 'required', PasswordPolicy::rules()],
             'is_active' => ['boolean'],
-            'selectedRoles' => ['required', 'array', 'min:1'],
+            // Closure sobre el arreglo completo, no 'selectedRoles.*', para
+            // que el error quede en la clave 'selectedRoles' que ya
+            // escucha @error('selectedRoles') en la vista — un rol inválido
+            // con '.*' se habría guardado bajo 'selectedRoles.0' y el
+            // mensaje nunca se habría mostrado.
+            'selectedRoles' => [
+                'required',
+                'array',
+                'min:1',
+                function (string $attribute, array $value, \Closure $fail): void {
+                    $allowed = array_merge($this->assignableRoleNames(), $this->lockedRoleNames());
+
+                    if (array_diff($value, $allowed) !== []) {
+                        $fail('Uno o más roles seleccionados no están permitidos para tu rol de acceso.');
+                    }
+                },
+            ],
             'selectedRoles.*' => ['exists:roles,name'],
             'document_type' => [$requiresProgramInfo ? 'required' : 'nullable', Rule::in(TeacherImportService::DOCUMENT_TYPES)],
             'program_unit_id' => [$requiresProgramInfo ? 'required' : 'nullable', 'exists:program_units,id'],
@@ -205,7 +269,7 @@ class UserForm extends Component
     public function render()
     {
         return view('livewire.admin.users.user-form', [
-            'roles' => Role::orderBy('label')->get(),
+            'roles' => $this->assignableRoles(),
             'programUnits' => ProgramUnit::where('is_active', true)
                 ->orWhere('id', $this->program_unit_id)
                 ->orderBy('name')
