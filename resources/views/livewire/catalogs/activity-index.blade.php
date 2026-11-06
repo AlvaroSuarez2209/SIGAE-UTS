@@ -40,7 +40,9 @@
                         <td class="table-cell">{{ $activity->name }}</td>
                         <td class="table-cell text-text-secondary">{{ $activity->component->name }}</td>
                         <td class="table-cell text-text-secondary">{{ $activity->subcomponent?->name ?? '—' }}</td>
-                        <td class="table-cell max-w-xs truncate text-text-secondary" title="{{ $activity->description }}">{{ $activity->description ?: '—' }}</td>
+                        <td class="table-cell max-w-xs text-text-secondary" @if ($activity->description) title="{{ $activity->description }}" @endif>
+                            <span class="line-clamp-2">{{ $activity->description ?: '—' }}</span>
+                        </td>
                         <td class="table-cell">
                             <x-active-badge :active="$activity->is_active" />
                         </td>

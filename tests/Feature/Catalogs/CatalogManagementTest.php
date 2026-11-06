@@ -177,6 +177,38 @@ class CatalogManagementTest extends TestCase
     }
 
     /**
+     * La columna "Descripción" del listado recorta a 2 líneas
+     * (line-clamp-2) pero conserva el texto completo en el atributo
+     * title, para verlo al pasar el cursor.
+     */
+    public function test_activity_list_shows_the_full_description_in_the_title_attribute(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->create([
+            'description' => 'Seguimiento semestral a egresados del programa, con encuestas y entrevistas de seguimiento.',
+        ]);
+
+        $html = Livewire::actingAs($admin)->test(ActivityIndex::class)->html();
+
+        $this->assertStringContainsString(
+            'title="Seguimiento semestral a egresados del programa, con encuestas y entrevistas de seguimiento."',
+            $html
+        );
+        $this->assertStringContainsString('line-clamp-2', $html);
+    }
+
+    public function test_activity_list_shows_a_dash_and_no_title_when_there_is_no_description(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->create(['name' => 'Sin descripción', 'description' => null]);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->assertOk()
+            ->assertSee('—');
+    }
+
+    /**
      * Corrección puntual (revisión de la directora): el select de
      * "Componente" del formulario de actividad no filtraba por activos.
      */
