@@ -96,10 +96,32 @@ class UserIndex extends Component
         return false;
     }
 
+    /**
+     * Revisión de la directora, punto 8: Coordinación obtiene su propia
+     * pantalla de Usuarios — nunca ve ni puede filtrar por una cuenta con
+     * rol Administrador o Coordinación (ver UserPolicy::canManage()), ni
+     * siquiera en modo de solo lectura. Administración, en cambio, sigue
+     * viendo a todos (sin este scoping) para no romper su visibilidad
+     * sobre cuentas de Docente/Líder/Auditor ya existentes (punto 7).
+     */
+    private function isCoordinationOnly(): bool
+    {
+        $actor = auth()->user();
+
+        return $actor->hasRole(RoleName::Coordination) && ! $actor->hasRole(RoleName::Administrator);
+    }
+
     public function render()
     {
+        $coordinationOnly = $this->isCoordinationOnly();
+        $managedRoleNames = [RoleName::Teacher->value, RoleName::Leader->value, RoleName::Auditor->value];
+
         $users = User::query()
             ->with('roles')
+            ->when($coordinationOnly, fn ($query) => $query->where(fn ($q) => $q
+                ->doesntHave('roles')
+                ->orWhereHas('roles', fn ($rq) => $rq->whereIn('name', $managedRoleNames))
+            ))
             ->when($this->search, fn ($query) => $query
                 ->where(fn ($q) => $q
                     ->whereAccentInsensitive('name', $this->search)
@@ -114,7 +136,9 @@ class UserIndex extends Component
 
         return view('livewire.admin.users.user-index', [
             'users' => $users,
-            'roles' => Role::orderBy('label')->get(),
+            'roles' => $coordinationOnly
+                ? Role::whereIn('name', $managedRoleNames)->orderBy('label')->get()
+                : Role::orderBy('label')->get(),
         ]);
     }
 }

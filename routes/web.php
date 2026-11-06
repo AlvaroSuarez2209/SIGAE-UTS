@@ -110,18 +110,30 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/', MyLeadership::class)->name('index');
     });
 
-    Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
+    // Revisión de la directora, puntos 7 y 8: Usuarios (listar/crear/editar)
+    // ahora es de Administrador Y Coordinación — cada uno limitado a los
+    // roles que gestiona (ver UserPolicy::managedRoleNames()). La
+    // importación masiva, en cambio, SÍ es exclusiva de cada uno por
+    // separado (ver los dos grupos de abajo): nunca comparten plantilla.
+    Route::middleware('role:administrator,coordination')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');
         Route::get('/users/create', UserForm::class)->name('users.create');
-        Route::get('/users/import', TeacherImportWizard::class)->name('users.import');
-        Route::get('/users/import/template', TeacherImportTemplateController::class)->name('users.import.template');
-        // Revisión de la directora, punto 7: importación propia del
-        // Administrador (solo roles Administrador/Coordinación) — separada
-        // de la de arriba (Docente/Líder), que pasa a ser de Coordinación.
+        Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
+    });
+
+    Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {
+        // Importación propia del Administrador (solo roles Administrador/
+        // Coordinación).
         Route::get('/users/import-admins', AdminImportWizard::class)->name('users.import-admins');
         Route::get('/users/import-admins/template', AdminImportTemplateController::class)->name('users.import-admins.template');
-        Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
         Route::get('/settings/institution', InstitutionSettingsForm::class)->name('settings.institution');
+    });
+
+    Route::middleware('role:coordination')->prefix('admin')->name('admin.')->group(function () {
+        // Asistente de alta masiva de Docente/Líder/Auditor — pasó de ser
+        // de Administrador a ser exclusivo de Coordinación.
+        Route::get('/users/import', TeacherImportWizard::class)->name('users.import');
+        Route::get('/users/import/template', TeacherImportTemplateController::class)->name('users.import.template');
     });
 
     // Prioridad 7, parte 2: a diferencia del resto de /admin (solo

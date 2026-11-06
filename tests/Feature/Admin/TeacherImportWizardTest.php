@@ -52,30 +52,41 @@ class TeacherImportWizardTest extends TestCase
         $this->actingAs($teacher)->get('/admin/users/import')->assertForbidden();
     }
 
-    public function test_coordination_cannot_access_the_import_wizard(): void
+    /**
+     * Revisión de la directora, punto 8: el asistente pasa de ser de
+     * Administración a ser exclusivo de Coordinación.
+     */
+    public function test_coordination_can_access_the_import_wizard(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $this->actingAs($coordination)->get('/admin/users/import')->assertForbidden();
+        $this->actingAs($coordination)->get('/admin/users/import')->assertOk();
+    }
+
+    public function test_administrator_cannot_access_the_import_wizard(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/admin/users/import')->assertForbidden();
     }
 
     public function test_uploading_a_file_with_missing_columns_shows_an_error_without_writing_anything(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         $file = UploadedFile::fake()->createWithContent('malo.csv', "nombre,correo\nJuan,juan@uts.edu.co");
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
             ->assertSet('step', 'upload');
 
-        $this->assertDatabaseCount('users', 1); // solo el admin de la prueba
+        $this->assertDatabaseCount('users', 1); // solo la coordinadora de la prueba
     }
 
     public function test_preview_shows_mixed_valid_and_invalid_rows_without_writing_to_the_database(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
@@ -83,7 +94,7 @@ class TeacherImportWizardTest extends TestCase
             ['CC', '2', 'Docente Programa Malo', 'invalido@uts.edu.co', 'Programa Que No Existe', 'Docente', 'Activo'],
         ]);
 
-        $component = Livewire::actingAs($admin)
+        $component = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview');
@@ -106,14 +117,14 @@ class TeacherImportWizardTest extends TestCase
      */
     public function test_confirming_the_import_requires_confirmation(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
             ['CC', '1', 'Docente Válido', 'valido@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
         ]);
 
-        $html = Livewire::actingAs($admin)
+        $html = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -129,7 +140,7 @@ class TeacherImportWizardTest extends TestCase
     {
         Notification::fake();
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
@@ -138,7 +149,7 @@ class TeacherImportWizardTest extends TestCase
             ['CC', '', '', 'tampoco-es-un-correo', '', '', ''],
         ]);
 
-        $component = Livewire::actingAs($admin)
+        $component = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -162,7 +173,7 @@ class TeacherImportWizardTest extends TestCase
     {
         Notification::fake();
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         $programUnit = ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
         $existing = User::factory()->create([
             'document_number' => '1',
@@ -175,7 +186,7 @@ class TeacherImportWizardTest extends TestCase
             ['CC', '1', 'Nombre Actualizado', 'docente@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
         ]);
 
-        $component = Livewire::actingAs($admin)
+        $component = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -184,7 +195,7 @@ class TeacherImportWizardTest extends TestCase
         $component->assertSet('summary.created', 0);
         $component->assertSet('summary.updated', 1);
 
-        $this->assertDatabaseCount('users', 2); // admin + el mismo docente, no 3
+        $this->assertDatabaseCount('users', 2); // coordinación + el mismo docente, no 3
         $existing->refresh();
         $this->assertSame('Nombre Actualizado', $existing->name);
         $this->assertSame($programUnit->id, $existing->program_unit_id);
@@ -204,7 +215,7 @@ class TeacherImportWizardTest extends TestCase
     {
         Notification::fake();
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = fn () => $this->csv([
@@ -212,7 +223,7 @@ class TeacherImportWizardTest extends TestCase
         ]);
 
         // Primera subida: crea al docente.
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file())
             ->call('preview')
@@ -222,7 +233,7 @@ class TeacherImportWizardTest extends TestCase
             ->assertSet('summary.skipped', 0);
 
         // Segunda subida del mismo archivo, sin ningún cambio real.
-        $second = Livewire::actingAs($admin)
+        $second = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file())
             ->call('preview');
@@ -236,7 +247,7 @@ class TeacherImportWizardTest extends TestCase
             ->assertSet('summary.skipped', 1)
             ->assertSet('summary.rejected', 0);
 
-        // admin + el docente, nunca un segundo usuario ni una fila rechazada.
+        // coordinación + el docente, nunca un segundo usuario ni una fila rechazada.
         $this->assertDatabaseCount('users', 2);
     }
 
@@ -244,7 +255,7 @@ class TeacherImportWizardTest extends TestCase
     {
         Notification::fake();
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
@@ -252,7 +263,7 @@ class TeacherImportWizardTest extends TestCase
             ['CC', '2', 'Docente Programa Malo', 'invalido@uts.edu.co', 'Programa Que No Existe', 'Docente', 'Activo'],
         ]);
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -261,7 +272,7 @@ class TeacherImportWizardTest extends TestCase
         $log = AuditLog::where('action', 'teachers_bulk_imported')->latest('id')->first();
 
         $this->assertNotNull($log);
-        $this->assertSame($admin->id, $log->user_id);
+        $this->assertSame($coordination->id, $log->user_id);
         $this->assertSame(1, $log->metadata['created']);
         $this->assertSame(1, $log->metadata['rejected']);
         $this->assertSame('docentes.csv', $log->metadata['file_name']);
@@ -278,9 +289,9 @@ class TeacherImportWizardTest extends TestCase
      */
     public function test_the_preview_button_disables_itself_and_shows_a_loading_state_while_processing(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->assertSee('wire:loading.attr="disabled"', false)
             ->assertSee('wire:target="preview"', false)
@@ -289,13 +300,13 @@ class TeacherImportWizardTest extends TestCase
 
     public function test_the_confirm_button_disables_itself_and_shows_a_loading_state_while_importing(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
         $file = $this->csv([
             ['CC', '1', 'Docente Válido', 'valido@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
         ]);
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -308,13 +319,13 @@ class TeacherImportWizardTest extends TestCase
     {
         Notification::fake();
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
 
         $file = $this->csv([
             ['CC', '1', 'Docente Programa Malo', 'invalido@uts.edu.co', 'Programa Que No Existe', 'Docente', 'Activo'],
         ]);
 
-        $component = Livewire::actingAs($admin)
+        $component = Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')
@@ -345,14 +356,14 @@ class TeacherImportWizardTest extends TestCase
     {
         Config::set('queue.default', 'database');
 
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
             ['CC', '1', 'Docente Nuevo', 'docente.nuevo@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
         ]);
 
-        Livewire::actingAs($admin)
+        Livewire::actingAs($coordination)
             ->test(TeacherImportWizard::class)
             ->set('file', $file)
             ->call('preview')

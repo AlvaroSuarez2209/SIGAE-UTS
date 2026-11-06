@@ -67,16 +67,19 @@
                     ['route' => 'reports.consolidated', 'label' => 'Consolidado por periodo', 'icon' => 'chart-bar'],
                 ]),
             ] : null,
-            ($isAdmin || $canSeeAudit) ? [
+            ($isAdmin || $canSeeAudit || $isCoordination) ? [
                 'title' => 'Administración',
                 // "Auditoría" también es del rol Auditor (manual de
                 // usuario, sección "Auditor"; ruta ya protegida con
                 // 'role:administrator,auditor') — antes dependía solo de
                 // $isAdmin, igual que el resto del grupo, así que un
-                // Auditor sin otro rol nunca lo veía. Usuarios e Identidad
-                // institucional siguen siendo exclusivos de Administrador.
+                // Auditor sin otro rol nunca lo veía. Revisión de la
+                // directora, punto 8: Usuarios pasa a ser también de
+                // Coordinación ($isCoordination ya cubre Administrador o
+                // Coordinación); Identidad institucional sigue exclusiva
+                // de Administrador.
                 'links' => collect([
-                    $isAdmin ? ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'] : null,
+                    $isCoordination ? ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'] : null,
                     $canSeeAudit ? ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'shield-check'] : null,
                     $isAdmin ? ['route' => 'admin.settings.institution', 'label' => 'Identidad institucional', 'icon' => 'pencil'] : null,
                 ])->filter(),

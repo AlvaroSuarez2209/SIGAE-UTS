@@ -20,7 +20,7 @@ class TeacherImportInstructionsSheet implements Export, FromArray, WithTitle
             ['nombre_completo: nombre y apellidos completos del docente.'],
             ['correo_institucional: correo con el que el docente iniciará sesión.'],
             ['codigo_programa: debe coincidir con el nombre exacto de un programa académico ya registrado en Catálogos > Programas académicos.'],
-            ['roles: Docente, Líder, o ambos separados por coma (ej. "Docente, Líder"). No se permite ningún otro rol desde esta plantilla.'],
+            ['roles: Docente, Líder y/o Auditor, separados por coma si es más de uno (ej. "Docente, Líder"). No se permite ningún otro rol desde esta plantilla.'],
             ['estado: Activo o Inactivo.'],
             [''],
             ['Los docentes creados reciben un correo para establecer su propia contraseña — no se incluye ninguna contraseña en este archivo.'],

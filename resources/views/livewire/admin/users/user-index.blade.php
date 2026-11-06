@@ -2,9 +2,11 @@
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Usuarios</h1>
         <div class="flex items-center gap-3">
-            <a href="{{ route('admin.users.import', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
-                Importar docentes
-            </a>
+            @can('importTeacherAccounts', \App\Models\User::class)
+                <a href="{{ route('admin.users.import', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
+                    Importar docentes
+                </a>
+            @endcan
             @can('importAdministratorAccounts', \App\Models\User::class)
                 <a href="{{ route('admin.users.import-admins', ['search' => $search, 'roleFilter' => $roleFilter]) }}" class="btn-secondary">
                     Importar administradores/coordinadores

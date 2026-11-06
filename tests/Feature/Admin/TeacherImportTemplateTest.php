@@ -33,14 +33,25 @@ class TeacherImportTemplateTest extends TestCase
         return $user;
     }
 
-    public function test_administrator_can_download_the_import_template(): void
+    /**
+     * Revisión de la directora, punto 8: el asistente (y su plantilla)
+     * pasa de ser de Administración a ser exclusivo de Coordinación.
+     */
+    public function test_coordination_can_download_the_import_template(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $response = $this->actingAs($admin)->get('/admin/users/import/template');
+        $response = $this->actingAs($coordination)->get('/admin/users/import/template');
 
         $response->assertOk();
         $this->assertStringContainsString('spreadsheetml', $response->headers->get('content-type'));
+    }
+
+    public function test_administrator_cannot_download_the_import_template(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/admin/users/import/template')->assertForbidden();
     }
 
     public function test_teacher_cannot_download_the_import_template(): void
@@ -58,9 +69,9 @@ class TeacherImportTemplateTest extends TestCase
      */
     public function test_the_template_file_has_the_expected_formatting(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $response = $this->actingAs($admin)->get('/admin/users/import/template');
+        $response = $this->actingAs($coordination)->get('/admin/users/import/template');
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'plantilla').'.xlsx';
         file_put_contents($tmpPath, $response->streamedContent());
@@ -101,9 +112,9 @@ class TeacherImportTemplateTest extends TestCase
      */
     public function test_the_example_row_uses_the_generic_placeholder_not_a_real_program_name(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $response = $this->actingAs($admin)->get('/admin/users/import/template');
+        $response = $this->actingAs($coordination)->get('/admin/users/import/template');
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'plantilla').'.xlsx';
         file_put_contents($tmpPath, $response->streamedContent());

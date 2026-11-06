@@ -53,6 +53,16 @@ class UserPolicy
     }
 
     /**
+     * Revisión de la directora, punto 8: el asistente de importación
+     * masiva de Docente/Líder/Auditor pasa de Administración a
+     * Coordinación por completo — simétrico a importAdministratorAccounts().
+     */
+    public function importTeacherAccounts(User $user): bool
+    {
+        return $user->hasRole(RoleName::Coordination);
+    }
+
+    /**
      * Roles que el actor puede asignar/quitar al crear o editar un
      * usuario — nunca los de su propio "lado". Administración gestiona
      * Administrador/Coordinación; Coordinación gestiona Docente/Líder/

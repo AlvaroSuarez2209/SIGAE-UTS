@@ -15,9 +15,10 @@ use Tests\TestCase;
  * /admin/audit-logs, 'role:administrator,auditor', ya lo permitía), pero
  * en el sidebar ese enlace vivía dentro del grupo "Administración",
  * gateado solo por $isAdmin — un Auditor sin otro rol nunca lo veía. Se
- * corrigió con $canSeeAudit (administrator o auditor), sin mover ni tocar
- * la condición de Usuarios/Identidad institucional (siguen exclusivos de
- * Administrador) ni ninguna policy/ruta.
+ * corrigió con $canSeeAudit (administrator o auditor), sin tocar la
+ * condición de Identidad institucional (sigue exclusiva de Administrador).
+ * Usuarios, en cambio, sí se amplió después (revisión de la directora,
+ * punto 8) a también Coordinación.
  */
 class AuditMenuVisibilityTest extends TestCase
 {

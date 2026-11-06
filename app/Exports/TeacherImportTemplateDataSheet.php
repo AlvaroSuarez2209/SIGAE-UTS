@@ -25,11 +25,11 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * de subir el archivo.
  *
  * Límite real de Excel documentado aquí, no escondido: la lista desplegable
- * de "roles" solo ofrece "Docente" o "Líder" por separado — el formato de
- * lista de validación de datos de Excel usa la coma como separador entre
- * opciones, así que no puede ofrecer "Docente, Líder" como una tercera
- * opción de la misma lista sin ambigüedad. Quien necesite ambos roles debe
- * escribirlo a mano ("Docente, Líder") — sigue siendo válido para
+ * de "roles" solo ofrece Docente, Líder o Auditor por separado — el formato
+ * de lista de validación de datos de Excel usa la coma como separador entre
+ * opciones, así que no puede ofrecer "Docente, Líder" como una opción más
+ * de la misma lista sin ambigüedad. Quien necesite más de un rol debe
+ * escribirlo a mano (ej. "Docente, Líder") — sigue siendo válido para
  * TeacherImportService, que no depende de cómo se llenó la celda.
  *
  * Reporte de la directora, punto 3 de la revisión de perfil Administrador:
@@ -84,7 +84,7 @@ class TeacherImportTemplateDataSheet implements Export, FromArray, ShouldAutoSiz
 
                 $lastRow = TeacherImportService::MAX_ROWS + 1;
 
-                $rolesValidation = $this->listValidation('Docente,Líder');
+                $rolesValidation = $this->listValidation('Docente,Líder,Auditor');
                 $estadoValidation = $this->listValidation('Activo,Inactivo');
 
                 for ($row = 2; $row <= $lastRow; $row++) {

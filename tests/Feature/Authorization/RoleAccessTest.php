@@ -138,11 +138,17 @@ class RoleAccessTest extends TestCase
 
     // --- 4. Coordinación contra una acción exclusiva de Administrador ---
 
-    public function test_coordination_cannot_access_user_management_via_direct_url(): void
+    /**
+     * Revisión de la directora, punto 8: Coordinación obtiene su propia
+     * pantalla de Usuarios (ver tests\Feature\Admin\CoordinationUserManagementTest
+     * para el alcance exacto: solo Docente/Líder/Auditor, nunca
+     * Administrador/Coordinación).
+     */
+    public function test_coordination_can_access_user_management_via_direct_url(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
 
-        $this->actingAs($coordination)->get('/admin/users')->assertForbidden();
+        $this->actingAs($coordination)->get('/admin/users')->assertOk();
     }
 
     public function test_coordination_cannot_access_audit_log_via_direct_url(): void

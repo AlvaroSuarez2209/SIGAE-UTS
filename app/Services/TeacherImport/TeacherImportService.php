@@ -15,16 +15,19 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /**
- * Importación masiva de docentes (Administración > Usuarios > Importar
- * docentes). validateRows() solo lee y valida — no escribe nada en la base
- * de datos, es la vista previa. commit() procesa las filas ya validadas,
- * cada una en su propia transacción, para que un fallo a mitad de camino no
- * deje nada a medias ni bloquee el resto del lote.
+ * Importación masiva de Docente/Líder/Auditor (Coordinación > Usuarios >
+ * Importar docentes — revisión de la directora, punto 8: antes exclusiva de
+ * Administración, con solo Docente/Líder). validateRows() solo lee y
+ * valida — no escribe nada en la base de datos, es la vista previa.
+ * commit() procesa las filas ya validadas, cada una en su propia
+ * transacción, para que un fallo a mitad de camino no deje nada a medias ni
+ * bloquee el resto del lote.
  *
  * Decisiones de diseño (ver diagnóstico, prioridad 2 de la directora):
- * - `roles` del archivo solo acepta Docente y/o Líder — nunca Administrador,
- *   Coordinación ni Auditor. Un archivo nunca debe poder crear
- *   administradores, aunque esos roles sí existan en la tabla `roles`.
+ * - `roles` del archivo solo acepta Docente, Líder y/o Auditor — nunca
+ *   Administrador ni Coordinación (ver App\Services\AdminImport\AdminImportService,
+ *   su contraparte exclusiva de esos dos). Un archivo nunca debe poder
+ *   crear administradores, aunque ese rol sí exista en la tabla `roles`.
  * - `codigo_programa` valida contra `program_units.name` (ningún catálogo
  *   del sistema tiene un campo "código" propio), comparado normalizado
  *   (minúsculas + sin tildes) — mismo criterio que
@@ -47,8 +50,15 @@ class TeacherImportService
 
     public const ACTIVE_VALUES = ['activo', 'inactivo'];
 
-    /** @var array<int, RoleName> */
-    public const ALLOWED_ROLES = [RoleName::Teacher, RoleName::Leader];
+    /**
+     * Revisión de la directora, punto 8: se agrega Auditor — este
+     * asistente, antes exclusivo de Administración, pasa a ser propio de
+     * Coordinación (ver UserPolicy::importTeacherAccounts()), que gestiona
+     * los 3 roles.
+     *
+     * @var array<int, RoleName>
+     */
+    public const ALLOWED_ROLES = [RoleName::Teacher, RoleName::Leader, RoleName::Auditor];
 
     public const REQUIRED_HEADERS = [
         'tipo_documento',
@@ -139,7 +149,7 @@ class TeacherImportService
                 $roleName = $this->matchAllowedRole($piece, $roleLabels);
 
                 if ($roleName === null) {
-                    $errors[] = "El rol \"{$piece}\" no es válido para esta importación (solo se permite Docente y/o Líder).";
+                    $errors[] = "El rol \"{$piece}\" no es válido para esta importación (solo se permite Docente, Líder y/o Auditor).";
                 } elseif (! in_array($roleName, $resolvedRoleNames, true)) {
                     $resolvedRoleNames[] = $roleName;
                 }

@@ -12,7 +12,7 @@ class TeacherImportTemplateController extends Controller
 {
     public function __invoke()
     {
-        Gate::authorize('create', User::class);
+        Gate::authorize('importTeacherAccounts', User::class);
 
         return Excel::download(new TeacherImportTemplateExport, 'plantilla-importacion-docentes.xlsx');
     }

@@ -55,7 +55,7 @@ class TeacherImportWizard extends Component
 
     public function mount(): void
     {
-        Gate::authorize('create', User::class);
+        Gate::authorize('importTeacherAccounts', User::class);
     }
 
     public function updatedFile(): void
@@ -65,7 +65,7 @@ class TeacherImportWizard extends Component
 
     public function preview(): void
     {
-        Gate::authorize('create', User::class);
+        Gate::authorize('importTeacherAccounts', User::class);
 
         $this->fileError = null;
 
@@ -111,7 +111,7 @@ class TeacherImportWizard extends Component
 
     public function confirm(): void
     {
-        Gate::authorize('create', User::class);
+        Gate::authorize('importTeacherAccounts', User::class);
 
         $summary = app(TeacherImportService::class)->commit($this->rows);
 
