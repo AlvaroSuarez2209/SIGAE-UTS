@@ -175,6 +175,36 @@ class ReviewShowTest extends TestCase
         $this->actingAs($leader)->get('/reviews/'.$evidence->id)->assertForbidden();
     }
 
+    /**
+     * Punto 9 de la revisión de la directora: el comentario del docente es
+     * visible para el líder en la versión actual y en el historial.
+     */
+    public function test_leader_within_scope_sees_the_teacher_comment_on_the_current_and_past_versions(): void
+    {
+        [$evidence, $leader, $teacher] = $this->submittedEvidenceWithLeader(leaderInScope: true);
+        $evidence->currentVersion->update(['submission_comment' => 'Comentario de la versión 1.']);
+
+        $evidence->returnCurrentReviewForAdjustment($leader, 'Ajusta el documento.');
+        $v2 = $evidence->startOrGetDraftVersion($teacher);
+        $v2->update(['submission_comment' => 'Comentario de la versión 2.']);
+        $evidence->submitCurrentVersion();
+
+        $html = Livewire::actingAs($leader)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->html();
+
+        $this->assertStringContainsString('Comentario de la versión 2.', $html);
+        $this->assertStringContainsString('Comentario de la versión 1.', $html);
+    }
+
+    public function test_leader_outside_scope_cannot_see_the_teacher_comment(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader(leaderInScope: false);
+        $evidence->currentVersion->update(['submission_comment' => 'Comentario del docente.']);
+
+        $this->actingAs($leader)->get('/reviews/'.$evidence->id)->assertForbidden();
+    }
+
     public function test_returning_requires_an_observation(): void
     {
         [$evidence, $leader] = $this->submittedEvidenceWithLeader();

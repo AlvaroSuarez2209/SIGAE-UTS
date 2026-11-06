@@ -15,6 +15,7 @@ class EvidenceVersion extends Model
         'evidence_id',
         'version_number',
         'description',
+        'submission_comment',
         'submitted_at',
         'created_by',
     ];

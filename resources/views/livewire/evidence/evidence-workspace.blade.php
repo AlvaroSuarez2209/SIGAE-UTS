@@ -175,6 +175,14 @@
         @endif
 
         @if ($evidence->status->isEditable())
+            <div>
+                <label class="field-label">
+                    Comentario <span class="font-normal text-text-secondary">(opcional, máx. 2000 caracteres)</span>
+                </label>
+                <textarea wire:model="submissionComment" rows="3" maxlength="2000" class="field-input"></textarea>
+                @error('submissionComment') <p class="field-error">{{ $message }}</p> @enderror
+            </div>
+
             <div class="flex items-center gap-3 pt-2">
                 <button
                     type="button"
@@ -334,6 +342,10 @@
                                 (actual)
                             @endif
                         </p>
+
+                        @if ($version->submission_comment)
+                            <p class="mt-1 pl-4 text-sm text-text-secondary">Comentario: {{ $version->submission_comment }}</p>
+                        @endif
 
                         @if ($version->files->isEmpty())
                             <p class="mt-1 pl-4 text-sm text-text-secondary">Sin archivos adjuntos.</p>

@@ -133,6 +133,35 @@ class AuditLogPresenterTest extends TestCase
     }
 
     /**
+     * Punto 9 de la revisión de la directora: `evidence_submitted` guarda
+     * solo `has_comment` (booleano) — nunca el texto del comentario.
+     */
+    public function test_evidence_submitted_shows_whether_a_comment_was_included_without_its_text(): void
+    {
+        $withComment = AuditLog::create([
+            'action' => 'evidence_submitted',
+            'auditable_type' => Evidence::class,
+            'metadata' => ['has_comment' => true],
+            'created_at' => now(),
+        ]);
+
+        $withoutComment = AuditLog::create([
+            'action' => 'evidence_submitted',
+            'auditable_type' => Evidence::class,
+            'metadata' => ['has_comment' => false],
+            'created_at' => now(),
+        ]);
+
+        $this->assertEquals('Incluyó comentario', AuditLogPresenter::describeChanges($withComment));
+        $this->assertEquals(
+            [['label' => 'Comentario incluido', 'after' => 'Sí', 'before' => null]],
+            AuditLogPresenter::changeEntries($withComment)
+        );
+
+        $this->assertEquals('Sin comentario', AuditLogPresenter::describeChanges($withoutComment));
+    }
+
+    /**
      * Reporte de la directora, punto 2 de la revisión de perfil
      * Administrador: `teachers_bulk_imported` ya guardaba el lote
      * (file_name) y los 4 conteos, pero describeChanges() solo recorre

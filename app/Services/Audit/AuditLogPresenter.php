@@ -45,6 +45,7 @@ class AuditLogPresenter
         'login_blocked_inactive' => 'Bloqueado (inactivo)',
         'password_reset_requested' => 'Solicitud de contraseña',
         'password_reset_completed' => 'Contraseña restablecida',
+        'evidence_submitted' => 'Evidencia enviada',
         'evidence_marked_exempt' => 'Marcada como exenta',
         'evidence_marked_overdue' => 'Vencimiento automático',
         'evidence_exemption_removed' => 'Exención removida',
@@ -254,6 +255,10 @@ class AuditLogPresenter
             return self::describeCreation($log);
         }
 
+        if ($log->action === 'evidence_submitted') {
+            return self::describeSubmission($log);
+        }
+
         if ($log->action === 'evidence_marked_exempt') {
             return self::describeExemption($log);
         }
@@ -314,6 +319,18 @@ class AuditLogPresenter
         $name = $log->metadata['name'] ?? null;
 
         return $name ? "{$label} '{$name}' {$participle}" : "{$label} {$participle}";
+    }
+
+    /**
+     * `evidence_submitted` guarda solo `has_comment` (booleano) — nunca el
+     * texto del comentario, a propósito (punto 9 de la revisión de la
+     * directora).
+     */
+    private static function describeSubmission(AuditLog $log): string
+    {
+        $hasComment = filter_var($log->metadata['has_comment'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        return $hasComment ? 'Incluyó comentario' : 'Sin comentario';
     }
 
     /**
@@ -378,6 +395,12 @@ class AuditLogPresenter
      */
     public static function changeEntries(AuditLog $log): array
     {
+        if ($log->action === 'evidence_submitted') {
+            $hasComment = filter_var($log->metadata['has_comment'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            return [['label' => 'Comentario incluido', 'after' => $hasComment ? 'Sí' : 'No', 'before' => null]];
+        }
+
         if ($log->action === 'evidence_marked_exempt') {
             $justification = $log->metadata['justification'] ?? null;
 

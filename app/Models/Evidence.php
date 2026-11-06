@@ -121,8 +121,16 @@ class Evidence extends Model
 
     public function submitCurrentVersion(): void
     {
-        $this->currentVersion->update(['submitted_at' => now()]);
+        $version = $this->currentVersion;
+        $version->update(['submitted_at' => now()]);
         $this->update(['status' => EvidenceStatus::Submitted]);
+
+        // Punto 9 de la revisión de la directora: la bitácora registra que
+        // se incluyó un comentario (sí/no), nunca su texto — EvidenceVersion
+        // sigue sin usar el trait Auditable a propósito.
+        AuditLog::record('evidence_submitted', $this, [
+            'has_comment' => filled($version->submission_comment),
+        ]);
 
         $this->user->notify(new EvidenceSubmissionConfirmedNotification($this));
         Notification::send($this->reviewerRecipients(), new EvidencePendingReviewNotification($this));

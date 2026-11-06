@@ -73,6 +73,12 @@
             <p class="whitespace-pre-line text-base text-text-primary">{{ $version->description }}</p>
         @endif
 
+        @if ($version->submission_comment)
+            <p class="text-base text-text-secondary">
+                <span class="font-medium text-text-primary">Comentario del docente:</span> {{ $version->submission_comment }}
+            </p>
+        @endif
+
         @if ($version->files->isNotEmpty())
             <ul class="space-y-2">
                 @foreach ($version->files as $file)
@@ -107,6 +113,10 @@
                                 (actual)
                             @endif
                         </p>
+
+                        @if ($historyVersion->submission_comment)
+                            <p class="mt-1 pl-4 text-sm text-text-secondary">Comentario: {{ $historyVersion->submission_comment }}</p>
+                        @endif
 
                         @if ($historyVersion->files->isEmpty())
                             <p class="mt-1 pl-4 text-sm text-text-secondary">Sin archivos adjuntos.</p>

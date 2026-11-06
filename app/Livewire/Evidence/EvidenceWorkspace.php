@@ -39,6 +39,8 @@ class EvidenceWorkspace extends Component
 
     public string $description = '';
 
+    public string $submissionComment = '';
+
     public array $newFiles = [];
 
     public string $newLinkUrl = '';
@@ -60,6 +62,7 @@ class EvidenceWorkspace extends Component
             : null;
 
         $this->description = $draft?->description ?? '';
+        $this->submissionComment = $draft?->submission_comment ?? '';
     }
 
     /**
@@ -168,6 +171,12 @@ class EvidenceWorkspace extends Component
             $rules['description'] = ['nullable', 'string', 'max:10000'];
         }
 
+        // Punto 9 de la revisión de la directora: comentario opcional del
+        // docente al enviar, independiente del tipo de evidencia permitido
+        // (a diferencia de 'description', que solo aplica si el entregable
+        // admite evidencia tipo Texto) — siempre validado y guardado.
+        $rules['submissionComment'] = ['nullable', 'string', 'max:2000'];
+
         if (! empty($this->newFiles)) {
             // draftVersionOrNull(), no currentVersion directamente: tras
             // una reapertura, currentVersion sigue siendo la versión YA
@@ -195,6 +204,8 @@ class EvidenceWorkspace extends Component
         if (array_key_exists('description', $rules)) {
             $version->update(['description' => $this->description ?: null]);
         }
+
+        $version->update(['submission_comment' => $this->submissionComment ?: null]);
 
         foreach ($this->newFiles as $file) {
             $storedPath = $file->store('evidence/'.$version->id, 'local');

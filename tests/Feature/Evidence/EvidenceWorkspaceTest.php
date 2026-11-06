@@ -148,6 +148,76 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertNull($evidence->currentVersion->fresh()->description);
     }
 
+    /**
+     * Punto 9 de la revisión de la directora: comentario opcional del
+     * docente al enviar — se guarda en la versión, pero la auditoría solo
+     * registra que se incluyó uno (nunca su texto).
+     */
+    public function test_submitting_with_a_comment_saves_it_and_audits_only_whether_one_was_included(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+        $comment = 'Aquí está mi evidencia completa, cualquier duda me escriben.';
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->set('submissionComment', $comment)
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals($comment, $evidence->currentVersion->submission_comment);
+
+        $log = AuditLog::where('action', 'evidence_submitted')->where('auditable_id', $evidence->id)->first();
+        $this->assertNotNull($log);
+        $this->assertTrue($log->metadata['has_comment']);
+        $this->assertStringNotContainsString($comment, json_encode($log->metadata));
+    }
+
+    public function test_submitting_without_a_comment_behaves_like_before(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('propuesta.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('submit')
+            ->assertHasNoErrors();
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->status);
+        $this->assertNull($evidence->currentVersion->submission_comment);
+
+        $log = AuditLog::where('action', 'evidence_submitted')->where('auditable_id', $evidence->id)->first();
+        $this->assertNotNull($log);
+        $this->assertFalse($log->metadata['has_comment']);
+    }
+
+    public function test_a_comment_over_2000_characters_is_rejected(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('submissionComment', str_repeat('a', 2001))
+            ->call('saveDraft')
+            ->assertHasErrors('submissionComment');
+    }
+
+    public function test_unrelated_teacher_cannot_view_the_comment_of_someone_elses_evidence(): void
+    {
+        $evidence = $this->evidenceFor();
+        $version = $evidence->startOrGetDraftVersion($evidence->user);
+        $version->update(['submission_comment' => 'Comentario privado del docente.']);
+        $otherTeacher = $this->userWithRole(RoleName::Teacher);
+
+        $this->actingAs($otherTeacher)
+            ->get('/my-deliverables/'.$evidence->id)
+            ->assertForbidden();
+    }
+
     public function test_returning_to_needs_adjustment_and_resaving_creates_a_new_version(): void
     {
         $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Text->value]]);
