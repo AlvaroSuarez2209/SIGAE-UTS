@@ -53,6 +53,7 @@ class Deliverable extends Model
         'max_files',
         'max_file_size_mb',
         'weight_percentage',
+        'recipient_mode',
     ];
 
     protected function casts(): array

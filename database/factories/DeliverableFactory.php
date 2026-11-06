@@ -37,6 +37,7 @@ class DeliverableFactory extends Factory
             'max_files' => 1,
             'max_file_size_mb' => 10,
             'weight_percentage' => null,
+            'recipient_mode' => 'specific',
         ];
     }
 

@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Observers\TeacherAssignmentObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy(TeacherAssignmentObserver::class)]
 class TeacherAssignment extends Model
 {
     use Auditable, HasFactory;

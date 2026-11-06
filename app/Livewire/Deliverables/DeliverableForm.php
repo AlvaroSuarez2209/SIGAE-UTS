@@ -137,7 +137,12 @@ class DeliverableForm extends Component
             $this->max_file_size_mb = $this->deliverable->max_file_size_mb;
             $this->weight_percentage = $this->deliverable->weight_percentage;
             $this->recipient_ids = $this->deliverable->recipients()->pluck('users.id')->all();
-            $this->recipient_mode = 'subset';
+            // Punto 11 de la revisión de la directora: antes esto siempre
+            // forzaba 'subset' al editar, sin importar el ámbito real —
+            // guardar sin tocar el radio habría degradado en silencio un
+            // entregable 'all' a 'specific' en normalizeData(). Ahora
+            // refleja el recipient_mode persistido.
+            $this->recipient_mode = $this->deliverable->recipient_mode === 'all' ? 'all' : 'subset';
             $this->periodLocked = in_array($this->deliverable->academicPeriod->status->value, ['closed', 'archived']);
             // Edición: los datos ya existen y son válidos (o el formulario
             // está bloqueado por completo si el periodo cerró), así que no
@@ -484,6 +489,14 @@ class DeliverableForm extends Component
         $data['closes_at'] = $data['closes_at'] ?: null;
         $data['allowed_file_types'] = $data['allowed_file_types'] ?: null;
         $data['deliverable_template_id'] = $this->template_id;
+        // Punto 11 de la revisión de la directora: persiste el ámbito real
+        // ('all' = todos los docentes que cumplan el ámbito en cada
+        // momento) para que TeacherAssignmentObserver sepa a qué
+        // entregables sumar un docente nuevo sin que nadie reabra el
+        // formulario. El property local sigue usando 'subset' (nombre del
+        // radio button del paso 5); se traduce aquí al vocabulario
+        // persistido ('all'/'specific').
+        $data['recipient_mode'] = $this->recipient_mode === 'all' ? 'all' : 'specific';
         unset($data['scope_type']);
 
         return $data;
