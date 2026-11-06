@@ -174,6 +174,13 @@
             </div>
         @endif
 
+        @if ($evidence->currentVersion && $evidence->currentVersion->submitted_at && $evidence->currentVersion->submission_comment)
+            <div>
+                <span class="field-label">Comentario enviado al revisor</span>
+                <p class="whitespace-pre-line text-base text-text-primary">{{ $evidence->currentVersion->submission_comment }}</p>
+            </div>
+        @endif
+
         @if ($evidence->status->isEditable())
             <div>
                 <label class="field-label">

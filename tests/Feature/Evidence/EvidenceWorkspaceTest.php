@@ -206,6 +206,64 @@ class EvidenceWorkspaceTest extends TestCase
             ->assertHasErrors('submissionComment');
     }
 
+    /**
+     * Seguimiento al punto 9: el docente también debe ver su propio
+     * comentario en un bloque de solo lectura dentro de su workspace —
+     * antes solo quedaba visible para el líder en review-show.blade.php.
+     */
+    public function test_teacher_sees_their_own_comment_in_a_read_only_block_after_submitting(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Text->value]]);
+        $comment = "Primera línea.\nSegunda línea.";
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Mi evidencia')
+            ->set('submissionComment', $comment)
+            ->call('submit')
+            ->assertSee('Comentario enviado al revisor')
+            ->assertSee('Primera línea.')
+            ->assertSee('Segunda línea.');
+    }
+
+    public function test_the_read_only_comment_block_does_not_appear_without_a_comment(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Text->value]]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Mi evidencia')
+            ->call('submit')
+            ->assertDontSee('Comentario enviado al revisor');
+    }
+
+    /**
+     * Tras una devolución, currentVersion sigue siendo la versión YA
+     * enviada (con su comentario original) hasta la primera edición real
+     * — el bloque de solo lectura debe seguir mostrando ese comentario,
+     * pero el textarea para el nuevo envío debe arrancar vacío, no
+     * arrastrar el texto de la versión anterior.
+     */
+    public function test_reopening_after_a_return_starts_the_comment_textarea_empty(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Text->value]]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Primera versión')
+            ->set('submissionComment', 'Comentario de la primera entrega.')
+            ->call('submit');
+
+        $evidence->refresh();
+        $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSet('submissionComment', '')
+            ->assertSee('Comentario enviado al revisor')
+            ->assertSee('Comentario de la primera entrega.');
+    }
+
     public function test_unrelated_teacher_cannot_view_the_comment_of_someone_elses_evidence(): void
     {
         $evidence = $this->evidenceFor();
