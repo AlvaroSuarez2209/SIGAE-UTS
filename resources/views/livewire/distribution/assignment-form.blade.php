@@ -13,7 +13,7 @@
     <form wire:submit="save" class="card space-y-4 p-6">
         <div>
             <label class="field-label">Docente</label>
-            <select wire:model="user_id" class="field-input" @if ($periodLocked) disabled @endif>
+            <select wire:model.live="user_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona un docente</option>
                 @foreach ($teachers as $teacher)
                     <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
@@ -64,6 +64,12 @@
             <p class="field-help">
                 Las horas son solo información de dedicación: no determinan la cantidad de entregables.
             </p>
+            @if ($this->selectedTeacherHasNoEmploymentType())
+                <p class="field-help flex items-center gap-1.5 text-status-warning">
+                    <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                    Docente sin tipo de vinculación: no se validó el tope de horas.
+                </p>
+            @endif
             @error('assigned_hours') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 

@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Distribution;
 
+use App\Enums\EmploymentType;
 use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
+use App\Models\EmploymentTypeHourLimit;
 use App\Models\ProgramUnit;
 use App\Models\TeacherAssignment;
 use App\Models\User;
@@ -47,6 +49,22 @@ class AssignmentForm extends Component
     public string $notes = '';
 
     public bool $periodLocked = false;
+
+    /**
+     * Revisión de la directora: advertencia en vivo (nunca bloqueante,
+     * ver save()) — "Docente sin tipo de vinculación" no es un error de
+     * este formulario, es un dato que falta en Usuarios.
+     */
+    public function selectedTeacherHasNoEmploymentType(): bool
+    {
+        if (! $this->user_id) {
+            return false;
+        }
+
+        $teacher = User::find($this->user_id);
+
+        return $teacher !== null && $teacher->employment_type === null;
+    }
 
     public function mount(?TeacherAssignment $teacherAssignment = null): void
     {
@@ -101,6 +119,37 @@ class AssignmentForm extends Component
             return;
         }
 
+        // Revisión de la directora: tope semanal de horas por tipo de
+        // vinculación — suma TODAS las asignaciones del docente en el
+        // periodo (no solo las de esta actividad), excluyendo la que se
+        // está editando. Sin vinculación definida, nunca se bloquea (ver
+        // selectedTeacherHasNoEmploymentType(), que muestra la advertencia
+        // en la vista en vez de un error).
+        $teacher = User::find($data['user_id']);
+
+        if ($teacher->employment_type !== null) {
+            $limit = EmploymentTypeHourLimit::where('employment_type', $teacher->employment_type)->value('weekly_hour_limit');
+
+            if ($limit !== null) {
+                $existingHours = (float) TeacherAssignment::query()
+                    ->where('user_id', $data['user_id'])
+                    ->where('academic_period_id', $data['academic_period_id'])
+                    ->when($this->assignment, fn ($query) => $query->whereKeyNot($this->assignment->id))
+                    ->sum('assigned_hours');
+
+                $totalHours = $existingHours + (float) $data['assigned_hours'];
+
+                if ($totalHours > $limit) {
+                    $available = max(0, $limit - $existingHours);
+                    $employmentTypeLabel = EmploymentType::from($teacher->employment_type)->label();
+
+                    $this->addError('assigned_hours', 'Este docente ya tiene '.$this->formatHours($existingHours)." hora(s) asignada(s) en este periodo; su tope semanal como {$employmentTypeLabel} es de {$limit} hora(s) (disponibles: ".$this->formatHours($available).').');
+
+                    return;
+                }
+            }
+        }
+
         if ($this->assignment) {
             $this->assignment->update($data);
         } else {
@@ -110,6 +159,15 @@ class AssignmentForm extends Component
         session()->flash('status', 'Asignación guardada correctamente.');
 
         $this->redirect($this->distributionIndexUrl(), navigate: false);
+    }
+
+    /**
+     * Mismo criterio que mount() para $assigned_hours: nunca "40.0", solo
+     * "40" (o "37.5" si de verdad tiene decimales).
+     */
+    private function formatHours(float $hours): string
+    {
+        return rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.');
     }
 
     public function render()
