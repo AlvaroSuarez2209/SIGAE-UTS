@@ -255,20 +255,30 @@ class UserManagementTest extends TestCase
      * marcar/desmarcar Docente o Líder — reordenar los campos no debe
      * tocar el `wire:model.live` de los checkboxes de rol.
      */
+    /**
+     * Cuenta ocurrencias de "(opcional)" en vez de solo su presencia:
+     * desde que se agregó el campo de tipo de vinculación (siempre
+     * opcional, incluso para Docente/Líder — ver UserForm::showsEmploymentType()),
+     * el texto nunca desaparece del todo al marcar Docente, solo baja de
+     * 2 (tipo de documento + programa) a 1 (solo vinculación).
+     */
     public function test_the_optional_hint_reacts_live_to_toggling_teacher_or_leader(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
 
         $component = Livewire::actingAs($admin)
             ->test(UserForm::class)
-            ->set('selectedRoles', [RoleName::Coordination->value])
-            ->assertSee('(opcional)');
+            ->set('selectedRoles', [RoleName::Coordination->value]);
 
-        $component->set('selectedRoles', [RoleName::Coordination->value, RoleName::Teacher->value])
-            ->assertDontSee('(opcional)');
+        $this->assertSame(2, substr_count($component->html(), '(opcional)'));
 
-        $component->set('selectedRoles', [RoleName::Coordination->value])
-            ->assertSee('(opcional)');
+        $component->set('selectedRoles', [RoleName::Coordination->value, RoleName::Teacher->value]);
+
+        $this->assertSame(1, substr_count($component->html(), '(opcional)'));
+
+        $component->set('selectedRoles', [RoleName::Coordination->value]);
+
+        $this->assertSame(2, substr_count($component->html(), '(opcional)'));
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Enums\EmploymentType;
 use App\Services\Reports\ReportTheme;
 use App\Services\TeacherImport\TeacherImportService;
 use Maatwebsite\Excel\Concerns\Export;
@@ -50,13 +51,16 @@ class TeacherImportTemplateDataSheet implements Export, FromArray, ShouldAutoSiz
 
     public function headings(): array
     {
-        return TeacherImportService::REQUIRED_HEADERS;
+        return [...TeacherImportService::REQUIRED_HEADERS, TeacherImportService::EMPLOYMENT_TYPE_HEADER];
     }
 
     public function array(): array
     {
         return [
-            ['CC', '1234567890', 'Ana María Pérez Gómez', 'ana.perez@uts.edu.co', self::EXAMPLE_PROGRAM_PLACEHOLDER, 'Docente', 'Activo'],
+            // tipo_vinculacion queda vacío a propósito en el ejemplo: es
+            // una columna opcional, y una fila sin ella sigue siendo
+            // válida (ver TeacherImportService::EMPLOYMENT_TYPE_HEADER).
+            ['CC', '1234567890', 'Ana María Pérez Gómez', 'ana.perez@uts.edu.co', self::EXAMPLE_PROGRAM_PLACEHOLDER, 'Docente', 'Activo', ''],
         ];
     }
 
@@ -86,10 +90,16 @@ class TeacherImportTemplateDataSheet implements Export, FromArray, ShouldAutoSiz
 
                 $rolesValidation = $this->listValidation('Docente,Líder,Auditor');
                 $estadoValidation = $this->listValidation('Activo,Inactivo');
+                $employmentTypeOptions = implode(',', array_map(
+                    fn (EmploymentType $c) => $c->label(),
+                    EmploymentType::cases()
+                ));
+                $employmentTypeValidation = $this->listValidation($employmentTypeOptions);
 
                 for ($row = 2; $row <= $lastRow; $row++) {
                     $sheet->getCell("F{$row}")->setDataValidation(clone $rolesValidation);
                     $sheet->getCell("G{$row}")->setDataValidation(clone $estadoValidation);
+                    $sheet->getCell("H{$row}")->setDataValidation(clone $employmentTypeValidation);
                 }
             },
         ];

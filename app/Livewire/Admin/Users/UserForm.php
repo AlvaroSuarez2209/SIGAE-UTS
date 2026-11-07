@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Users;
 
 use App\Enums\AcademicPeriodStatus;
 use App\Enums\DocumentType;
+use App\Enums\EmploymentType;
 use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\ProgramUnit;
@@ -58,6 +59,8 @@ class UserForm extends Component
 
     public ?int $program_unit_id = null;
 
+    public string $employment_type = '';
+
     public function mount(?User $user = null): void
     {
         // Livewire/the container can hand mount() a freshly instantiated,
@@ -76,6 +79,7 @@ class UserForm extends Component
             $this->selectedRoles = $this->user->roles->pluck('name')->all();
             $this->document_type = (string) $this->user->document_type;
             $this->program_unit_id = $this->user->program_unit_id;
+            $this->employment_type = (string) $this->user->employment_type;
         }
     }
 
@@ -127,6 +131,17 @@ class UserForm extends Component
     public function requiresProgramInfo(): bool
     {
         return array_intersect($this->selectedRoles, [RoleName::Teacher->value, RoleName::Leader->value]) !== [];
+    }
+
+    /**
+     * Tipo de vinculación: misma condición que requiresProgramInfo()
+     * (solo Docente/Líder), pero NUNCA obligatorio — a diferencia de
+     * document_type/program_unit_id, un valor vacío es un estado válido
+     * y persistente ("Sin definir"), no algo que forzar a llenar.
+     */
+    public function showsEmploymentType(): bool
+    {
+        return $this->requiresProgramInfo();
     }
 
     /**
@@ -191,6 +206,10 @@ class UserForm extends Component
             'selectedRoles.*' => ['exists:roles,name'],
             'document_type' => [$requiresProgramInfo ? 'required' : 'nullable', Rule::in(TeacherImportService::DOCUMENT_TYPES)],
             'program_unit_id' => [$requiresProgramInfo ? 'required' : 'nullable', 'exists:program_units,id'],
+            // Siempre 'nullable', nunca 'required' aunque sea Docente/Líder:
+            // "Sin definir" es un estado válido y persistente (ver
+            // showsEmploymentType()), no algo que bloquear hasta llenar.
+            'employment_type' => ['nullable', Rule::in(array_column(EmploymentType::cases(), 'value'))],
         ]);
 
         if ($this->user && $data['is_active'] && $this->blocksRoleRemoval($data['selectedRoles'])) {
@@ -204,6 +223,7 @@ class UserForm extends Component
             'is_active' => $data['is_active'],
             'document_type' => $data['document_type'] ?: null,
             'program_unit_id' => $data['program_unit_id'] ?: null,
+            'employment_type' => $data['employment_type'] ?: null,
         ];
 
         if (! empty($data['password'])) {
@@ -276,6 +296,8 @@ class UserForm extends Component
                 ->get(),
             'documentTypeOptions' => collect(TeacherImportService::DOCUMENT_TYPES)
                 ->mapWithKeys(fn (string $code) => [$code => DocumentType::from($code)->label()]),
+            'employmentTypeOptions' => collect(EmploymentType::cases())
+                ->mapWithKeys(fn (EmploymentType $case) => [$case->value => $case->label()]),
         ])->title($this->user ? 'Editar usuario' : 'Nuevo usuario');
     }
 }

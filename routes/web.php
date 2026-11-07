@@ -9,6 +9,7 @@ use App\Http\Controllers\Cron\ProcessQueueController;
 use App\Http\Controllers\Deliverable\DeliverableReferenceFileDownloadController;
 use App\Http\Controllers\Evidence\EvidenceFileDownloadController;
 use App\Http\Controllers\Reports\ReportExportController;
+use App\Livewire\Admin\EmploymentTypeHourLimitIndex;
 use App\Livewire\Admin\InstitutionSettingsForm;
 use App\Livewire\Admin\Users\AdminImportWizard;
 use App\Livewire\Admin\Users\TeacherImportWizard;
@@ -119,6 +120,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/users', UserIndex::class)->name('users.index');
         Route::get('/users/create', UserForm::class)->name('users.create');
         Route::get('/users/{user}/edit', UserForm::class)->name('users.edit');
+        Route::get('/employment-type-hour-limits', EmploymentTypeHourLimitIndex::class)->name('employment-type-hour-limits.index');
     });
 
     Route::middleware('role:administrator')->prefix('admin')->name('admin.')->group(function () {

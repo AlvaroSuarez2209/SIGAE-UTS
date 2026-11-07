@@ -5,6 +5,7 @@ namespace App\Services\Audit;
 use App\Enums\AcademicPeriodStatus;
 use App\Enums\DeliverableStatus;
 use App\Enums\DocumentType;
+use App\Enums\EmploymentType;
 use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
@@ -67,6 +68,7 @@ class AuditLogPresenter
         'CrossCuttingCommitment' => 'Compromiso transversal',
         'Deliverable' => 'Entregable',
         'DeliverableTemplate' => 'Plantilla de entregable',
+        'EmploymentTypeHourLimit' => 'Tope de horas por vinculación',
         'Evidence' => 'Evidencia',
         'InstitutionSettings' => 'Identidad institucional',
         'Leadership' => 'Liderazgo',
@@ -91,6 +93,9 @@ class AuditLogPresenter
         'email' => 'Correo electrónico',
         'document_number' => 'Documento de identidad',
         'document_type' => 'Tipo de documento',
+        'employment_type' => 'Tipo de vinculación',
+        'weekly_hour_limit' => 'Tope semanal de horas',
+        'duration_months' => 'Duración (meses)',
         'logo_path' => 'Logo',
         'description' => 'Descripción',
         'instructions' => 'Instrucciones',
@@ -154,6 +159,7 @@ class AuditLogPresenter
         'periodicity_type' => PeriodicityType::class,
         'allowed_evidence_types' => EvidenceType::class,
         'document_type' => DocumentType::class,
+        'employment_type' => EmploymentType::class,
     ];
 
     private const MODEL_FIELD_ENUMS = [

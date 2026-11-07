@@ -375,6 +375,30 @@ class AuditLogTest extends TestCase
     }
 
     /**
+     * Mismo criterio que document_type (ver arriba) para employment_type —
+     * revisión de la directora: "Auditoría del cambio de vinculación
+     * (valor anterior y nuevo)", cubierta automáticamente por el
+     * mecanismo genérico del trait Auditable (User ya lo usa), sin ningún
+     * evento de auditoría a medida.
+     */
+    public function test_an_employment_type_change_is_audited_with_readable_labels(): void
+    {
+        $user = User::factory()->create(['employment_type' => 'planta']);
+
+        $user->update(['employment_type' => 'medio_tiempo_1m']);
+
+        $log = AuditLog::where('action', 'updated')->where('auditable_type', User::class)->where('auditable_id', $user->id)->latest('id')->first();
+
+        $this->assertNotNull($log);
+        $this->assertEquals('planta', $log->metadata['previous']['employment_type']);
+        $this->assertEquals('medio_tiempo_1m', $log->metadata['changes']['employment_type']);
+        $this->assertEquals(
+            'Tipo de vinculación cambió de Planta a Medio tiempo 1M',
+            AuditLogPresenter::describeChanges($log)
+        );
+    }
+
+    /**
      * Prioridad 7, parte 2, punto 2: el modal de detalle debe mostrar toda
      * la información del registro (actor, fecha/hora, acción específica,
      * objeto, IP, descripción completa) y el desglose campo por campo de

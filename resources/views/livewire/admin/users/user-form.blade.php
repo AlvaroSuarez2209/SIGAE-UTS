@@ -84,6 +84,28 @@
             @endif
         </div>
 
+        @if ($this->showsEmploymentType())
+            <div>
+                <label class="field-label">
+                    Tipo de vinculación <span class="font-normal text-text-secondary">(opcional)</span>
+                </label>
+                <select wire:model="employment_type" class="field-input">
+                    <option value="">Sin definir</option>
+                    @foreach ($employmentTypeOptions as $code => $label)
+                        <option value="{{ $code }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="field-help">1M = 1 mes, 4M = 4 meses.</p>
+                @error('employment_type') <p class="field-error">{{ $message }}</p> @enderror
+                @if ($employment_type === '')
+                    <p class="field-help flex items-center gap-1.5 text-status-warning">
+                        <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                        Sin definir — no se validará ningún tope de horas para este docente hasta que se defina.
+                    </p>
+                @endif
+            </div>
+        @endif
+
         <div class="flex items-center gap-2">
             <input type="checkbox" wire:model="is_active" id="is_active" class="field-checkbox">
             <label for="is_active" class="text-sm text-text-secondary">Cuenta activa</label>

@@ -40,6 +40,7 @@
                     <th class="table-header-cell">Nombre</th>
                     <th class="table-header-cell">Correo</th>
                     <th class="table-header-cell">Roles</th>
+                    <th class="table-header-cell">Vinculación</th>
                     <th class="table-header-cell">Estado</th>
                     <th class="table-header-cell text-right">Acciones</th>
                 </tr>
@@ -51,6 +52,18 @@
                         <td class="table-cell text-text-secondary">{{ $user->email }}</td>
                         <td class="table-cell text-text-secondary">
                             {{ $user->roles->pluck('label')->join(', ') ?: '—' }}
+                        </td>
+                        <td class="table-cell">
+                            @php $needsEmploymentType = $user->hasRole(\App\Enums\RoleName::Teacher) || $user->hasRole(\App\Enums\RoleName::Leader); @endphp
+                            @if ($user->employment_type)
+                                <span class="text-text-secondary">{{ \App\Enums\EmploymentType::from($user->employment_type)->label() }}</span>
+                            @elseif ($needsEmploymentType)
+                                <span class="inline-flex items-center gap-1 text-status-warning">
+                                    <x-icon name="alert-circle" class="h-4 w-4 shrink-0" /> Sin definir
+                                </span>
+                            @else
+                                <span class="text-text-secondary">—</span>
+                            @endif
                         </td>
                         <td class="table-cell">
                             <x-active-badge :active="$user->is_active" />
@@ -83,7 +96,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5">
+                        <td colspan="6">
                             <x-empty-state icon="document" title="No hay usuarios registrados" description='Usa el botón "Nuevo usuario" para crear el primero.' />
                         </td>
                     </tr>

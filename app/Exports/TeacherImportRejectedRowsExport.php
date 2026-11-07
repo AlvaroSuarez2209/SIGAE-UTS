@@ -30,6 +30,7 @@ class TeacherImportRejectedRowsExport implements Export, FromArray, WithHeadings
             'codigo_programa',
             'roles',
             'estado',
+            'tipo_vinculacion',
             'motivo_rechazo',
         ];
     }
@@ -48,6 +49,7 @@ class TeacherImportRejectedRowsExport implements Export, FromArray, WithHeadings
                 $data['codigo_programa'] ?? '',
                 $data['roles'] ?? '',
                 $data['estado'] ?? '',
+                $data['tipo_vinculacion'] ?? '',
                 implode(' ', $row['errors']),
             ];
         }, $this->rejectedRows);

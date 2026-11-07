@@ -100,6 +100,12 @@ class TeacherImportTemplateTest extends TestCase
         $this->assertNotNull($sheet->getCell('G2')->getDataValidation());
         $this->assertStringContainsString('Activo', $sheet->getCell('G2')->getDataValidation()->getFormula1());
 
+        // tipo_vinculacion: columna opcional agregada al final (H),
+        // también con su propia lista desplegable.
+        $this->assertSame('tipo_vinculacion', $sheet->getCell('H1')->getValue());
+        $this->assertNotNull($sheet->getCell('H2')->getDataValidation());
+        $this->assertStringContainsString('Planta', $sheet->getCell('H2')->getDataValidation()->getFormula1());
+
         unlink($tmpPath);
     }
 
@@ -146,7 +152,7 @@ class TeacherImportTemplateTest extends TestCase
         ProgramUnit::factory()->create(['name' => TeacherImportTemplateDataSheet::EXAMPLE_PROGRAM_PLACEHOLDER.' pero no exacto']);
 
         $exampleRow = (new TeacherImportTemplateDataSheet)->array()[0];
-        $headers = TeacherImportService::REQUIRED_HEADERS;
+        $headers = (new TeacherImportTemplateDataSheet)->headings();
 
         $row = collect(array_combine($headers, $exampleRow));
         $rows = new Collection([$row]);

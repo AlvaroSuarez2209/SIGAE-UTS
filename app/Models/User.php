@@ -29,6 +29,7 @@ class User extends Authenticatable
         'document_number',
         'document_type',
         'program_unit_id',
+        'employment_type',
         'email',
         'password',
         'is_active',

@@ -22,6 +22,7 @@ class TeacherImportInstructionsSheet implements Export, FromArray, WithTitle
             ['codigo_programa: debe coincidir con el nombre exacto de un programa académico ya registrado en Catálogos > Programas académicos.'],
             ['roles: Docente, Líder y/o Auditor, separados por coma si es más de uno (ej. "Docente, Líder"). No se permite ningún otro rol desde esta plantilla.'],
             ['estado: Activo o Inactivo.'],
+            ['tipo_vinculacion (opcional): Planta, Tiempo completo, Medio tiempo 1M o Medio tiempo 4M (1M = 1 mes, 4M = 4 meses). Puedes dejarla vacía — la persona queda "Sin definir" y se puede completar después desde Usuarios. En una actualización, dejarla vacía NUNCA borra el valor que esa persona ya tenía.'],
             [''],
             ['Los docentes creados reciben un correo para establecer su propia contraseña — no se incluye ninguna contraseña en este archivo.'],
             [''],

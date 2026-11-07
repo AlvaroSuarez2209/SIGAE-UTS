@@ -80,6 +80,7 @@
                 // de Administrador.
                 'links' => collect([
                     $isCoordination ? ['route' => 'admin.users.index', 'label' => 'Usuarios', 'icon' => 'users'] : null,
+                    $isCoordination ? ['route' => 'admin.employment-type-hour-limits.index', 'label' => 'Topes de horas', 'icon' => 'clock'] : null,
                     $canSeeAudit ? ['route' => 'admin.audit-logs.index', 'label' => 'Auditoría', 'icon' => 'shield-check'] : null,
                     $isAdmin ? ['route' => 'admin.settings.institution', 'label' => 'Identidad institucional', 'icon' => 'pencil'] : null,
                 ])->filter(),

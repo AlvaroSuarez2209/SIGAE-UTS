@@ -2,6 +2,7 @@
 
 namespace App\Services\TeacherImport;
 
+use App\Enums\EmploymentType;
 use App\Enums\RoleName;
 use App\Models\ProgramUnit;
 use App\Models\Role;
@@ -71,6 +72,15 @@ class TeacherImportService
     ];
 
     /**
+     * Revisión de la directora: columna opcional — a diferencia de
+     * REQUIRED_HEADERS, un archivo sin esta columna sigue siendo válido
+     * (ver EnsureHeadersPresent en TeacherImportWizard::preview(), que
+     * solo exige REQUIRED_HEADERS). Vacía o ausente, el docente/líder
+     * queda "Sin definir", el mismo estado válido que ya admite UserForm.
+     */
+    public const EMPLOYMENT_TYPE_HEADER = 'tipo_vinculacion';
+
+    /**
      * @param  Collection<int, Collection<string, mixed>>  $rows
      * @return array<int, array<string, mixed>>
      */
@@ -99,6 +109,7 @@ class TeacherImportService
             'codigo_programa' => trim((string) ($raw['codigo_programa'] ?? '')),
             'roles' => trim((string) ($raw['roles'] ?? '')),
             'estado' => Str::lower(trim((string) ($raw['estado'] ?? ''))),
+            self::EMPLOYMENT_TYPE_HEADER => trim((string) ($raw[self::EMPLOYMENT_TYPE_HEADER] ?? '')),
         ];
     }
 
@@ -156,6 +167,25 @@ class TeacherImportService
             }
         }
 
+        // Columna opcional: vacía o ausente significa "no tocar este campo"
+        // en una actualización (nunca "borrarlo") — employment_type_provided
+        // distingue ambos casos; resolved_employment_type solo tiene
+        // sentido cuando employment_type_provided es true. Ver
+        // commitRow()/resolveAction().
+        $resolvedEmploymentType = null;
+        $employmentTypeProvided = false;
+        $employmentTypeRaw = $data[self::EMPLOYMENT_TYPE_HEADER];
+
+        if ($employmentTypeRaw !== '') {
+            $employmentTypeProvided = true;
+            $resolvedEmploymentType = $this->matchEmploymentType($employmentTypeRaw);
+
+            if ($resolvedEmploymentType === null) {
+                $allowedLabels = implode(', ', array_map(fn (EmploymentType $c) => $c->label(), EmploymentType::cases()));
+                $errors[] = "El tipo de vinculación \"{$employmentTypeRaw}\" no es válido (valores permitidos: {$allowedLabels}).";
+            }
+        }
+
         $row = [
             'row_number' => $rowNumber,
             'data' => $data,
@@ -164,6 +194,8 @@ class TeacherImportService
             'existing_user_id' => null,
             'resolved_role_names' => $resolvedRoleNames,
             'resolved_program_unit_id' => $programUnitId,
+            'resolved_employment_type' => $resolvedEmploymentType,
+            'employment_type_provided' => $employmentTypeProvided,
             'is_active' => $data['estado'] === 'activo',
         ];
 
@@ -214,6 +246,7 @@ class TeacherImportService
         $noChanges = $existing->name === $data['nombre_completo']
             && $existing->document_type === $data['tipo_documento']
             && $existing->program_unit_id === $row['resolved_program_unit_id']
+            && (! $row['employment_type_provided'] || $existing->employment_type === $row['resolved_employment_type'])
             && $existing->is_active === $row['is_active']
             && $currentRoleNames === $incomingRoleNames;
 
@@ -252,6 +285,19 @@ class TeacherImportService
 
             if ($this->normalizeLoose($label) === $needle || $this->normalizeLoose($role->value) === $needle) {
                 return $role->value;
+            }
+        }
+
+        return null;
+    }
+
+    private function matchEmploymentType(string $value): ?string
+    {
+        $needle = $this->normalizeLoose($value);
+
+        foreach (EmploymentType::cases() as $case) {
+            if ($this->normalizeLoose($case->label()) === $needle || $this->normalizeLoose($case->value) === $needle) {
+                return $case->value;
             }
         }
 
@@ -333,6 +379,14 @@ class TeacherImportService
             'program_unit_id' => $row['resolved_program_unit_id'],
             'is_active' => $row['is_active'],
         ];
+
+        // Columna opcional: ausente o vacía nunca borra un valor ya
+        // guardado (ver comentario sobre employment_type_provided más
+        // arriba) — solo se incluye en el UPDATE/CREATE cuando el archivo
+        // sí traía un valor explícito para esta fila.
+        if ($row['employment_type_provided']) {
+            $attributes['employment_type'] = $row['resolved_employment_type'];
+        }
 
         if ($row['existing_user_id']) {
             $user = User::findOrFail($row['existing_user_id']);

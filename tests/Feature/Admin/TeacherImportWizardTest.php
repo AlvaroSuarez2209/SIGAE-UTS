@@ -45,6 +45,20 @@ class TeacherImportWizardTest extends TestCase
         return UploadedFile::fake()->createWithContent('docentes.csv', implode("\n", [$header, ...$lines]));
     }
 
+    /**
+     * Mismo encabezado que csv(), con la columna opcional
+     * tipo_vinculacion agregada al final — separado de csv() para no
+     * tocar ninguna de las pruebas existentes (que ya prueban que esta
+     * columna, al no estar presente, nunca bloquea el archivo).
+     */
+    private function csvWithEmploymentType(array $rows): UploadedFile
+    {
+        $header = 'tipo_documento,numero_documento,nombre_completo,correo_institucional,codigo_programa,roles,estado,tipo_vinculacion';
+        $lines = array_map(fn (array $r) => implode(',', $r), $rows);
+
+        return UploadedFile::fake()->createWithContent('docentes.csv', implode("\n", [$header, ...$lines]));
+    }
+
     public function test_teacher_cannot_access_the_import_wizard(): void
     {
         $teacher = $this->userWithRole(RoleName::Teacher);
@@ -167,6 +181,87 @@ class TeacherImportWizardTest extends TestCase
         $created = User::where('email', 'valido@uts.edu.co')->first();
         $this->assertTrue($created->hasRole(RoleName::Teacher));
         Notification::assertSentTo($created, ResetPasswordNotification::class);
+    }
+
+    /**
+     * Revisión de la directora: tipo_vinculacion es una columna opcional
+     * de esta misma plantilla — se agrega al final, el resto de columnas
+     * no cambia.
+     */
+    public function test_a_valid_employment_type_is_saved_on_create(): void
+    {
+        Notification::fake();
+
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        $file = $this->csvWithEmploymentType([
+            ['CC', '1', 'Docente Con Vinculación', 'convinculacion@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo', 'Medio tiempo 1M'],
+        ]);
+
+        Livewire::actingAs($coordination)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->call('confirm')
+            ->assertSet('summary.created', 1)
+            ->assertSet('summary.rejected', 0);
+
+        $this->assertSame('medio_tiempo_1m', User::where('email', 'convinculacion@uts.edu.co')->first()->employment_type);
+    }
+
+    public function test_an_invalid_employment_type_is_rejected_with_a_clear_message(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        $file = $this->csvWithEmploymentType([
+            ['CC', '1', 'Docente Con Vinculación Mala', 'vinculacionmala@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo', 'Cuarto de tiempo'],
+        ]);
+
+        $rows = Livewire::actingAs($coordination)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->get('rows');
+
+        $this->assertSame('reject', $rows[0]['action']);
+        $this->assertStringContainsString('El tipo de vinculación "Cuarto de tiempo" no es válido', $rows[0]['errors'][0]);
+        $this->assertDatabaseMissing('users', ['email' => 'vinculacionmala@uts.edu.co']);
+    }
+
+    /**
+     * "En una actualización, dejarla vacía NUNCA borra el valor que esa
+     * persona ya tenía" — reimportar sin tipo_vinculacion (o con la
+     * columna vacía) no debe tocar el valor que el docente ya tenía.
+     */
+    public function test_leaving_employment_type_blank_on_an_update_never_erases_the_existing_value(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+        $existing = User::factory()->create([
+            'document_number' => '1',
+            'name' => 'Docente Ya Vinculado',
+            'email' => 'yavinculado@uts.edu.co',
+            'is_active' => true,
+            'employment_type' => 'planta',
+        ]);
+
+        // Mismo archivo SIN la columna tipo_vinculacion (ver csv(), no
+        // csvWithEmploymentType()) — la fila sí cambia el nombre, así que
+        // de todos modos resuelve a "update", no a "skip".
+        $file = $this->csv([
+            ['CC', '1', 'Nombre Actualizado', 'yavinculado@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+        ]);
+
+        Livewire::actingAs($coordination)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->call('confirm')
+            ->assertSet('summary.updated', 1);
+
+        $this->assertSame('planta', $existing->fresh()->employment_type);
     }
 
     public function test_a_row_matching_an_existing_user_updates_it_instead_of_creating_a_duplicate(): void
