@@ -79,8 +79,10 @@
                     <thead>
                         <tr>
                             <th class="table-header-cell">Fila</th>
+                            <th class="table-header-cell">Documento</th>
                             <th class="table-header-cell">Nombre</th>
                             <th class="table-header-cell">Correo</th>
+                            <th class="table-header-cell">Programa</th>
                             <th class="table-header-cell">Roles</th>
                             <th class="table-header-cell">Estado</th>
                             <th class="table-header-cell">Acción</th>
@@ -99,8 +101,10 @@
                         @foreach ($rows as $row)
                             <tr wire:key="import-row-{{ $row['row_number'] }}" class="table-row">
                                 <td class="table-cell">{{ $row['row_number'] }}</td>
+                                <td class="table-cell text-text-secondary">{{ $row['data']['tipo_documento'] }} {{ $row['data']['numero_documento'] }}</td>
                                 <td class="table-cell">{{ $row['data']['nombre_completo'] }}</td>
                                 <td class="table-cell text-text-secondary">{{ $row['data']['correo_institucional'] }}</td>
+                                <td class="table-cell text-text-secondary">{{ $row['data']['codigo_programa'] }}</td>
                                 <td class="table-cell text-text-secondary">{{ $row['data']['roles'] }}</td>
                                 <td class="table-cell text-text-secondary">{{ ucfirst($row['data']['estado']) }}</td>
                                 <td class="table-cell text-text-secondary">{{ $actionLabels[$row['action']] ?? '—' }}</td>

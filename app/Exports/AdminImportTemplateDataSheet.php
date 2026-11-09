@@ -18,12 +18,18 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 /**
  * Hoja de datos de la plantilla de importación de administradores/
  * coordinadores (ver App\Exports\TeacherImportTemplateDataSheet, mismo
- * patrón de formato) — revisión de la directora, punto 7. A diferencia de
- * la plantilla de docentes, no lleva tipo_documento ni codigo_programa:
- * ninguno de los dos aplica a Administrador ni Coordinación.
+ * patrón de formato y mismas columnas de documento/programa — revisión de
+ * la directora, puntos 3 y 6: las columnas de cada plantilla deben
+ * coincidir con los campos de su formulario de creación, y UserForm pide
+ * tipo de documento, documento y programa de adscripción a cualquier rol,
+ * no solo a Docente/Líder). Solo tipo_vinculacion queda fuera de esta
+ * plantilla — ese campo sí es exclusivo de Docente/Líder, que el
+ * Administrador no crea.
  */
 class AdminImportTemplateDataSheet implements Export, FromArray, ShouldAutoSize, WithEvents, WithHeadings, WithTitle
 {
+    public const EXAMPLE_PROGRAM_PLACEHOLDER = 'NOMBRE_DE_TU_PROGRAMA_AQUI';
+
     public function headings(): array
     {
         return AdminImportService::REQUIRED_HEADERS;
@@ -32,7 +38,7 @@ class AdminImportTemplateDataSheet implements Export, FromArray, ShouldAutoSize,
     public function array(): array
     {
         return [
-            ['Ana María Pérez Gómez', 'ana.perez@uts.edu.co', 'Coordinación', 'Activo'],
+            ['CC', '1234567890', 'Ana María Pérez Gómez', 'ana.perez@uts.edu.co', self::EXAMPLE_PROGRAM_PLACEHOLDER, 'Coordinación', 'Activo'],
         ];
     }
 
@@ -64,8 +70,8 @@ class AdminImportTemplateDataSheet implements Export, FromArray, ShouldAutoSize,
                 $estadoValidation = $this->listValidation('Activo,Inactivo');
 
                 for ($row = 2; $row <= $lastRow; $row++) {
-                    $sheet->getCell("C{$row}")->setDataValidation(clone $rolesValidation);
-                    $sheet->getCell("D{$row}")->setDataValidation(clone $estadoValidation);
+                    $sheet->getCell("F{$row}")->setDataValidation(clone $rolesValidation);
+                    $sheet->getCell("G{$row}")->setDataValidation(clone $estadoValidation);
                 }
             },
         ];

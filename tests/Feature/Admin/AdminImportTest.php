@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\RoleName;
 use App\Livewire\Admin\Users\AdminImportWizard;
 use App\Models\AuditLog;
+use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -38,9 +39,15 @@ class AdminImportTest extends TestCase
         return $user;
     }
 
+    /**
+     * Hallazgo de pruebas manuales (puntos 3 y 6): la plantilla del
+     * Administrador ahora pide las mismas columnas de documento/programa
+     * que UserForm — mismo encabezado que
+     * TeacherImportService::REQUIRED_HEADERS, sin tipo_vinculacion.
+     */
     private function csv(array $rows): UploadedFile
     {
-        $header = 'nombre_completo,correo_institucional,roles,estado';
+        $header = 'tipo_documento,numero_documento,nombre_completo,correo_institucional,codigo_programa,roles,estado';
         $lines = array_map(fn (array $r) => implode(',', $r), $rows);
 
         return UploadedFile::fake()->createWithContent('admins.csv', implode("\n", [$header, ...$lines]));
@@ -90,10 +97,11 @@ class AdminImportTest extends TestCase
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         Notification::fake();
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
-            ['Nueva Coordinadora', 'nueva.coord@sigae.local', 'Coordinación', 'Activo'],
-            ['Nuevo Administrador', 'nuevo.admin@sigae.local', 'Administrador', 'Activo'],
+            ['CC', '1', 'Nueva Coordinadora', 'nueva.coord@sigae.local', 'Ingeniería de Sistemas', 'Coordinación', 'Activo'],
+            ['CC', '2', 'Nuevo Administrador', 'nuevo.admin@sigae.local', 'Ingeniería de Sistemas', 'Administrador', 'Activo'],
         ]);
 
         Livewire::actingAs($admin)
@@ -107,6 +115,8 @@ class AdminImportTest extends TestCase
         $coordination = User::where('email', 'nueva.coord@sigae.local')->first();
         $this->assertNotNull($coordination);
         $this->assertTrue($coordination->hasRole(RoleName::Coordination));
+        $this->assertSame('CC', $coordination->document_type);
+        $this->assertSame('1', $coordination->document_number);
 
         $administrator = User::where('email', 'nuevo.admin@sigae.local')->first();
         $this->assertNotNull($administrator);
@@ -123,9 +133,10 @@ class AdminImportTest extends TestCase
     public function test_a_row_with_the_teacher_role_is_rejected_with_a_clear_message(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
-            ['Intento Docente', 'intento.docente@sigae.local', 'Docente', 'Activo'],
+            ['CC', '1', 'Intento Docente', 'intento.docente@sigae.local', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
         ]);
 
         $rows = Livewire::actingAs($admin)
@@ -143,9 +154,10 @@ class AdminImportTest extends TestCase
     public function test_a_row_with_the_auditor_role_is_rejected(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
 
         $file = $this->csv([
-            ['Intento Auditor', 'intento.auditor@sigae.local', 'Auditor', 'Activo'],
+            ['CC', '1', 'Intento Auditor', 'intento.auditor@sigae.local', 'Ingeniería de Sistemas', 'Auditor', 'Activo'],
         ]);
 
         $rows = Livewire::actingAs($admin)
@@ -156,5 +168,70 @@ class AdminImportTest extends TestCase
 
         $this->assertSame('reject', $rows[0]['action']);
         $this->assertDatabaseMissing('users', ['email' => 'intento.auditor@sigae.local']);
+    }
+
+    /**
+     * Hallazgo de pruebas manuales (puntos 3 y 6): se revierte la
+     * decisión anterior de omitir tipo de documento/documento/programa en
+     * la plantilla del Administrador — ahora se validan y se guardan
+     * igual que en la de docentes.
+     */
+    public function test_a_row_with_an_invalid_document_type_is_rejected(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $file = $this->csv([
+            ['XX', '1', 'Documento Malo', 'documentomalo@sigae.local', 'Ingeniería de Sistemas', 'Coordinación', 'Activo'],
+        ]);
+
+        $rows = Livewire::actingAs($admin)
+            ->test(AdminImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->get('rows');
+
+        $this->assertSame('reject', $rows[0]['action']);
+        $this->assertDatabaseMissing('users', ['email' => 'documentomalo@sigae.local']);
+    }
+
+    public function test_a_row_with_a_nonexistent_program_is_rejected(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $file = $this->csv([
+            ['CC', '1', 'Programa Malo', 'programamalo@sigae.local', 'Programa Que No Existe', 'Coordinación', 'Activo'],
+        ]);
+
+        $rows = Livewire::actingAs($admin)
+            ->test(AdminImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->get('rows');
+
+        $this->assertSame('reject', $rows[0]['action']);
+        $this->assertStringContainsString('no existe en los programas académicos registrados', $rows[0]['errors'][0]);
+    }
+
+    public function test_the_downloaded_template_includes_the_document_and_program_columns(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $response = $this->actingAs($admin)->get('/admin/users/import-admins/template');
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'plantilla').'.xlsx';
+        file_put_contents($tmpPath, $response->streamedContent());
+
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpPath);
+        $sheet = $spreadsheet->getSheetByName('Plantilla');
+
+        $this->assertSame('tipo_documento', $sheet->getCell('A1')->getValue());
+        $this->assertSame('numero_documento', $sheet->getCell('B1')->getValue());
+        $this->assertSame('codigo_programa', $sheet->getCell('E1')->getValue());
+        $this->assertSame(
+            \App\Exports\AdminImportTemplateDataSheet::EXAMPLE_PROGRAM_PLACEHOLDER,
+            $sheet->getCell('E2')->getValue()
+        );
+
+        unlink($tmpPath);
     }
 }

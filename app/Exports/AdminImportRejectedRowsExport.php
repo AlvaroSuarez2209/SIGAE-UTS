@@ -9,7 +9,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 /**
  * Reporte descargable de las filas rechazadas de una importación de
  * administradores/coordinadores — ver App\Exports\TeacherImportRejectedRowsExport,
- * mismo patrón con el set de columnas más chico de AdminImportService.
+ * mismo patrón y las mismas columnas de documento/programa (sin
+ * tipo_vinculacion, que no aplica a estos roles).
  */
 class AdminImportRejectedRowsExport implements Export, FromArray, WithHeadings
 {
@@ -22,8 +23,11 @@ class AdminImportRejectedRowsExport implements Export, FromArray, WithHeadings
     {
         return [
             'fila',
+            'tipo_documento',
+            'numero_documento',
             'nombre_completo',
             'correo_institucional',
+            'codigo_programa',
             'roles',
             'estado',
             'motivo_rechazo',
@@ -37,8 +41,11 @@ class AdminImportRejectedRowsExport implements Export, FromArray, WithHeadings
 
             return [
                 $row['row_number'],
+                $data['tipo_documento'] ?? '',
+                $data['numero_documento'] ?? '',
                 $data['nombre_completo'] ?? '',
                 $data['correo_institucional'] ?? '',
+                $data['codigo_programa'] ?? '',
                 $data['roles'] ?? '',
                 $data['estado'] ?? '',
                 implode(' ', $row['errors']),

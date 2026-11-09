@@ -3,6 +3,7 @@
 namespace App\Services\AdminImport;
 
 use App\Enums\RoleName;
+use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -16,18 +17,24 @@ use Illuminate\Validation\Rule;
 /**
  * Importación masiva propia del Administrador (Administración > Usuarios >
  * Importar administradores/coordinadores) — revisión de la directora,
- * punto 7. A diferencia de App\Services\TeacherImport\TeacherImportService
- * (Docente/Líder, con tipo de documento y programa de adscripción), esta
- * plantilla solo acepta Administrador y/o Coordinación, que no necesitan
- * ninguno de esos dos datos — por eso es una plantilla y un servicio
- * separados, no una reutilización parametrizada del existente.
- *
- * Mismo patrón de resolveAction()/commit() que TeacherImportService, pero
- * emparejando solo por correo (document_number no aplica a estos roles).
+ * punto 7, corregida tras pruebas manuales (puntos 3 y 6): las columnas de
+ * cada plantilla deben ser las mismas que los campos de su formulario de
+ * creación (UserForm ya pide tipo de documento, documento y programa de
+ * adscripción a CUALQUIER rol, nunca solo a Docente/Líder — solo
+ * employment_type queda fuera de esta plantilla, porque ese campo sí es
+ * exclusivo de Docente/Líder). Mismo patrón que
+ * App\Services\TeacherImport\TeacherImportService (del que esta clase
+ * copia la lógica de documento/programa casi al detalle), sin la columna
+ * opcional de vinculación.
  */
 class AdminImportService
 {
     public const MAX_ROWS = 500;
+
+    // Mismo criterio que TeacherImportService::DOCUMENT_TYPES — whitelist
+    // de validación cruda del archivo, separada de App\Enums\DocumentType
+    // (que es solo presentación).
+    public const DOCUMENT_TYPES = ['CC', 'CE', 'TI', 'PA'];
 
     public const ACTIVE_VALUES = ['activo', 'inactivo'];
 
@@ -35,8 +42,11 @@ class AdminImportService
     public const ALLOWED_ROLES = [RoleName::Administrator, RoleName::Coordination];
 
     public const REQUIRED_HEADERS = [
+        'tipo_documento',
+        'numero_documento',
         'nombre_completo',
         'correo_institucional',
+        'codigo_programa',
         'roles',
         'estado',
     ];
@@ -49,39 +59,62 @@ class AdminImportService
     {
         $normalizedRows = $rows->values()->map(fn ($row) => $this->normalizeRawRow($row->toArray()));
 
+        $documentCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['numero_documento']));
         $emailCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['correo_institucional']));
 
+        $programUnits = ProgramUnit::query()->pluck('name', 'id');
         $roleLabels = Role::query()->pluck('label', 'name');
 
         return $normalizedRows
-            ->map(fn ($data, $index) => $this->validateRow($index + 2, $data, $emailCounts, $roleLabels))
+            ->map(fn ($data, $index) => $this->validateRow($index + 2, $data, $documentCounts, $emailCounts, $programUnits, $roleLabels))
             ->all();
     }
 
     private function normalizeRawRow(array $raw): array
     {
         return [
+            'tipo_documento' => Str::upper(trim((string) ($raw['tipo_documento'] ?? ''))),
+            'numero_documento' => trim((string) ($raw['numero_documento'] ?? '')),
             'nombre_completo' => trim((string) ($raw['nombre_completo'] ?? '')),
             'correo_institucional' => trim((string) ($raw['correo_institucional'] ?? '')),
+            'codigo_programa' => trim((string) ($raw['codigo_programa'] ?? '')),
             'roles' => trim((string) ($raw['roles'] ?? '')),
             'estado' => Str::lower(trim((string) ($raw['estado'] ?? ''))),
         ];
     }
 
-    private function validateRow(int $rowNumber, array $data, Collection $emailCounts, Collection $roleLabels): array
+    private function validateRow(int $rowNumber, array $data, Collection $documentCounts, Collection $emailCounts, Collection $programUnits, Collection $roleLabels): array
     {
         $validator = Validator::make($data, [
+            'tipo_documento' => ['required', Rule::in(self::DOCUMENT_TYPES)],
+            'numero_documento' => ['required', 'string', 'max:50'],
             'nombre_completo' => ['required', 'string', 'max:255'],
             'correo_institucional' => ['required', 'email', 'max:255'],
+            'codigo_programa' => ['required', 'string'],
             'roles' => ['required', 'string'],
             'estado' => ['required', Rule::in(self::ACTIVE_VALUES)],
         ]);
 
         $errors = $validator->fails() ? $validator->errors()->all() : [];
 
+        if ($this->normalizeExact($data['numero_documento']) !== ''
+            && ($documentCounts[$this->normalizeExact($data['numero_documento'])] ?? 0) > 1) {
+            $errors[] = 'El número de documento está duplicado dentro del archivo.';
+        }
+
         if ($this->normalizeExact($data['correo_institucional']) !== ''
             && ($emailCounts[$this->normalizeExact($data['correo_institucional'])] ?? 0) > 1) {
             $errors[] = 'El correo institucional está duplicado dentro del archivo.';
+        }
+
+        $programUnitId = null;
+
+        if ($data['codigo_programa'] !== '') {
+            $programUnitId = $this->matchByNormalizedName($programUnits, $data['codigo_programa']);
+
+            if ($programUnitId === null) {
+                $errors[] = "El código de programa \"{$data['codigo_programa']}\" no existe en los programas académicos registrados.";
+            }
         }
 
         $resolvedRoleNames = [];
@@ -111,6 +144,7 @@ class AdminImportService
             'action' => null,
             'existing_user_id' => null,
             'resolved_role_names' => $resolvedRoleNames,
+            'resolved_program_unit_id' => $programUnitId,
             'is_active' => $data['estado'] === 'activo',
         ];
 
@@ -133,7 +167,17 @@ class AdminImportService
     {
         $data = $row['data'];
 
-        $existing = User::whereRaw('lower(email) = ?', [Str::lower($data['correo_institucional'])])->first();
+        $byDocument = User::where('document_number', $data['numero_documento'])->first();
+        $byEmail = User::whereRaw('lower(email) = ?', [Str::lower($data['correo_institucional'])])->first();
+
+        if ($byDocument && $byEmail && $byDocument->id !== $byEmail->id) {
+            $row['errors'][] = 'El número de documento y el correo corresponden a usuarios distintos ya registrados.';
+            $row['action'] = 'reject';
+
+            return;
+        }
+
+        $existing = $byDocument ?: $byEmail;
 
         if (! $existing) {
             $row['action'] = 'create';
@@ -147,6 +191,8 @@ class AdminImportService
         $incomingRoleNames = collect($row['resolved_role_names'])->sort()->values()->all();
 
         $noChanges = $existing->name === $data['nombre_completo']
+            && $existing->document_type === $data['tipo_documento']
+            && $existing->program_unit_id === $row['resolved_program_unit_id']
             && $existing->is_active === $row['is_active']
             && $currentRoleNames === $incomingRoleNames;
 
@@ -161,6 +207,19 @@ class AdminImportService
     private function normalizeLoose(string $value): string
     {
         return Str::lower(Str::ascii(trim($value)));
+    }
+
+    private function matchByNormalizedName(Collection $namesById, string $value): ?int
+    {
+        $needle = $this->normalizeLoose($value);
+
+        foreach ($namesById as $id => $name) {
+            if ($this->normalizeLoose($name) === $needle) {
+                return $id;
+            }
+        }
+
+        return null;
     }
 
     private function matchAllowedRole(string $value, Collection $labelsByName): ?string
@@ -241,7 +300,10 @@ class AdminImportService
 
         $attributes = [
             'name' => $data['nombre_completo'],
+            'document_number' => $data['numero_documento'],
+            'document_type' => $data['tipo_documento'],
             'email' => $data['correo_institucional'],
+            'program_unit_id' => $row['resolved_program_unit_id'],
             'is_active' => $row['is_active'],
         ];
 
