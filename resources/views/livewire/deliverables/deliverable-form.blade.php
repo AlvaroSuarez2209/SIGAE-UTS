@@ -262,7 +262,39 @@
                         </ul>
                     @endif
 
-                    @if ($referenceFiles->count() + count($newReferenceFiles) < \App\Models\DeliverableReferenceFile::MAX_FILES)
+                    {{-- Punto C: archivos de la plantilla elegida, heredados al
+                         entregable — se duplican de verdad recién al guardar
+                         (ver DeliverableForm::copyReferenceFileFromTemplate()),
+                         así que hasta entonces se pueden quitar sin dejar rastro. --}}
+                    @if ($inheritedReferenceFiles->isNotEmpty())
+                        <ul class="mt-2 space-y-1">
+                            @foreach ($inheritedReferenceFiles as $file)
+                                <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle bg-surface-muted px-3 py-2">
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                        <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
+                                        <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
+                                        <span class="badge shrink-0 bg-brand-primary-subtle text-brand-primary-dark">Heredado de la plantilla</span>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-3">
+                                        @if (! $file->existsOnDisk())
+                                            <span class="text-sm font-medium text-status-error">Archivo no disponible</span>
+                                        @endif
+                                        <button
+                                            type="button"
+                                            wire:click="removeInheritedReferenceFile({{ $file->id }})"
+                                            class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                        >
+                                            <x-icon name="trash" class="h-4 w-4" />
+                                            Quitar
+                                        </button>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+
+                    @if ($referenceFiles->count() + $inheritedReferenceFiles->count() + count($newReferenceFiles) < \App\Models\DeliverableReferenceFile::MAX_FILES)
                         <x-file-dropzone
                             wire-model="newReferenceFiles"
                             :multiple="true"

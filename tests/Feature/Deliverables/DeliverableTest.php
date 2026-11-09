@@ -8,10 +8,12 @@ use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Enums\RoleName;
 use App\Livewire\Deliverables\DeliverableForm;
+use App\Livewire\Deliverables\TemplateForm;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
+use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Models\Evidence;
 use App\Models\Role;
@@ -1309,6 +1311,177 @@ class DeliverableTest extends TestCase
         $this->assertNotSame($templateFile->stored_name, $copiedFile->stored_name);
         $this->assertNull($copiedFile->deliverable_template_id);
         $this->assertSame($deliverable->id, $copiedFile->deliverable_id);
+    }
+
+    // --- Punto C: paridad entregable/plantilla y vista previa de archivos heredados ---
+
+    public function test_choosing_a_template_prefills_the_link_and_shows_its_files_as_inherited(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
+        $file1 = $template->attachReferenceFile(UploadedFile::fake()->create('uno.pdf', 50, 'application/pdf'), $admin);
+        $file2 = $template->attachReferenceFile(UploadedFile::fake()->create('dos.pdf', 50, 'application/pdf'), $admin);
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->assertSet('reference_url', 'https://uts.edu.co/referencia.pdf');
+
+        $this->assertEqualsCanonicalizing([$file1->id, $file2->id], $component->get('inheritedReferenceFileIds'));
+
+        $html = $component->html();
+        $this->assertStringContainsString('uno.pdf', $html);
+        $this->assertStringContainsString('dos.pdf', $html);
+        $this->assertStringContainsString('Heredado de la plantilla', $html);
+    }
+
+    public function test_removing_an_inherited_reference_file_before_saving_does_not_copy_it(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        $template = DeliverableTemplate::factory()->create();
+        $keep = $template->attachReferenceFile(UploadedFile::fake()->create('uno.pdf', 50, 'application/pdf'), $admin);
+        $discard = $template->attachReferenceFile(UploadedFile::fake()->create('dos.pdf', 50, 'application/pdf'), $admin);
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->call('removeInheritedReferenceFile', $discard->id);
+
+        $this->assertSame([$keep->id], $component->get('inheritedReferenceFileIds'));
+
+        $component->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('saveAsDraft');
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+        $this->assertSame(1, $deliverable->referenceFiles()->count());
+        $this->assertSame('uno.pdf', $deliverable->referenceFiles()->first()->original_name);
+    }
+
+    public function test_switching_templates_replaces_inherited_files_and_keeps_what_the_user_uploaded_manually(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $templateA = DeliverableTemplate::factory()->create();
+        $fileA = $templateA->attachReferenceFile(UploadedFile::fake()->create('a.pdf', 50, 'application/pdf'), $admin);
+
+        $templateB = DeliverableTemplate::factory()->create();
+        $fileB = $templateB->attachReferenceFile(UploadedFile::fake()->create('b.pdf', 50, 'application/pdf'), $admin);
+
+        $manualUpload = UploadedFile::fake()->create('manual.pdf', 50, 'application/pdf');
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $templateA->id)
+            ->set('newReferenceFiles', [$manualUpload]);
+
+        $this->assertSame([$fileA->id], $component->get('inheritedReferenceFileIds'));
+
+        $component->set('template_id', $templateB->id);
+
+        $this->assertSame([$fileB->id], $component->get('inheritedReferenceFileIds'));
+        // Lo subido a mano nunca se toca al cambiar de plantilla.
+        $this->assertCount(1, $component->get('newReferenceFiles'));
+        $this->assertSame('manual.pdf', $component->get('newReferenceFiles')[0]->getClientOriginalName());
+    }
+
+    public function test_saving_produces_the_correct_rows_for_inherited_and_manually_uploaded_files_together(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        $template = DeliverableTemplate::factory()->create();
+        $template->attachReferenceFile(UploadedFile::fake()->create('heredado.pdf', 50, 'application/pdf'), $admin);
+        $manualUpload = UploadedFile::fake()->create('manual.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->set('newReferenceFiles', [$manualUpload])
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('saveAsDraft');
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+        $names = $deliverable->referenceFiles()->pluck('original_name')->sort()->values()->all();
+        $this->assertSame(['heredado.pdf', 'manual.pdf'], $names);
+    }
+
+    /**
+     * Punto C: antes, una plantilla solo admitía 1 archivo sin ningún
+     * tope explícito de tamaño/tipo propio, mientras que un entregable
+     * ya admitía hasta DeliverableReferenceFile::MAX_FILES con
+     * validación de tipo/tamaño — ahora ambos formularios comparten la
+     * misma validación (HasReferenceFileUploads). Este caso cubre que,
+     * del lado del entregable, los heredados de la plantilla cuentan
+     * para el tope igual que los ya guardados.
+     */
+    public function test_inherited_files_count_toward_the_max_files_limit_when_uploading_more(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+        for ($i = 0; $i < DeliverableReferenceFile::MAX_FILES; $i++) {
+            $template->attachReferenceFile(UploadedFile::fake()->create("heredado{$i}.pdf", 50, 'application/pdf'), $admin);
+        }
+
+        $extra = UploadedFile::fake()->create('de-mas.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->set('newReferenceFiles', [$extra])
+            ->assertHasErrors('newReferenceFiles')
+            ->assertSet('newReferenceFiles', []);
+    }
+
+    /**
+     * Punto C: una plantilla ahora admite los mismos tipos, tamaño y
+     * cantidad que un entregable — antes su único archivo no tenía
+     * ninguna validación de tipo/tamaño propia más allá de "un solo
+     * archivo".
+     */
+    public function test_a_template_accepts_the_same_file_count_type_and_size_as_a_deliverable(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $files = collect(range(1, DeliverableReferenceFile::MAX_FILES))
+            ->map(fn ($n) => UploadedFile::fake()->create("doc{$n}.pdf", 100, 'application/pdf'))
+            ->all();
+
+        Livewire::actingAs($admin)
+            ->test(TemplateForm::class)
+            ->set('newReferenceFiles', $files)
+            ->assertHasNoErrors('newReferenceFiles')
+            ->assertSet('newReferenceFiles', fn ($kept) => count($kept) === DeliverableReferenceFile::MAX_FILES);
+
+        $tooBig = UploadedFile::fake()->create('grande.pdf', (DeliverableReferenceFile::MAX_FILE_SIZE_MB + 1) * 1024, 'application/pdf');
+
+        Livewire::actingAs($admin)
+            ->test(TemplateForm::class)
+            ->set('newReferenceFiles', [$tooBig])
+            ->assertHasErrors('newReferenceFiles')
+            ->assertSet('newReferenceFiles', []);
     }
 
     /**

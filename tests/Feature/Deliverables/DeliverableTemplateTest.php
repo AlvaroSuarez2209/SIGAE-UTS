@@ -182,7 +182,7 @@ class DeliverableTemplateTest extends TestCase
             ->set('periodicity_type', 'by_term')
             ->set('allowed_evidence_types', [EvidenceType::File->value])
             ->set('reference_url', 'https://uts.edu.co/referencia.pdf')
-            ->set('newReferenceFile', $file)
+            ->set('newReferenceFiles', [$file])
             ->assertHasNoErrors()
             ->call('save')
             ->assertHasNoErrors();

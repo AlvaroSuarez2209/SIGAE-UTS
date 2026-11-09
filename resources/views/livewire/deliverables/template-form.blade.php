@@ -36,7 +36,9 @@
         </div>
 
         <div>
-            <span class="field-label">Archivo de referencia <span class="font-normal text-text-secondary">(opcional)</span></span>
+            <span class="field-label">
+                Archivo(s) de referencia <span class="font-normal text-text-secondary">(opcional — máx. {{ \App\Models\DeliverableReferenceFile::MAX_FILES }}, {{ \App\Models\DeliverableReferenceFile::MAX_FILE_SIZE_MB }}MB c/u, formatos: {{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => ".$e")->join(', ') }})</span>
+            </span>
             <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
 
             @if ($referenceFiles->isNotEmpty())
@@ -67,16 +69,46 @@
                         </li>
                     @endforeach
                 </ul>
-            @elseif ($newReferenceFile)
-                <p class="field-help mt-2">{{ $newReferenceFile->getClientOriginalName() }}</p>
-            @else
+            @endif
+
+            @if ($referenceFiles->count() + count($newReferenceFiles) < \App\Models\DeliverableReferenceFile::MAX_FILES)
                 <x-file-dropzone
-                    wire-model="newReferenceFile"
+                    wire-model="newReferenceFiles"
+                    :multiple="true"
                     accept="{{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => '.'.$e)->join(',') }}"
                     class="mt-2"
                 />
+            @else
+                <p class="field-help mt-2">
+                    Ya alcanzaste el máximo de {{ \App\Models\DeliverableReferenceFile::MAX_FILES }} archivo(s) de referencia permitido(s). Quita uno para poder subir otro.
+                </p>
             @endif
-            @error('newReferenceFile') <p class="field-error">{{ $message }}</p> @enderror
+
+            @if (! empty($newReferenceFiles))
+                <ul class="mt-2 space-y-1">
+                    @foreach ($newReferenceFiles as $index => $file)
+                        <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                <span class="truncate text-base text-text-primary">{{ $file->getClientOriginalName() }}</span>
+                                <span class="shrink-0 text-sm text-text-secondary">({{ \App\Models\EvidenceFile::formatReadableSize($file->getSize()) }})</span>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-3">
+                                <button
+                                    type="button"
+                                    wire:click="removeNewReferenceFile({{ $index }})"
+                                    class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                >
+                                    <x-icon name="trash" class="h-4 w-4" />
+                                    Quitar
+                                </button>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+
+            @error('newReferenceFiles') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>

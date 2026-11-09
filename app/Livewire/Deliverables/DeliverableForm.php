@@ -6,6 +6,7 @@ use App\Enums\DeliverableStatus;
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
 use App\Enums\RoleName;
+use App\Livewire\Concerns\HasReferenceFileUploads;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\CrossCuttingCommitment;
@@ -14,7 +15,6 @@ use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Models\User;
 use App\Rules\HttpUrl;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +26,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app')]
 class DeliverableForm extends Component
 {
-    use WithFileUploads;
+    use HasReferenceFileUploads, WithFileUploads;
 
     public ?Deliverable $deliverable = null;
 
@@ -106,9 +106,25 @@ class DeliverableForm extends Component
      * guardar antes de eso (ver attachReferenceFile(), que exige un
      * $this->deliverable ya persistido). Los ya existentes (edición) no
      * viven en una propiedad aparte: render() los lee frescos de
-     * $this->deliverable->activeReferenceFiles cada vez.
+     * $this->deliverable->activeReferenceFiles cada vez. La propiedad
+     * $newReferenceFiles y su validación viven en
+     * HasReferenceFileUploads, compartido con TemplateForm (punto C).
+     *
+     * Punto C de las correcciones post-prueba: ids de los archivos de
+     * referencia de la plantilla elegida, "heredados" al entregable que
+     * se está creando — se muestran en la lista junto a los ya
+     * guardados y los recién subidos, marcados como heredados, con
+     * opción de quitarlos (removeInheritedReferenceFile()) antes de
+     * guardar. Solo se duplican de verdad (ver
+     * copyReferenceFileFromTemplate()) los que sigan aquí al guardar —
+     * si el usuario quita uno heredado, no se copia. Se reemplazan por
+     * completo (nunca se combinan) cada vez que cambia la plantilla
+     * elegida; lo que el usuario ya subió a mano en $newReferenceFiles
+     * nunca se toca. Se llama *Ids (no inheritedReferenceFiles a
+     * secas) para no chocar con la clave de datos de vista del mismo
+     * nombre en render() — esa sí trae los modelos completos.
      */
-    public array $newReferenceFiles = [];
+    public array $inheritedReferenceFileIds = [];
 
     /**
      * Prioridad 5: wizard de 6 pasos sobre el mismo componente/formulario
@@ -181,6 +197,7 @@ class DeliverableForm extends Component
             $this->instructions = '';
             $this->completion_criteria = '';
             $this->reference_url = '';
+            $this->inheritedReferenceFileIds = [];
             $this->is_mandatory = $this->defaultIsMandatory();
             $this->periodicity_type = PeriodicityType::Single->value;
             $this->allowed_evidence_types = [];
@@ -203,6 +220,9 @@ class DeliverableForm extends Component
         $this->instructions = (string) $template->instructions;
         $this->completion_criteria = (string) $template->completion_criteria;
         $this->reference_url = (string) $template->reference_url;
+        // Cambiar de una plantilla a otra reemplaza por completo lo
+        // heredado de la anterior — nunca se combinan.
+        $this->inheritedReferenceFileIds = $template->activeReferenceFiles()->pluck('id')->all();
         $this->is_mandatory = $template->is_mandatory;
         $this->periodicity_type = $template->periodicity_type->value;
         $this->allowed_evidence_types = $template->allowed_evidence_types;
@@ -210,6 +230,11 @@ class DeliverableForm extends Component
         $this->max_files = $template->max_files;
         $this->max_file_size_mb = $template->max_file_size_mb;
         $this->weight_percentage = $template->weight_percentage;
+    }
+
+    public function removeInheritedReferenceFile(int $templateFileId): void
+    {
+        $this->inheritedReferenceFileIds = array_values(array_diff($this->inheritedReferenceFileIds, [$templateFileId]));
     }
 
     public function updatedScopeType(): void
@@ -259,51 +284,19 @@ class DeliverableForm extends Component
         $this->resetErrorBag('recipient_ids');
     }
 
-    /**
-     * Valida cada archivo apenas se adjunta (no al confirmar) — mismo
-     * criterio que EvidenceWorkspace::updatedNewFiles(): un archivo fuera
-     * de la whitelist nunca debe quedar "adjunto en silencio" hasta el
-     * guardado final. El tope de 3 cuenta los ya existentes (si se está
-     * editando) más los pendientes de subir — no solo estos últimos.
-     */
-    public function updatedNewReferenceFiles(): void
+    protected function referenceFileOwner(): Deliverable|DeliverableTemplate|null
     {
-        $this->resetErrorBag(['newReferenceFiles', 'newReferenceFiles.*']);
-
-        $existingCount = $this->deliverable?->activeReferenceFiles()->count() ?? 0;
-        $rules = [
-            'file',
-            'max:'.(DeliverableReferenceFile::MAX_FILE_SIZE_MB * 1024),
-            'mimes:'.implode(',', Deliverable::DEFAULT_ALLOWED_FILE_TYPES),
-        ];
-
-        $validFiles = [];
-
-        foreach ($this->newReferenceFiles as $file) {
-            if ($existingCount + count($validFiles) >= DeliverableReferenceFile::MAX_FILES) {
-                $this->addError('newReferenceFiles', 'Este entregable admite máximo '.DeliverableReferenceFile::MAX_FILES.' archivo(s) de referencia.');
-
-                break;
-            }
-
-            $validator = Validator::make(['newReferenceFiles' => [$file]], ['newReferenceFiles.*' => $rules]);
-
-            if ($validator->fails()) {
-                $this->addError('newReferenceFiles', $validator->errors()->first('newReferenceFiles.*'));
-
-                continue;
-            }
-
-            $validFiles[] = $file;
-        }
-
-        $this->newReferenceFiles = $validFiles;
+        return $this->deliverable;
     }
 
-    public function removeNewReferenceFile(int $index): void
+    /**
+     * Cada archivo heredado todavía en la lista ocupa un cupo del tope
+     * (DeliverableReferenceFile::MAX_FILES) aunque no sea una fila real
+     * todavía — se copiará al guardar si sigue presente.
+     */
+    protected function reservedReferenceFileSlots(): int
     {
-        unset($this->newReferenceFiles[$index]);
-        $this->newReferenceFiles = array_values($this->newReferenceFiles);
+        return count($this->inheritedReferenceFileIds);
     }
 
     /**
@@ -636,34 +629,35 @@ class DeliverableForm extends Component
     }
 
     /**
-     * Punto 5: al CREAR (nunca al editar — template_id no se restaura
-     * en edición, ver mount()) un entregable a partir de una plantilla
-     * que tiene su propio archivo de referencia, duplica esa fila como
-     * una fila nueva propia de este entregable — comparte disk_path (el
-     * archivo físico es el mismo, no hace falta copiarlo) pero necesita
-     * su propio stored_name único (constraint de BD), que no se usa
-     * para nada más que esa unicidad.
+     * Punto 5 (ampliado en el punto C: ahora son los que el usuario
+     * dejó en $inheritedReferenceFileIds, no "todos los de la
+     * plantilla" — si quitó uno de la lista antes de guardar, ese no
+     * se copia). Al CREAR (nunca al editar — template_id no se
+     * restaura en edición, ver mount()) un entregable a partir de una
+     * plantilla, duplica cada archivo de referencia todavía heredado
+     * como una fila nueva propia de este entregable — comparte
+     * disk_path (el archivo físico es el mismo, no hace falta
+     * copiarlo) pero necesita su propio stored_name único (constraint
+     * de BD), que no se usa para nada más que esa unicidad.
      */
     private function copyReferenceFileFromTemplate(bool $isNewDeliverable): void
     {
-        if (! $isNewDeliverable || ! $this->template_id) {
+        if (! $isNewDeliverable || empty($this->inheritedReferenceFileIds)) {
             return;
         }
 
-        $templateFile = DeliverableTemplate::find($this->template_id)?->activeReferenceFiles()->first();
+        $templateFiles = DeliverableReferenceFile::whereIn('id', $this->inheritedReferenceFileIds)->get();
 
-        if (! $templateFile) {
-            return;
+        foreach ($templateFiles as $templateFile) {
+            $this->deliverable->referenceFiles()->create([
+                'original_name' => $templateFile->original_name,
+                'stored_name' => Str::random(40).'.'.pathinfo($templateFile->stored_name, PATHINFO_EXTENSION),
+                'disk_path' => $templateFile->disk_path,
+                'mime_type' => $templateFile->mime_type,
+                'size_bytes' => $templateFile->size_bytes,
+                'uploaded_by' => auth()->id(),
+            ]);
         }
-
-        $this->deliverable->referenceFiles()->create([
-            'original_name' => $templateFile->original_name,
-            'stored_name' => Str::random(40).'.'.pathinfo($templateFile->stored_name, PATHINFO_EXTENSION),
-            'disk_path' => $templateFile->disk_path,
-            'mime_type' => $templateFile->mime_type,
-            'size_bytes' => $templateFile->size_bytes,
-            'uploaded_by' => auth()->id(),
-        ]);
     }
 
     public function render()
@@ -694,6 +688,9 @@ class DeliverableForm extends Component
             // si la vista accediera a $deliverable->activeReferenceFiles
             // sin que ya viniera cargada.
             'referenceFiles' => $this->deliverable?->activeReferenceFiles()->get() ?? collect(),
+            'inheritedReferenceFiles' => $this->inheritedReferenceFileIds
+                ? DeliverableReferenceFile::whereIn('id', $this->inheritedReferenceFileIds)->get()
+                : collect(),
             'candidateTeachers' => $this->candidateTeachers(),
             'totalSteps' => self::TOTAL_STEPS,
         ])->title($this->deliverable ? 'Editar entregable' : 'Nuevo entregable');

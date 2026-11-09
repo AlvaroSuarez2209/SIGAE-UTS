@@ -4,12 +4,12 @@ namespace App\Livewire\Deliverables;
 
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
+use App\Livewire\Concerns\HasReferenceFileUploads;
 use App\Models\Deliverable;
 use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Rules\HttpUrl;
-use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -18,7 +18,7 @@ use Livewire\WithFileUploads;
 #[Layout('layouts.app')]
 class TemplateForm extends Component
 {
-    use WithFileUploads;
+    use HasReferenceFileUploads, WithFileUploads;
 
     public ?DeliverableTemplate $template = null;
 
@@ -53,17 +53,6 @@ class TemplateForm extends Component
      * (ver DeliverableForm::updatedTemplateId()).
      */
     public string $reference_url = '';
-
-    /**
-     * Archivo de referencia de la plantilla, pendiente de subir al
-     * confirmar — a diferencia de los "Archivo(s) de referencia" de un
-     * Deliverable (hasta 3), una plantilla admite exactamente uno: no
-     * hay otro concepto de archivo de plantilla además de este. La
-     * plantilla puede no existir todavía (creación), así que no se
-     * puede guardar antes de eso (ver attachReferenceFile(), que exige
-     * un $this->template ya persistido).
-     */
-    public $newReferenceFile = null;
 
     public bool $is_mandatory = true;
 
@@ -104,32 +93,13 @@ class TemplateForm extends Component
         }
     }
 
-    /**
-     * Valida el archivo apenas se adjunta — mismo criterio que
-     * DeliverableForm::updatedNewReferenceFiles(). Una plantilla admite
-     * exactamente uno: si ya tiene uno guardado, el dropzone ni
-     * siquiera se muestra (ver template-form.blade.php).
-     */
-    public function updatedNewReferenceFile(): void
+    protected function referenceFileOwner(): Deliverable|DeliverableTemplate|null
     {
-        $this->resetErrorBag(['newReferenceFile']);
-
-        $validator = Validator::make(['newReferenceFile' => $this->newReferenceFile], [
-            'newReferenceFile' => [
-                'file',
-                'max:'.(DeliverableReferenceFile::MAX_FILE_SIZE_MB * 1024),
-                'mimes:'.implode(',', Deliverable::DEFAULT_ALLOWED_FILE_TYPES),
-            ],
-        ]);
-
-        if ($validator->fails()) {
-            $this->addError('newReferenceFile', $validator->errors()->first('newReferenceFile'));
-            $this->newReferenceFile = null;
-        }
+        return $this->template;
     }
 
     /**
-     * Sobre el archivo YA guardado (edición) — actúa de inmediato
+     * Sobre un archivo YA guardado (edición) — actúa de inmediato
      * (is_active = false + auditoría), mismo criterio que
      * DeliverableForm::removeReferenceFile().
      */
@@ -169,10 +139,11 @@ class TemplateForm extends Component
             $this->template = DeliverableTemplate::create($data);
         }
 
-        if ($this->newReferenceFile) {
-            $this->template->attachReferenceFile($this->newReferenceFile, auth()->user());
-            $this->newReferenceFile = null;
+        foreach ($this->newReferenceFiles as $file) {
+            $this->template->attachReferenceFile($file, auth()->user());
         }
+
+        $this->newReferenceFiles = [];
 
         session()->flash('status', 'Plantilla guardada correctamente.');
 
