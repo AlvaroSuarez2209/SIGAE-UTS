@@ -2,7 +2,6 @@
     <h1 class="mb-2 page-title">Topes de horas por vinculación</h1>
     <p class="mb-6 text-sm text-text-secondary">
         Tope semanal de horas que puede acumular un docente según su tipo de vinculación, usado al validar su distribución.
-        Los valores actuales son <span class="font-medium text-status-warning">provisionales</span> hasta que la directora los confirme.
     </p>
 
     <x-flash-message />
