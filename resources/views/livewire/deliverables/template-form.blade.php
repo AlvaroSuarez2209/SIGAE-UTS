@@ -29,6 +29,55 @@
         </div>
 
         <div>
+            <label class="field-label">Enlace al formato institucional <span class="font-normal text-text-secondary">(opcional)</span></label>
+            <input type="text" wire:model="institutional_format_url" placeholder="https://..." class="field-input">
+            @error('institutional_format_url') <p class="field-error">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+            <span class="field-label">Archivo del formato institucional <span class="font-normal text-text-secondary">(opcional)</span></span>
+
+            @if ($referenceFiles->isNotEmpty())
+                <ul class="mt-2 space-y-1">
+                    @foreach ($referenceFiles as $file)
+                        <li class="flex items-center justify-between gap-3 rounded-md border border-border-subtle px-3 py-2">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <x-icon name="paperclip" class="h-4 w-4 shrink-0 text-text-secondary" />
+                                <span class="truncate text-base text-text-primary">{{ $file->original_name }}</span>
+                                <span class="shrink-0 text-sm text-text-secondary">({{ $file->readable_size }})</span>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-3">
+                                @if ($file->existsOnDisk())
+                                    <a href="{{ route('deliverable-reference-files.download', $file) }}" class="btn-text">Descargar</a>
+                                @else
+                                    <span class="text-sm font-medium text-status-error">Archivo no disponible</span>
+                                @endif
+                                <button
+                                    type="button"
+                                    wire:click="removeReferenceFile({{ $file->id }})"
+                                    wire:loading.attr="disabled"
+                                    class="flex items-center gap-1 text-sm font-medium text-status-error hover:underline"
+                                >
+                                    <x-icon name="trash" class="h-4 w-4" />
+                                    Quitar
+                                </button>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            @elseif ($newReferenceFile)
+                <p class="field-help mt-2">{{ $newReferenceFile->getClientOriginalName() }}</p>
+            @else
+                <x-file-dropzone
+                    wire-model="newReferenceFile"
+                    accept="{{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => '.'.$e)->join(',') }}"
+                    class="mt-2"
+                />
+            @endif
+            @error('newReferenceFile') <p class="field-error">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
             <label class="field-label">Tipo de periodicidad</label>
             <select wire:model="periodicity_type" class="field-input">
                 @foreach ($periodicityOptions as $option)

@@ -28,6 +28,12 @@
                 @if ($description)<p><span class="field-label">Descripción</span> {{ $description }}</p>@endif
                 @if ($instructions)<p><span class="field-label">Instrucciones</span> {{ $instructions }}</p>@endif
                 @if ($completion_criteria)<p><span class="field-label">Criterio de cumplimiento</span> {{ $completion_criteria }}</p>@endif
+                @if ($institutional_format_url)
+                    <p>
+                        <span class="field-label">Formato institucional</span>
+                        <a href="{{ $institutional_format_url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">Abrir formato</a>
+                    </p>
+                @endif
                 @if ($referenceFiles->isNotEmpty())
                     <div>
                         <span class="field-label">Archivo(s) de referencia</span>
@@ -210,6 +216,12 @@
                     <label class="field-label">Criterio de cumplimiento <span class="font-normal text-text-secondary">(opcional)</span></label>
                     <textarea wire:model="completion_criteria" rows="2" class="field-input"></textarea>
                     @error('completion_criteria') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="field-label">Enlace al formato institucional <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <input type="text" wire:model="institutional_format_url" placeholder="https://..." class="field-input">
+                    @error('institutional_format_url') <p class="field-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- RF-038: plantilla/instructivo/formato de referencia --}}

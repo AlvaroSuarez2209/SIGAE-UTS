@@ -22,7 +22,9 @@ use App\Services\CatalogDependencyChecker;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -1176,12 +1178,15 @@ class DeliverableTest extends TestCase
      */
     public function test_returning_to_no_template_resets_every_field_the_template_had_copied(): void
     {
+        Storage::fake('local');
+
         $admin = $this->userWithRole(RoleName::Administrator);
         $template = DeliverableTemplate::factory()->create([
             'name' => 'Plantilla de informe mensual',
             'description' => 'Descripción de la plantilla',
             'instructions' => 'Instrucciones de la plantilla',
             'completion_criteria' => 'Criterio de la plantilla',
+            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
             'is_mandatory' => false,
             'periodicity_type' => PeriodicityType::Monthly,
             'allowed_evidence_types' => [EvidenceType::Text->value],
@@ -1190,14 +1195,20 @@ class DeliverableTest extends TestCase
             'max_file_size_mb' => 20,
             'weight_percentage' => 50,
         ]);
+        $templateFile = $template->attachReferenceFile(
+            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            $admin
+        );
 
         $component = Livewire::actingAs($admin)
             ->test(DeliverableForm::class)
             ->set('template_id', $template->id)
             ->assertSet('name', 'Plantilla de informe mensual')
-            ->assertSet('max_files', 5);
+            ->assertSet('max_files', 5)
+            ->assertSet('institutional_format_url', 'https://uts.edu.co/formato-institucional.pdf');
 
         $component->set('template_id', null)
+            ->assertSet('institutional_format_url', '')
             ->assertSet('name', '')
             ->assertSet('description', '')
             ->assertSet('instructions', '')
@@ -1209,6 +1220,95 @@ class DeliverableTest extends TestCase
             ->assertSet('max_files', 1)
             ->assertSet('max_file_size_mb', 10)
             ->assertSet('weight_percentage', null);
+    }
+
+    /**
+     * Punto 5: no basta con que el reseteo limpie las propiedades del
+     * componente (test de arriba) — el archivo de la plantilla nunca
+     * llega a copiarse de verdad si el admin volvió a "sin plantilla"
+     * ANTES de guardar (la copia ocurre en save(), ver
+     * DeliverableForm::copyReferenceFileFromTemplate()), así que el
+     * entregable final no debe tener ni el enlace ni ningún archivo de
+     * referencia.
+     */
+    public function test_returning_to_no_template_before_saving_copies_neither_the_link_nor_the_file(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        $template = DeliverableTemplate::factory()->create([
+            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
+        ]);
+        $template->attachReferenceFile(
+            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            $admin
+        );
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->set('template_id', null)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('saveAsDraft');
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+
+        $this->assertNotNull($deliverable);
+        $this->assertNull($deliverable->institutional_format_url);
+        $this->assertSame(0, $deliverable->referenceFiles()->count());
+    }
+
+    /**
+     * Punto 5: crear un entregable desde una plantilla con enlace y
+     * archivo copia ambos — el archivo se duplica como una fila propia
+     * del entregable (comparte disk_path, pero no stored_name, único en
+     * la base).
+     */
+    public function test_creating_a_deliverable_from_a_template_copies_the_institutional_format_link_and_file(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        $template = DeliverableTemplate::factory()->create([
+            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
+        ]);
+        $templateFile = $template->attachReferenceFile(
+            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            $admin
+        );
+
+        Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('template_id', $template->id)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set($this->baseFormState())
+            ->call('saveAsDraft');
+
+        $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
+
+        $this->assertNotNull($deliverable);
+        $this->assertSame('https://uts.edu.co/formato-institucional.pdf', $deliverable->institutional_format_url);
+
+        $copiedFile = $deliverable->referenceFiles()->first();
+        $this->assertNotNull($copiedFile);
+        $this->assertSame('formato.pdf', $copiedFile->original_name);
+        $this->assertSame($templateFile->disk_path, $copiedFile->disk_path);
+        $this->assertNotSame($templateFile->stored_name, $copiedFile->stored_name);
+        $this->assertNull($copiedFile->deliverable_template_id);
+        $this->assertSame($deliverable->id, $copiedFile->deliverable_id);
     }
 
     /**

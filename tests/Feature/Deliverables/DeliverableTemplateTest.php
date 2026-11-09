@@ -166,4 +166,117 @@ class DeliverableTemplateTest extends TestCase
             ->assertSet('allowed_evidence_types', [EvidenceType::File->value, EvidenceType::Link->value])
             ->assertSet('allowed_file_types', ['pdf', 'zip']);
     }
+
+    // --- Punto 5: enlace y archivo de formato institucional ---
+
+    public function test_creating_a_template_with_an_institutional_format_link_and_file(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $file = \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 500, 'application/pdf');
+
+        Livewire::actingAs($coordination)
+            ->test(TemplateForm::class)
+            ->set('name', 'Informe trimestral')
+            ->set('periodicity_type', 'by_term')
+            ->set('allowed_evidence_types', [EvidenceType::File->value])
+            ->set('institutional_format_url', 'https://uts.edu.co/formato.pdf')
+            ->set('newReferenceFile', $file)
+            ->assertHasNoErrors()
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $template = DeliverableTemplate::where('name', 'Informe trimestral')->first();
+
+        $this->assertNotNull($template);
+        $this->assertSame('https://uts.edu.co/formato.pdf', $template->institutional_format_url);
+
+        $referenceFile = $template->referenceFiles()->first();
+        $this->assertNotNull($referenceFile);
+        $this->assertSame('formato.pdf', $referenceFile->original_name);
+        $this->assertTrue($referenceFile->is_active);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($referenceFile->disk_path);
+    }
+
+    /**
+     * "rechaza javascript:, ftp:, texto libre" — probado contra los 3
+     * sobre entregable Y plantilla, ya que ambos usan App\Rules\HttpUrl.
+     */
+    public function test_an_institutional_format_url_with_a_disallowed_scheme_or_free_text_is_rejected(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        foreach (['javascript:alert(1)', 'ftp://files.example.com/x.pdf', 'no es una url'] as $badUrl) {
+            Livewire::actingAs($coordination)
+                ->test(TemplateForm::class)
+                ->set('name', 'Informe '.$badUrl)
+                ->set('periodicity_type', 'by_term')
+                ->set('allowed_evidence_types', [EvidenceType::File->value])
+                ->set('institutional_format_url', $badUrl)
+                ->call('save')
+                ->assertHasErrors('institutional_format_url');
+        }
+    }
+
+    public function test_a_valid_https_institutional_format_url_is_accepted(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        Livewire::actingAs($coordination)
+            ->test(TemplateForm::class)
+            ->set('name', 'Informe con enlace válido')
+            ->set('periodicity_type', 'by_term')
+            ->set('allowed_evidence_types', [EvidenceType::File->value])
+            ->set('institutional_format_url', 'https://uts.edu.co/formato-institucional.pdf')
+            ->call('save')
+            ->assertHasNoErrors('institutional_format_url');
+    }
+
+    public function test_the_upload_field_is_replaced_by_the_saved_file_and_a_quitar_button_once_one_exists(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+        $file = $template->attachReferenceFile(
+            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            $admin
+        );
+
+        $html = Livewire::actingAs($admin)
+            ->test(TemplateForm::class, ['deliverableTemplate' => $template])
+            ->html();
+
+        $this->assertStringContainsString('formato.pdf', $html);
+        $this->assertStringContainsString('removeReferenceFile('.$file->id.')', $html);
+        $this->assertStringNotContainsString('Arrastra el archivo aquí', $html);
+    }
+
+    public function test_removing_the_templates_reference_file_is_audited_and_never_deletes_the_row_or_the_physical_file(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+        $file = $template->attachReferenceFile(
+            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            $admin
+        );
+
+        Livewire::actingAs($admin)
+            ->test(TemplateForm::class, ['deliverableTemplate' => $template])
+            ->call('removeReferenceFile', $file);
+
+        $file->refresh();
+        $this->assertFalse($file->is_active);
+        $this->assertDatabaseHas('deliverable_reference_files', ['id' => $file->id]);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($file->disk_path);
+
+        $log = \App\Models\AuditLog::where('action', 'deliverable_reference_file_removed')
+            ->where('auditable_type', DeliverableTemplate::class)
+            ->where('auditable_id', $template->id)
+            ->first();
+        $this->assertNotNull($log);
+    }
 }

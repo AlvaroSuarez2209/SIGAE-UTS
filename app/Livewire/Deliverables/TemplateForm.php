@@ -4,15 +4,22 @@ namespace App\Livewire\Deliverables;
 
 use App\Enums\EvidenceType;
 use App\Enums\PeriodicityType;
+use App\Models\Deliverable;
+use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Rules\CaseAccentInsensitiveUnique;
+use App\Rules\HttpUrl;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class TemplateForm extends Component
 {
+    use WithFileUploads;
+
     public ?DeliverableTemplate $template = null;
 
     /**
@@ -39,6 +46,24 @@ class TemplateForm extends Component
 
     public string $completion_criteria = '';
 
+    /**
+     * Punto 5: enlace al formato institucional de la plantilla — se
+     * copia a cada entregable creado a partir de ella (ver
+     * DeliverableForm::updatedTemplateId()).
+     */
+    public string $institutional_format_url = '';
+
+    /**
+     * Archivo del formato institucional, pendiente de subir al
+     * confirmar — a diferencia de los "Archivo(s) de referencia" de un
+     * Deliverable (hasta 3), una plantilla admite exactamente uno: no
+     * hay otro concepto de archivo de plantilla además de este. La
+     * plantilla puede no existir todavía (creación), así que no se
+     * puede guardar antes de eso (ver attachReferenceFile(), que exige
+     * un $this->template ya persistido).
+     */
+    public $newReferenceFile = null;
+
     public bool $is_mandatory = true;
 
     public string $periodicity_type = '';
@@ -64,6 +89,7 @@ class TemplateForm extends Component
             $this->description = (string) $this->template->description;
             $this->instructions = (string) $this->template->instructions;
             $this->completion_criteria = (string) $this->template->completion_criteria;
+            $this->institutional_format_url = (string) $this->template->institutional_format_url;
             $this->is_mandatory = $this->template->is_mandatory;
             $this->periodicity_type = $this->template->periodicity_type->value;
             $this->allowed_evidence_types = $this->template->allowed_evidence_types;
@@ -77,6 +103,40 @@ class TemplateForm extends Component
         }
     }
 
+    /**
+     * Valida el archivo apenas se adjunta — mismo criterio que
+     * DeliverableForm::updatedNewReferenceFiles(). Una plantilla admite
+     * exactamente uno: si ya tiene uno guardado, el dropzone ni
+     * siquiera se muestra (ver template-form.blade.php).
+     */
+    public function updatedNewReferenceFile(): void
+    {
+        $this->resetErrorBag(['newReferenceFile']);
+
+        $validator = Validator::make(['newReferenceFile' => $this->newReferenceFile], [
+            'newReferenceFile' => [
+                'file',
+                'max:'.(DeliverableReferenceFile::MAX_FILE_SIZE_MB * 1024),
+                'mimes:'.implode(',', Deliverable::DEFAULT_ALLOWED_FILE_TYPES),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            $this->addError('newReferenceFile', $validator->errors()->first('newReferenceFile'));
+            $this->newReferenceFile = null;
+        }
+    }
+
+    /**
+     * Sobre el archivo YA guardado (edición) — actúa de inmediato
+     * (is_active = false + auditoría), mismo criterio que
+     * DeliverableForm::removeReferenceFile().
+     */
+    public function removeReferenceFile(DeliverableReferenceFile $referenceFile): void
+    {
+        $this->template->removeReferenceFile($referenceFile, auth()->user());
+    }
+
     public function save(): void
     {
         $data = $this->validate([
@@ -84,6 +144,7 @@ class TemplateForm extends Component
             'description' => ['nullable', 'string', 'max:2000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
             'completion_criteria' => ['nullable', 'string', 'max:2000'],
+            'institutional_format_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
             'is_mandatory' => ['boolean'],
             'periodicity_type' => ['required', 'in:'.implode(',', array_column(PeriodicityType::cases(), 'value'))],
             'allowed_evidence_types' => ['required', 'array', 'min:1'],
@@ -98,12 +159,18 @@ class TemplateForm extends Component
         $data['description'] = $data['description'] ?: null;
         $data['instructions'] = $data['instructions'] ?: null;
         $data['completion_criteria'] = $data['completion_criteria'] ?: null;
+        $data['institutional_format_url'] = $data['institutional_format_url'] ?: null;
         $data['allowed_file_types'] = $data['allowed_file_types'] ?: null;
 
         if ($this->template) {
             $this->template->update($data);
         } else {
-            DeliverableTemplate::create($data);
+            $this->template = DeliverableTemplate::create($data);
+        }
+
+        if ($this->newReferenceFile) {
+            $this->template->attachReferenceFile($this->newReferenceFile, auth()->user());
+            $this->newReferenceFile = null;
         }
 
         session()->flash('status', 'Plantilla guardada correctamente.');
@@ -117,6 +184,7 @@ class TemplateForm extends Component
             'periodicityOptions' => PeriodicityType::cases(),
             'evidenceTypeOptions' => EvidenceType::cases(),
             'fileTypeOptions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'png', 'zip'],
+            'referenceFiles' => $this->template?->activeReferenceFiles()->get() ?? collect(),
         ])->title($this->template ? 'Editar plantilla' : 'Nueva plantilla');
     }
 }

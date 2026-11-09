@@ -13,7 +13,9 @@ use App\Models\Deliverable;
 use App\Models\DeliverableReferenceFile;
 use App\Models\DeliverableTemplate;
 use App\Models\User;
+use App\Rules\HttpUrl;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -61,6 +63,13 @@ class DeliverableForm extends Component
     public string $instructions = '';
 
     public string $completion_criteria = '';
+
+    /**
+     * Punto 5: enlace al formato institucional — se copia desde la
+     * plantilla al elegirla (ver updatedTemplateId()) y se limpia al
+     * volver a "sin plantilla", igual que los demás campos copiados.
+     */
+    public string $institutional_format_url = '';
 
     public bool $is_mandatory = true;
 
@@ -126,6 +135,7 @@ class DeliverableForm extends Component
             $this->description = (string) $this->deliverable->description;
             $this->instructions = (string) $this->deliverable->instructions;
             $this->completion_criteria = (string) $this->deliverable->completion_criteria;
+            $this->institutional_format_url = (string) $this->deliverable->institutional_format_url;
             $this->is_mandatory = $this->deliverable->is_mandatory;
             $this->periodicity_type = $this->deliverable->periodicity_type->value;
             $this->opens_at = $this->deliverable->opens_at->format('Y-m-d\TH:i');
@@ -168,6 +178,7 @@ class DeliverableForm extends Component
             $this->description = '';
             $this->instructions = '';
             $this->completion_criteria = '';
+            $this->institutional_format_url = '';
             $this->is_mandatory = $this->defaultIsMandatory();
             $this->periodicity_type = PeriodicityType::Single->value;
             $this->allowed_evidence_types = [];
@@ -189,6 +200,7 @@ class DeliverableForm extends Component
         $this->description = (string) $template->description;
         $this->instructions = (string) $template->instructions;
         $this->completion_criteria = (string) $template->completion_criteria;
+        $this->institutional_format_url = (string) $template->institutional_format_url;
         $this->is_mandatory = $template->is_mandatory;
         $this->periodicity_type = $template->periodicity_type->value;
         $this->allowed_evidence_types = $template->allowed_evidence_types;
@@ -347,6 +359,7 @@ class DeliverableForm extends Component
                 'description' => ['nullable', 'string', 'max:2000'],
                 'instructions' => ['nullable', 'string', 'max:5000'],
                 'completion_criteria' => ['nullable', 'string', 'max:2000'],
+                'institutional_format_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
             ],
             3 => [
                 'periodicity_type' => ['required', 'in:'.implode(',', array_column(PeriodicityType::cases(), 'value'))],
@@ -486,6 +499,7 @@ class DeliverableForm extends Component
         $data['description'] = $data['description'] ?: null;
         $data['instructions'] = $data['instructions'] ?: null;
         $data['completion_criteria'] = $data['completion_criteria'] ?: null;
+        $data['institutional_format_url'] = $data['institutional_format_url'] ?: null;
         $data['closes_at'] = $data['closes_at'] ?: null;
         $data['allowed_file_types'] = $data['allowed_file_types'] ?: null;
         $data['deliverable_template_id'] = $this->template_id;
@@ -525,6 +539,8 @@ class DeliverableForm extends Component
         $data = $this->normalizeData($this->validatedCoreData());
         $data['status'] = DeliverableStatus::Draft->value;
 
+        $isNewDeliverable = ! $this->deliverable;
+
         if ($this->deliverable) {
             $this->deliverable->update($data);
         } else {
@@ -548,6 +564,7 @@ class DeliverableForm extends Component
         $this->deliverable->recipients()->sync($recipientIds);
 
         $this->persistNewReferenceFiles();
+        $this->copyReferenceFileFromTemplate($isNewDeliverable);
 
         session()->flash('status', 'Entregable guardado como borrador. No es visible para los docentes todavía.');
 
@@ -579,6 +596,8 @@ class DeliverableForm extends Component
         $data = $this->normalizeData($data);
         $data['status'] = DeliverableStatus::Published->value;
 
+        $isNewDeliverable = ! $this->deliverable;
+
         if ($this->deliverable) {
             $this->deliverable->update($data);
         } else {
@@ -593,6 +612,7 @@ class DeliverableForm extends Component
         $this->deliverable->ensureEvidencesForRecipients($recipientIds);
 
         $this->persistNewReferenceFiles();
+        $this->copyReferenceFileFromTemplate($isNewDeliverable);
 
         session()->flash('status', 'Entregable guardado correctamente.');
 
@@ -611,6 +631,37 @@ class DeliverableForm extends Component
         }
 
         $this->newReferenceFiles = [];
+    }
+
+    /**
+     * Punto 5: al CREAR (nunca al editar — template_id no se restaura
+     * en edición, ver mount()) un entregable a partir de una plantilla
+     * que tiene su propio archivo de referencia, duplica esa fila como
+     * una fila nueva propia de este entregable — comparte disk_path (el
+     * archivo físico es el mismo, no hace falta copiarlo) pero necesita
+     * su propio stored_name único (constraint de BD), que no se usa
+     * para nada más que esa unicidad.
+     */
+    private function copyReferenceFileFromTemplate(bool $isNewDeliverable): void
+    {
+        if (! $isNewDeliverable || ! $this->template_id) {
+            return;
+        }
+
+        $templateFile = DeliverableTemplate::find($this->template_id)?->activeReferenceFiles()->first();
+
+        if (! $templateFile) {
+            return;
+        }
+
+        $this->deliverable->referenceFiles()->create([
+            'original_name' => $templateFile->original_name,
+            'stored_name' => Str::random(40).'.'.pathinfo($templateFile->stored_name, PATHINFO_EXTENSION),
+            'disk_path' => $templateFile->disk_path,
+            'mime_type' => $templateFile->mime_type,
+            'size_bytes' => $templateFile->size_bytes,
+            'uploaded_by' => auth()->id(),
+        ]);
     }
 
     public function render()
