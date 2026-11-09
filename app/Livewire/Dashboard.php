@@ -386,7 +386,7 @@ class Dashboard extends Component
             'filterableTeachers' => $isCoordination
                 ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))->orderByAccentInsensitive('name')->get()
                 : collect(),
-            'filterableActivities' => $isCoordination ? Activity::active()->with('component')->orderByAccentInsensitive('name')->get() : collect(),
+            'filterableActivities' => $isCoordination ? Activity::active()->with(['component', 'subcomponent'])->orderedByHierarchy()->get() : collect(),
             'filterableLeaders' => $isCoordination
                 ? User::where('is_active', true)
                     ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))

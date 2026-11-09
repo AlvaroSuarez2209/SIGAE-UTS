@@ -256,12 +256,18 @@ class CatalogManagementTest extends TestCase
             });
     }
 
+    /**
+     * Mismo componente para las 3, sin subcomponente: dentro de ese
+     * único grupo, el orden jerárquico (ver test de hierarchy más
+     * abajo) se reduce al orden alfabético por nombre de actividad.
+     */
     public function test_activity_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        Activity::factory()->create(['name' => 'Zonas de bienestar']);
-        Activity::factory()->create(['name' => 'Áreas académicas']);
-        Activity::factory()->create(['name' => 'Bienestar institucional']);
+        $component = Component::factory()->create();
+        Activity::factory()->create(['component_id' => $component->id, 'name' => 'Zonas de bienestar']);
+        Activity::factory()->create(['component_id' => $component->id, 'name' => 'Áreas académicas']);
+        Activity::factory()->create(['component_id' => $component->id, 'name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(ActivityIndex::class)
@@ -269,6 +275,38 @@ class CatalogManagementTest extends TestCase
                 'Áreas académicas',
                 'Bienestar institucional',
                 'Zonas de bienestar',
+            ]);
+    }
+
+    /**
+     * Corrección posterior: ordena actividades por componente, luego
+     * subcomponente, luego nombre de actividad — todo insensible a
+     * tildes/mayúsculas. Las actividades sin subcomponente van al
+     * inicio de su componente (se tratan como cadena vacía).
+     */
+    public function test_activity_index_lists_by_component_then_subcomponent_then_activity_name(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $componentZ = Component::factory()->create(['name' => 'Zonas de bienestar']);
+        $componentA = Component::factory()->create(['name' => 'Ángel']);
+
+        $subB = Subcomponent::factory()->create(['component_id' => $componentA->id, 'name' => 'Beta']);
+        $subA = Subcomponent::factory()->create(['component_id' => $componentA->id, 'name' => 'Álvaro']);
+
+        Activity::factory()->create(['component_id' => $componentZ->id, 'subcomponent_id' => null, 'name' => 'Solitaria']);
+        Activity::factory()->create(['component_id' => $componentA->id, 'subcomponent_id' => null, 'name' => 'Zeta sin subcomponente']);
+        Activity::factory()->create(['component_id' => $componentA->id, 'subcomponent_id' => $subB->id, 'name' => 'Última']);
+        Activity::factory()->create(['component_id' => $componentA->id, 'subcomponent_id' => $subA->id, 'name' => 'Primera']);
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->assertViewHas('activities', fn ($activities) => $activities->pluck('name')->all() === [
+                // Componente "Ángel" antes que "Zonas de bienestar" (A antes de Z).
+                'Zeta sin subcomponente', // sin subcomponente: va primero dentro de "Ángel".
+                'Primera', // subcomponente "Álvaro".
+                'Última', // subcomponente "Beta".
+                'Solitaria', // único de "Zonas de bienestar".
             ]);
     }
 

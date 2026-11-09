@@ -623,7 +623,7 @@ class DeliverableForm extends Component
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->where('is_active', true)
                 ->orWhere('id', $this->activity_id)
-                ->orderByAccentInsensitive('name')
+                ->orderedByHierarchy()
                 ->get(),
             'commitments' => CrossCuttingCommitment::where('is_active', true)
                 ->orWhere('id', $this->cross_cutting_commitment_id)

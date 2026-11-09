@@ -15,9 +15,7 @@
             <label class="field-label">Actividad</label>
             <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input">
                 <option value="">Selecciona una actividad</option>
-                @foreach ($activities as $activity)
-                    <option value="{{ $activity->id }}">{{ $activity->component->name }} — {{ $activity->name }}</option>
-                @endforeach
+                <x-activity-select-options :activities="$activities" />
             </select>
         </div>
 

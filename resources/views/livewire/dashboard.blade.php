@@ -213,9 +213,7 @@
                     <label class="field-label">Actividad</label>
                     <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
                         <option value="">Todas</option>
-                        @foreach ($filterableActivities as $filterableActivity)
-                            <option value="{{ $filterableActivity->id }}">{{ $filterableActivity->component->name }} — {{ $filterableActivity->name }}</option>
-                        @endforeach
+                        <x-activity-select-options :activities="$filterableActivities" />
                     </select>
                 </div>
                 <div class="w-full md:w-auto">

@@ -37,12 +37,7 @@
             <label class="field-label">Actividad</label>
             <select wire:model="activity_id" class="field-input" @if ($periodLocked) disabled @endif>
                 <option value="">Selecciona una actividad</option>
-                @foreach ($activities as $activity)
-                    <option value="{{ $activity->id }}">
-                        {{ $activity->component->name }}@if ($activity->subcomponent) / {{ $activity->subcomponent->name }}@endif
-                        — {{ $activity->name }}
-                    </option>
-                @endforeach
+                <x-activity-select-options :activities="$activities" />
             </select>
             @error('activity_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>

@@ -176,8 +176,7 @@ class ActivityIndex extends LivewireComponent
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->orderByAccentInsensitive('name')
-                ->orderBy('id')
+                ->orderedByHierarchy()
                 ->paginate(self::PER_PAGE),
             // Selectores del modal: solo activos, salvo que sea justo el
             // componente/subcomponente que ya tiene asignado el que se

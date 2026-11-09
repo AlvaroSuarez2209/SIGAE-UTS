@@ -49,4 +49,25 @@ class Activity extends Model
     {
         return $this->hasMany(TeacherAssignment::class);
     }
+
+    /**
+     * Orden jerárquico para todos los selectores/listados de actividad
+     * del sistema: componente A-Z, luego subcomponente A-Z (las
+     * actividades sin subcomponente van al inicio de su componente —
+     * se tratan como cadena vacía, que ordena antes que cualquier
+     * letra), luego actividad A-Z, todo insensible a tildes, con
+     * desempate final por id. Usa subconsultas en vez de un JOIN para
+     * no chocar con columnas ambiguas (is_active/id existen también en
+     * components y subcomponents) y para no tener que tocar los
+     * where()/orWhere() que cada selector ya aplica sobre esta misma
+     * consulta.
+     */
+    public function scopeOrderedByHierarchy($query)
+    {
+        return $query
+            ->orderByRaw("translate(lower((select name from components where components.id = activities.component_id)), 'áéíóúñü', 'aeiounu') asc")
+            ->orderByRaw("translate(lower(coalesce((select name from subcomponents where subcomponents.id = activities.subcomponent_id), '')), 'áéíóúñü', 'aeiounu') asc")
+            ->orderByAccentInsensitive('activities.name')
+            ->orderBy('activities.id');
+    }
 }

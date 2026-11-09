@@ -63,7 +63,7 @@ class ConsolidatedReport extends Component
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
                 ->orderByAccentInsensitive('name')
                 ->get(),
-            'activities' => Activity::active()->with('component')->orderByAccentInsensitive('name')->get(),
+            'activities' => Activity::active()->with(['component', 'subcomponent'])->orderedByHierarchy()->get(),
             'leaders' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))
                 ->orderByAccentInsensitive('name')

@@ -36,9 +36,7 @@
             <label class="field-label">Actividad <span class="font-normal text-text-secondary">(opcional)</span></label>
             <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input">
                 <option value="">Todas</option>
-                @foreach ($activities as $activity)
-                    <option value="{{ $activity->id }}">{{ $activity->component->name }} — {{ $activity->name }}</option>
-                @endforeach
+                <x-activity-select-options :activities="$activities" />
             </select>
         </div>
 

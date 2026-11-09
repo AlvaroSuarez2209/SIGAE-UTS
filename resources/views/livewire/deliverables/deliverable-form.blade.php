@@ -166,12 +166,7 @@
                         <label class="field-label">Actividad</label>
                         <select wire:model.live="activity_id" class="field-input">
                             <option value="">Selecciona una actividad</option>
-                            @foreach ($activities as $activity)
-                                <option value="{{ $activity->id }}">
-                                    {{ $activity->component->name }}@if ($activity->subcomponent) / {{ $activity->subcomponent->name }}@endif
-                                    — {{ $activity->name }}
-                                </option>
-                            @endforeach
+                            <x-activity-select-options :activities="$activities" />
                         </select>
                         @error('activity_id') <p class="field-error">{{ $message }}</p> @enderror
                     </div>

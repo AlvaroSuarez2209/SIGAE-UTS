@@ -184,7 +184,7 @@ class AssignmentForm extends Component
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->where('is_active', true)
                 ->orWhere('id', $this->activity_id)
-                ->orderByAccentInsensitive('name')
+                ->orderedByHierarchy()
                 ->get(),
             'programUnits' => ProgramUnit::where('is_active', true)
                 ->orWhere('id', $this->program_unit_id)
