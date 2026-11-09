@@ -1000,4 +1000,95 @@ class DashboardTest extends TestCase
             ->assertViewHas('coordinationPanel', fn ($panel) => $panel['counts']['approved'] === 1
                 && $panel['counts']['pending'] === 0);
     }
+
+    // --- Punto 14: selector de vista para usuarios con varios roles ---
+
+    public function test_a_user_who_only_qualifies_for_one_block_sees_no_selector(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        $html = Livewire::actingAs($teacher)->test(Dashboard::class)
+            ->assertSet('view', 'teacher')
+            ->assertViewHas('availableViews', ['teacher'])
+            ->html();
+
+        $this->assertStringNotContainsString("setView('teacher')", $html);
+    }
+
+    public function test_teacher_and_leader_user_sees_the_selector_switches_view_and_it_is_remembered(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher);
+        $user->roles()->attach(Role::where('name', RoleName::Leader->value)->first());
+
+        // Sin elección previa: Líder gana (mayor responsabilidad que Docente).
+        Livewire::actingAs($user)->test(Dashboard::class)
+            ->assertViewHas('availableViews', ['leader', 'teacher'])
+            ->assertSet('view', 'leader')
+            ->call('setView', 'teacher')
+            ->assertSet('view', 'teacher');
+
+        // Nueva instancia del componente (como una recarga de página):
+        // la elección sigue viva en sesión.
+        Livewire::actingAs($user)->test(Dashboard::class)
+            ->assertSet('view', 'teacher');
+    }
+
+    public function test_coordination_and_teacher_user_defaults_to_coordination(): void
+    {
+        $user = $this->userWithRole(RoleName::Coordination);
+        $user->roles()->attach(Role::where('name', RoleName::Teacher->value)->first());
+
+        Livewire::actingAs($user)->test(Dashboard::class)
+            ->assertViewHas('availableViews', ['coordination', 'teacher'])
+            ->assertSet('view', 'coordination');
+    }
+
+    public function test_an_invalid_or_manipulated_view_value_falls_back_to_the_default(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher);
+        $user->roles()->attach(Role::where('name', RoleName::Leader->value)->first());
+
+        // Pedir una vista que ni siquiera existe.
+        Livewire::actingAs($user)->test(Dashboard::class)
+            ->call('setView', 'coordination')
+            ->assertSet('view', 'leader');
+
+        // Pedir una vista real, pero a la que este usuario no califica
+        // (no tiene el rol Coordinación/Administrador/Auditor).
+        Livewire::actingAs($user)->test(Dashboard::class)
+            ->call('setView', 'not-a-real-view')
+            ->assertSet('view', 'leader');
+    }
+
+    /**
+     * Un valor manipulado directo en sesión (sin pasar por setView())
+     * también debe ignorarse al montar el componente — cubre el caso de
+     * una sesión vieja de cuando el usuario sí tenía ese rol, o un valor
+     * puesto a mano.
+     */
+    public function test_a_tampered_session_value_falls_back_to_the_default_on_mount(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        session(['dashboard_view' => 'coordination']);
+
+        Livewire::actingAs($teacher)->test(Dashboard::class)
+            ->assertSet('view', 'teacher');
+    }
+
+    public function test_the_sidebar_is_unaffected_by_the_selected_dashboard_view(): void
+    {
+        $user = $this->userWithRole(RoleName::Teacher);
+        $user->roles()->attach(Role::where('name', RoleName::Leader->value)->first());
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertOk();
+        // El menú lateral sigue mostrando las entradas de TODOS los
+        // roles del usuario, sin importar qué bloque del dashboard esté
+        // activo — "Mis entregables" (docente) y "Líderes" (líder) deben
+        // verse los dos a la vez.
+        $response->assertSee('Mis entregables');
+        $response->assertSee('Revisión');
+    }
 }

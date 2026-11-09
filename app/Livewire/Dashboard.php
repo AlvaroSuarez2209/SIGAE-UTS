@@ -23,7 +23,29 @@ use Livewire\Component;
 #[Title('Dashboard')]
 class Dashboard extends Component
 {
+    /**
+     * Punto 14 de las correcciones post-prueba: orden de prioridad para
+     * el bloque predeterminado cuando el usuario tiene varios roles y
+     * nunca eligió vista (o su elección guardada ya no es válida) — el
+     * primero de esta lista que el usuario califique gana. Para cambiar
+     * la prioridad, solo hay que reordenar este arreglo.
+     */
+    private const VIEW_PRIORITY = ['coordination', 'leader', 'teacher'];
+
+    private const SESSION_KEY = 'dashboard_view';
+
     public ?int $periodFilter = null;
+
+    /**
+     * 'teacher' | 'leader' | 'coordination' — el bloque que se muestra
+     * hoy. Se guarda en sesión (setView()) para recordarse entre
+     * navegaciones/recargas. Siempre se valida contra los roles reales
+     * del usuario (availableViews()): un valor en sesión o en la
+     * solicitud que ya no corresponda a ningún rol del usuario se
+     * ignora y cae al predeterminado — nunca se confía en el valor tal
+     * cual llega.
+     */
+    public string $view = '';
 
     // Prioridad 6: filtros exclusivos del panel de Coordinación/Administrador
     // — a propósito, sin #[Url] y sin usarse en teacherPanel()/leaderPanel(),
@@ -42,6 +64,49 @@ class Dashboard extends Component
     {
         $this->periodFilter = AcademicPeriod::where('status', 'active')->value('id')
             ?? AcademicPeriod::orderByDesc('start_date')->value('id');
+
+        $available = $this->availableViews();
+        $requested = session(self::SESSION_KEY);
+        $this->view = in_array($requested, $available, true) ? $requested : $this->defaultView($available);
+    }
+
+    /**
+     * Único punto de entrada para cambiar de vista — valida siempre
+     * contra availableViews() antes de aceptar el valor pedido (botón
+     * del selector) y lo persiste en sesión.
+     */
+    public function setView(string $view): void
+    {
+        $available = $this->availableViews();
+
+        $this->view = in_array($view, $available, true) ? $view : $this->defaultView($available);
+
+        session([self::SESSION_KEY => $this->view]);
+    }
+
+    /**
+     * Los bloques a los que el usuario califica, en orden de prioridad
+     * (ver VIEW_PRIORITY) — por rol, nunca por si ese bloque tiene datos
+     * que mostrar (un docente sin evidencias igual califica para "teacher").
+     *
+     * @return list<string>
+     */
+    private function availableViews(): array
+    {
+        $user = auth()->user();
+
+        $qualifies = [
+            'coordination' => $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination, RoleName::Auditor]),
+            'leader' => $user->hasRole(RoleName::Leader),
+            'teacher' => $user->hasRole(RoleName::Teacher),
+        ];
+
+        return array_values(array_filter(self::VIEW_PRIORITY, fn ($view) => $qualifies[$view]));
+    }
+
+    private function defaultView(array $available): string
+    {
+        return $available[0] ?? '';
     }
 
     private function teacherPanel(User $user): ?array
@@ -373,12 +438,16 @@ class Dashboard extends Component
     public function render()
     {
         $user = auth()->user();
-        $isCoordination = $user->hasAnyRole([RoleName::Administrator, RoleName::Coordination, RoleName::Auditor]);
+        $isCoordination = $this->view === 'coordination';
 
         return view('livewire.dashboard', [
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
-            'teacherPanel' => $user->hasRole(RoleName::Teacher) ? $this->teacherPanel($user) : null,
-            'leaderPanel' => $user->hasRole(RoleName::Leader) ? $this->leaderPanel($user) : null,
+            'availableViews' => $this->availableViews(),
+            // Punto 14: cada bloque solo se calcula si es la vista activa
+            // — ya no los tres en cada render(), aunque el usuario
+            // califique para varios.
+            'teacherPanel' => $this->view === 'teacher' ? $this->teacherPanel($user) : null,
+            'leaderPanel' => $this->view === 'leader' ? $this->leaderPanel($user) : null,
             'coordinationPanel' => $isCoordination ? $this->coordinationPanel() : null,
             // Opciones de los 5 filtros nuevos del panel de Coordinación —
             // solo se calculan para quien realmente ve ese panel.

@@ -21,6 +21,27 @@
         </div>
     </div>
 
+    @if (count($availableViews) > 1)
+        <div class="flex flex-wrap gap-2 border-b border-border-subtle">
+            @foreach ($availableViews as $availableView)
+                @php
+                    $viewLabels = ['teacher' => 'Docente', 'leader' => 'Líder', 'coordination' => 'Coordinación'];
+                @endphp
+                <button
+                    type="button"
+                    wire:click="setView('{{ $availableView }}')"
+                    @class([
+                        'border-b-2 px-4 py-2 text-sm font-medium -mb-px',
+                        'border-brand-primary text-brand-primary' => $view === $availableView,
+                        'border-transparent text-text-secondary hover:text-text-primary' => $view !== $availableView,
+                    ])
+                >
+                    {{ $viewLabels[$availableView] }}
+                </button>
+            @endforeach
+        </div>
+    @endif
+
     @if ($teacherPanel)
         <section>
             <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel docente</h2>
