@@ -564,4 +564,40 @@ class ReviewShowTest extends TestCase
             ->get(route('evidence-files.download', $v1File))
             ->assertForbidden();
     }
+
+    // --- Punto 5: formato institucional (enlace + archivo) en la vista del revisor ---
+
+    public function test_shows_the_institutional_format_link_opening_in_a_new_tab(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update(['institutional_format_url' => 'https://uts.edu.co/formato.pdf']);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('Abrir formato', $html);
+        $this->assertStringContainsString('href="https://uts.edu.co/formato.pdf"', $html);
+        $this->assertStringContainsString('target="_blank"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+    }
+
+    /**
+     * Mismo criterio "Archivo no disponible" que ya usa DeliverableForm
+     * — antes de este punto, ReviewShow mostraba siempre el enlace de
+     * descarga sin comprobar existsOnDisk().
+     */
+    public function test_shows_archivo_no_disponible_when_the_reference_files_physical_file_is_missing(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $referenceFile = $evidence->deliverable->attachReferenceFile(
+            UploadedFile::fake()->create('instructivo.pdf', 100, 'application/pdf'),
+            $leader
+        );
+        Storage::disk('local')->delete($referenceFile->disk_path);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
+
+        $this->assertStringContainsString('instructivo.pdf', $html);
+        $this->assertStringContainsString('Archivo no disponible', $html);
+        $this->assertStringNotContainsString(route('deliverable-reference-files.download', $referenceFile), $html);
+    }
 }

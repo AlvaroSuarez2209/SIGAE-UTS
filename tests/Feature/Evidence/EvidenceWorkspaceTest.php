@@ -1488,4 +1488,54 @@ class EvidenceWorkspaceTest extends TestCase
 
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
+
+    // --- Punto 5: formato institucional (enlace + archivo) en el espacio de trabajo ---
+
+    public function test_shows_the_institutional_format_link_opening_in_a_new_tab(): void
+    {
+        $evidence = $this->evidenceFor(['institutional_format_url' => 'https://uts.edu.co/formato.pdf']);
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringContainsString('Abrir formato', $html);
+        $this->assertStringContainsString('href="https://uts.edu.co/formato.pdf"', $html);
+        $this->assertStringContainsString('target="_blank"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+    }
+
+    public function test_does_not_show_the_institutional_format_block_without_a_link_or_reference_files(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringNotContainsString('Formato institucional', $html);
+    }
+
+    /**
+     * Mismo criterio "Archivo no disponible" que ya usa DeliverableForm
+     * — antes de este punto, EvidenceWorkspace mostraba siempre el
+     * enlace de descarga sin comprobar existsOnDisk().
+     */
+    public function test_shows_archivo_no_disponible_when_the_reference_files_physical_file_is_missing(): void
+    {
+        $evidence = $this->evidenceFor();
+        $referenceFile = $evidence->deliverable->attachReferenceFile(
+            UploadedFile::fake()->create('instructivo.pdf', 100, 'application/pdf'),
+            $evidence->user
+        );
+        Storage::disk('local')->delete($referenceFile->disk_path);
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringContainsString('instructivo.pdf', $html);
+        $this->assertStringContainsString('Archivo no disponible', $html);
+        $this->assertStringNotContainsString(route('deliverable-reference-files.download', $referenceFile), $html);
+    }
 }
