@@ -69,7 +69,7 @@ class ActivityReport extends Component
         return view('livewire.reports.activity-report', [
             'report' => $report,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
-            'activities' => Activity::active()->with('component')->orderBy('name')->get(),
+            'activities' => Activity::active()->with('component')->orderByAccentInsensitive('name')->get(),
             'statusOptions' => EvidenceStatus::cases(),
         ]);
     }

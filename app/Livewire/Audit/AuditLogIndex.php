@@ -62,7 +62,7 @@ class AuditLogIndex extends Component
                 ? AuditLog::with(['user', 'auditable'])->find($this->selectedLogId)
                 : null,
             'exportFilters' => array_filter($filters, fn ($value) => $value !== null),
-            'users' => User::orderBy('name')->get(),
+            'users' => User::orderByAccentInsensitive('name')->get(),
             // El propio Livewire vuelve a ejecutar render() en cada interacción
             // de este componente, incluido un simple cambio de página — sin
             // caché, esta consulta (un DISTINCT sin índice de apoyo sobre

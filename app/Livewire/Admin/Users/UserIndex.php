@@ -131,14 +131,14 @@ class UserIndex extends Component
             ->when($this->roleFilter, fn ($query) => $query
                 ->whereHas('roles', fn ($q) => $q->where('name', $this->roleFilter))
             )
-            ->orderBy('name')
+            ->orderByAccentInsensitive('name')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.admin.users.user-index', [
             'users' => $users,
             'roles' => $coordinationOnly
-                ? Role::whereIn('name', $managedRoleNames)->orderBy('label')->get()
-                : Role::orderBy('label')->get(),
+                ? Role::whereIn('name', $managedRoleNames)->orderByAccentInsensitive('label')->get()
+                : Role::orderByAccentInsensitive('label')->get(),
         ]);
     }
 }

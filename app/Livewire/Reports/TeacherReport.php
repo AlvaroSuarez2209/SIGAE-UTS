@@ -74,7 +74,7 @@ class TeacherReport extends Component
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
             'teachers' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'statusOptions' => EvidenceStatus::cases(),
         ]);

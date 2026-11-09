@@ -26,13 +26,13 @@ class CatalogHierarchy extends LivewireComponent
             // siempre.
             'components' => Component::active()
                 ->with([
-                    'subcomponents' => fn ($query) => $query->active()->orderBy('name'),
-                    'subcomponents.activities' => fn ($query) => $query->active()->orderBy('name'),
+                    'subcomponents' => fn ($query) => $query->active()->orderByAccentInsensitive('name'),
+                    'subcomponents.activities' => fn ($query) => $query->active()->orderByAccentInsensitive('name'),
                     // Actividades adscritas directamente al componente, sin
                     // subcomponente — Activity::component_id nunca es nulo,
                     // así que toca pedirlas aparte de 'subcomponents.activities'.
-                    'activities' => fn ($query) => $query->active()->whereNull('subcomponent_id')->orderBy('name'),
-                ])->orderBy('name')->get(),
+                    'activities' => fn ($query) => $query->active()->whereNull('subcomponent_id')->orderByAccentInsensitive('name'),
+                ])->orderByAccentInsensitive('name')->get(),
         ]);
     }
 }

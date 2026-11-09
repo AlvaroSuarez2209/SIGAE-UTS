@@ -175,7 +175,7 @@ class AssignmentForm extends Component
         return view('livewire.distribution.assignment-form', [
             'teachers' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'periods' => AcademicPeriod::whereIn('status', ['planning', 'active'])
                 ->orWhere('id', $this->academic_period_id)
@@ -184,11 +184,11 @@ class AssignmentForm extends Component
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->where('is_active', true)
                 ->orWhere('id', $this->activity_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'programUnits' => ProgramUnit::where('is_active', true)
                 ->orWhere('id', $this->program_unit_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
         ])->title($this->assignment ? 'Editar asignación' : 'Nueva asignación');
     }

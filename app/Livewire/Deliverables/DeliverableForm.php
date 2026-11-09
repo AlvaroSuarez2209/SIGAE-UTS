@@ -311,13 +311,13 @@ class DeliverableForm extends Component
             return User::whereHas('teacherAssignments', fn ($q) => $q
                 ->where('activity_id', $this->activity_id)
                 ->where('academic_period_id', $this->academic_period_id)
-            )->orderBy('name')->get();
+            )->orderByAccentInsensitive('name')->get();
         }
 
         if ($this->scope_type === 'cross_cutting') {
             return User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get();
         }
 
@@ -623,15 +623,15 @@ class DeliverableForm extends Component
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->where('is_active', true)
                 ->orWhere('id', $this->activity_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'commitments' => CrossCuttingCommitment::where('is_active', true)
                 ->orWhere('id', $this->cross_cutting_commitment_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'templates' => DeliverableTemplate::where('is_active', true)
                 ->orWhere('id', $this->template_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'periodicityOptions' => PeriodicityType::cases(),
             'evidenceTypeOptions' => EvidenceType::cases(),

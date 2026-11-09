@@ -131,7 +131,7 @@ class SubcomponentIndex extends LivewireComponent
             // subcomponente ya guardado).
             'components' => Component::where('is_active', true)
                 ->orWhere('id', $this->component_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
         ]);
     }

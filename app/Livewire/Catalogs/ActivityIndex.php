@@ -184,12 +184,12 @@ class ActivityIndex extends LivewireComponent
             // actividad ya guardada).
             'components' => Component::where('is_active', true)
                 ->orWhere('id', $this->component_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'availableSubcomponents' => $this->component_id
                 ? Subcomponent::where('component_id', $this->component_id)
                     ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $this->subcomponent_id))
-                    ->orderBy('name')
+                    ->orderByAccentInsensitive('name')
                     ->get()
                 : collect(),
         ]);

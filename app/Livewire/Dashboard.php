@@ -265,7 +265,7 @@ class Dashboard extends Component
         // map() de abajo dispararía una consulta nueva POR docente.
         $teacherRows = User::whereIn('id', $teacherIds)
             ->with('programUnit')
-            ->orderBy('name')
+            ->orderByAccentInsensitive('name')
             ->get()
             ->map(function (User $teacher) use ($deliverables, $evidencesByUser) {
                 $teacherDeliverables = $deliverables->filter(
@@ -382,16 +382,16 @@ class Dashboard extends Component
             'coordinationPanel' => $isCoordination ? $this->coordinationPanel() : null,
             // Opciones de los 5 filtros nuevos del panel de Coordinación —
             // solo se calculan para quien realmente ve ese panel.
-            'programUnits' => $isCoordination ? ProgramUnit::active()->orderBy('name')->get() : collect(),
+            'programUnits' => $isCoordination ? ProgramUnit::active()->orderByAccentInsensitive('name')->get() : collect(),
             'filterableTeachers' => $isCoordination
-                ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))->orderBy('name')->get()
+                ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))->orderByAccentInsensitive('name')->get()
                 : collect(),
-            'filterableActivities' => $isCoordination ? Activity::active()->with('component')->orderBy('name')->get() : collect(),
+            'filterableActivities' => $isCoordination ? Activity::active()->with('component')->orderByAccentInsensitive('name')->get() : collect(),
             'filterableLeaders' => $isCoordination
                 ? User::where('is_active', true)
                     ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))
                     ->whereHas('leaderships', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
-                    ->orderBy('name')
+                    ->orderByAccentInsensitive('name')
                     ->get()
                 : collect(),
             'evidenceStatusOptions' => EvidenceStatus::cases(),

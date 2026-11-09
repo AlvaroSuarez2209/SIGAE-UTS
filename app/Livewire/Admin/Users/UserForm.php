@@ -114,12 +114,12 @@ class UserForm extends Component
 
     public function assignableRoles(): Collection
     {
-        return Role::whereIn('name', $this->assignableRoleNames())->orderBy('label')->get();
+        return Role::whereIn('name', $this->assignableRoleNames())->orderByAccentInsensitive('label')->get();
     }
 
     public function lockedRoleLabels(): Collection
     {
-        return Role::whereIn('name', $this->lockedRoleNames())->orderBy('label')->pluck('label');
+        return Role::whereIn('name', $this->lockedRoleNames())->orderByAccentInsensitive('label')->pluck('label');
     }
 
     /**
@@ -292,7 +292,7 @@ class UserForm extends Component
             'roles' => $this->assignableRoles(),
             'programUnits' => ProgramUnit::where('is_active', true)
                 ->orWhere('id', $this->program_unit_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'documentTypeOptions' => collect(TeacherImportService::DOCUMENT_TYPES)
                 ->mapWithKeys(fn (string $code) => [$code => DocumentType::from($code)->label()]),
