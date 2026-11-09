@@ -34,6 +34,7 @@
                     <th class="table-header-cell">Componente / Subcomponente</th>
                     <th class="table-header-cell">Actividad</th>
                     <th class="table-header-cell">Programa</th>
+                    <th class="table-header-cell">Vinculación</th>
                     <th class="table-header-cell text-right">Horas</th>
                     <th class="table-header-cell text-right">Acciones</th>
                 </tr>
@@ -51,6 +52,15 @@
                         </td>
                         <td class="table-cell text-text-secondary">{{ $assignment->activity->name }}</td>
                         <td class="table-cell text-text-secondary">{{ $assignment->programUnit->name }}</td>
+                        <td class="table-cell">
+                            @if ($assignment->user->employment_type)
+                                <span class="text-text-secondary">{{ \App\Enums\EmploymentType::from($assignment->user->employment_type)->label() }}</span>
+                            @else
+                                <span class="inline-flex items-center gap-1 text-status-warning">
+                                    <x-icon name="alert-circle" class="h-4 w-4 shrink-0" /> Sin definir
+                                </span>
+                            @endif
+                        </td>
                         <td class="table-cell text-right text-text-secondary">{{ rtrim(rtrim($assignment->assigned_hours, '0'), '.') }}</td>
                         <td class="table-cell text-right">
                             <a href="{{ route('distribution.edit', [$assignment, 'search' => $search, 'periodFilter' => $periodFilter ?? '']) }}" class="btn-text">Editar</a>
@@ -58,7 +68,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7">
+                        <td colspan="8">
                             <x-empty-state icon="document" title="No hay asignaciones registradas" description='Usa el botón "Nueva asignación" para distribuir la carga docente.' />
                         </td>
                     </tr>
