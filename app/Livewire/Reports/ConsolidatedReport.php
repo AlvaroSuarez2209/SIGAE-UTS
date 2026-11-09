@@ -58,12 +58,12 @@ class ConsolidatedReport extends Component
         return view('livewire.reports.consolidated-report', [
             'report' => $report,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
-            'programUnits' => ProgramUnit::orderBy('name')->get(),
+            'programUnits' => ProgramUnit::active()->orderBy('name')->get(),
             'teachers' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))
                 ->orderBy('name')
                 ->get(),
-            'activities' => Activity::with('component')->orderBy('name')->get(),
+            'activities' => Activity::active()->with('component')->orderBy('name')->get(),
             'leaders' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))
                 ->orderBy('name')

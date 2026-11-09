@@ -24,11 +24,11 @@ class TemplateForm extends Component
     public string $search = '';
 
     #[Url]
-    public string $statusFilter = '';
+    public bool $showInactive = false;
 
     public function templatesIndexUrl(): string
     {
-        return route('deliverable-templates.index', ['search' => $this->search, 'statusFilter' => $this->statusFilter]);
+        return route('deliverable-templates.index', ['search' => $this->search, 'showInactive' => $this->showInactive]);
     }
 
     public string $name = '';

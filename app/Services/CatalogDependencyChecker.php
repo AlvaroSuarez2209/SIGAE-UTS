@@ -30,7 +30,7 @@ class CatalogDependencyChecker
 
     public static function activeSubcomponentCount(Component $component): int
     {
-        return $component->subcomponents()->where('is_active', true)->count();
+        return $component->subcomponents()->active()->count();
     }
 
     /**
@@ -40,12 +40,12 @@ class CatalogDependencyChecker
      */
     public static function activeActivityCountForComponent(Component $component): int
     {
-        return $component->activities()->where('is_active', true)->count();
+        return $component->activities()->active()->count();
     }
 
     public static function activeActivityCountForSubcomponent(Subcomponent $subcomponent): int
     {
-        return $subcomponent->activities()->where('is_active', true)->count();
+        return $subcomponent->activities()->active()->count();
     }
 
     public static function openDeliverableCountForActivity(Activity $activity): int

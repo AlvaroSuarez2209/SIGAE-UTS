@@ -1,7 +1,7 @@
 <div>
     <div class="mb-6 flex items-center justify-between">
         <h1 class="page-title">Plantillas de entregables</h1>
-        <a href="{{ route('deliverable-templates.create', ['search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-primary">
+        <a href="{{ route('deliverable-templates.create', ['search' => $search, 'showInactive' => $showInactive]) }}" class="btn-primary">
             Nueva plantilla
         </a>
     </div>
@@ -18,11 +18,10 @@
             class="w-full max-w-xs"
         />
 
-        <select wire:model.live="statusFilter" class="field-input mt-0 w-full md:w-auto">
-            <option value="">Todos los estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-        </select>
+        <label class="flex items-center gap-2 text-sm text-text-secondary">
+            <input type="checkbox" wire:model.live="showInactive" class="field-checkbox">
+            Mostrar inactivos
+        </label>
     </div>
 
     <div class="table-shell">
@@ -46,7 +45,7 @@
                             <x-active-badge :active="$template->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('deliverable-templates.edit', [$template, 'search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-text">Editar</a>
+                            <a href="{{ route('deliverable-templates.edit', [$template, 'search' => $search, 'showInactive' => $showInactive]) }}" class="btn-text">Editar</a>
                             @if ($template->is_active)
                                 <button
                                     type="button"

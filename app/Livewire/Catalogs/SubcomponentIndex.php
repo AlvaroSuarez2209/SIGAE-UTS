@@ -26,7 +26,7 @@ class SubcomponentIndex extends LivewireComponent
 
     public string $search = '';
 
-    public string $statusFilter = '';
+    public bool $showInactive = false;
 
     public string $deactivationError = '';
 
@@ -122,10 +122,17 @@ class SubcomponentIndex extends LivewireComponent
         return view('livewire.catalogs.subcomponent-index', [
             'subcomponents' => Subcomponent::with('component')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->when(! $this->showInactive, fn ($query) => $query->active())
                 ->newestFirst()
                 ->get(),
-            'components' => Component::orderBy('name')->get(),
+            // Selector del modal (a qué componente pertenece): solo activos,
+            // salvo que sea justo el que ya tiene asignado el que se está
+            // editando (un componente inactivo no desaparece de su propio
+            // subcomponente ya guardado).
+            'components' => Component::where('is_active', true)
+                ->orWhere('id', $this->component_id)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 }

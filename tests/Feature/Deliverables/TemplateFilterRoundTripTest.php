@@ -17,7 +17,7 @@ use Tests\TestCase;
  * Mismo patrón que las pantallas anteriores aplicado a Plantillas de
  * entregables: "Cancelar" era un
  * <a href="{{ route('deliverable-templates.index') }}"> sin
- * parámetros, y TemplateIndex::$search/$statusFilter nunca tuvieron
+ * parámetros, y TemplateIndex::$search/$showInactive nunca tuvieron
  * #[Url].
  */
 class TemplateFilterRoundTripTest extends TestCase
@@ -55,16 +55,16 @@ class TemplateFilterRoundTripTest extends TestCase
         return $query;
     }
 
-    public function test_editing_a_template_and_following_cancelar_preserves_the_search_and_status_filter(): void
+    public function test_editing_a_template_and_following_cancelar_preserves_the_search_and_show_inactive_filter(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $template = DeliverableTemplate::factory()->create(['name' => 'Plantilla Buscable', 'is_active' => true]);
 
-        $index = Livewire::withQueryParams(['search' => 'Buscable', 'statusFilter' => 'active'])
+        $index = Livewire::withQueryParams(['search' => 'Buscable', 'showInactive' => '1'])
             ->actingAs($admin)
             ->test(TemplateIndex::class);
         $index->assertSet('search', 'Buscable');
-        $index->assertSet('statusFilter', 'active');
+        $index->assertSet('showInactive', true);
 
         $toFormQuery = $this->queryParamsFromHref($index->html(), '/<a href="([^"]*deliverable-templates\/'.$template->id.'\/edit[^"]*)"[^>]*>Editar<\/a>/');
 
@@ -72,25 +72,25 @@ class TemplateFilterRoundTripTest extends TestCase
             ->actingAs($admin)
             ->test(TemplateForm::class, ['deliverableTemplate' => $template]);
         $form->assertSet('search', 'Buscable');
-        $form->assertSet('statusFilter', 'active');
+        $form->assertSet('showInactive', true);
 
         $backToIndexQuery = $this->queryParamsFromHref($form->html(), '/<a href="([^"]*)"[^>]*>Cancelar<\/a>/');
         $this->assertArrayHasKey('search', $backToIndexQuery);
-        $this->assertArrayHasKey('statusFilter', $backToIndexQuery);
+        $this->assertArrayHasKey('showInactive', $backToIndexQuery);
 
         $indexAgain = Livewire::withQueryParams($backToIndexQuery)
             ->actingAs($admin)
             ->test(TemplateIndex::class);
         $indexAgain->assertSet('search', 'Buscable');
-        $indexAgain->assertSet('statusFilter', 'active');
+        $indexAgain->assertSet('showInactive', true);
     }
 
-    public function test_saving_a_template_redirects_back_preserving_the_search_and_status_filter(): void
+    public function test_saving_a_template_redirects_back_preserving_the_search_and_show_inactive_filter(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $template = DeliverableTemplate::factory()->create();
 
-        $form = Livewire::withQueryParams(['search' => 'algo', 'statusFilter' => 'active'])
+        $form = Livewire::withQueryParams(['search' => 'algo', 'showInactive' => '1'])
             ->actingAs($admin)
             ->test(TemplateForm::class, ['deliverableTemplate' => $template]);
 
@@ -102,6 +102,6 @@ class TemplateFilterRoundTripTest extends TestCase
         $query = [];
         parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
         $this->assertSame('algo', $query['search'] ?? null);
-        $this->assertSame('active', $query['statusFilter'] ?? null);
+        $this->assertSame('1', $query['showInactive'] ?? null);
     }
 }

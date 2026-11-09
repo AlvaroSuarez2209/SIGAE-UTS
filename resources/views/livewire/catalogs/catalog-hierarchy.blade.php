@@ -17,9 +17,6 @@
                          agregar paths SVG nuevos sin poder probarlos visualmente. --}}
                     <x-icon name="inbox" class="h-5 w-5 shrink-0 text-brand-primary" />
                     <span class="font-semibold text-text-primary">{{ $componentRow->name }}</span>
-                    @unless ($componentRow->is_active)
-                        <x-active-badge :active="false" />
-                    @endunless
                 </div>
 
                 @if ($componentRow->subcomponents->isEmpty() && $componentRow->activities->isEmpty())
@@ -44,9 +41,6 @@
                                     </span>
                                     <x-icon name="list" class="h-4 w-4 shrink-0 text-text-secondary" />
                                     <span class="text-text-primary">{{ $subcomponent->name }}</span>
-                                    @unless ($subcomponent->is_active)
-                                        <x-active-badge :active="false" />
-                                    @endunless
                                 </button>
 
                                 @if ($subcomponent->activities->isNotEmpty())
@@ -62,9 +56,6 @@
                                             <li wire:key="hierarchy-activity-{{ $activity->id }}" class="flex items-center gap-2">
                                                 <x-icon name="document" class="h-3.5 w-3.5 shrink-0 text-text-secondary" />
                                                 <span class="text-sm text-text-secondary">{{ $activity->name }}</span>
-                                                @unless ($activity->is_active)
-                                                    <x-active-badge :active="false" />
-                                                @endunless
                                             </li>
                                         @endforeach
                                     </ul>
@@ -77,9 +68,6 @@
                                 <x-icon name="document" class="ml-[1.125rem] h-3.5 w-3.5 shrink-0 text-text-secondary" />
                                 <span class="text-sm text-text-secondary">{{ $activity->name }}</span>
                                 <span class="text-xs text-text-secondary">(sin subcomponente)</span>
-                                @unless ($activity->is_active)
-                                    <x-active-badge :active="false" />
-                                @endunless
                             </li>
                         @endforeach
                     </ul>

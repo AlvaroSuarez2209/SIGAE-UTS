@@ -629,7 +629,10 @@ class DeliverableForm extends Component
                 ->orWhere('id', $this->cross_cutting_commitment_id)
                 ->orderBy('name')
                 ->get(),
-            'templates' => DeliverableTemplate::where('is_active', true)->orderBy('name')->get(),
+            'templates' => DeliverableTemplate::where('is_active', true)
+                ->orWhere('id', $this->template_id)
+                ->orderBy('name')
+                ->get(),
             'periodicityOptions' => PeriodicityType::cases(),
             'evidenceTypeOptions' => EvidenceType::cases(),
             'fileTypeOptions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'jpg', 'png', 'zip'],

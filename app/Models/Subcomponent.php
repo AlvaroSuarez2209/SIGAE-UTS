@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\HasActiveScope;
 use App\Models\Concerns\OrdersNewestFirst;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subcomponent extends Model
 {
-    use Auditable, HasFactory, OrdersNewestFirst;
+    use Auditable, HasActiveScope, HasFactory, OrdersNewestFirst;
 
     protected $fillable = [
         'component_id',

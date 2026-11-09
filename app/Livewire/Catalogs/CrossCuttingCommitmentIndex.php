@@ -23,7 +23,7 @@ class CrossCuttingCommitmentIndex extends Component
 
     public string $search = '';
 
-    public string $statusFilter = '';
+    public bool $showInactive = false;
 
     public string $deactivationError = '';
 
@@ -114,7 +114,7 @@ class CrossCuttingCommitmentIndex extends Component
         return view('livewire.catalogs.cross-cutting-commitment-index', [
             'commitments' => CrossCuttingCommitment::newestFirst()
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->when(! $this->showInactive, fn ($query) => $query->active())
                 ->get(),
         ]);
     }

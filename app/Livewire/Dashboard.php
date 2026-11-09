@@ -382,11 +382,11 @@ class Dashboard extends Component
             'coordinationPanel' => $isCoordination ? $this->coordinationPanel() : null,
             // Opciones de los 5 filtros nuevos del panel de Coordinación —
             // solo se calculan para quien realmente ve ese panel.
-            'programUnits' => $isCoordination ? ProgramUnit::orderBy('name')->get() : collect(),
+            'programUnits' => $isCoordination ? ProgramUnit::active()->orderBy('name')->get() : collect(),
             'filterableTeachers' => $isCoordination
                 ? User::where('is_active', true)->whereHas('roles', fn ($q) => $q->where('name', RoleName::Teacher->value))->orderBy('name')->get()
                 : collect(),
-            'filterableActivities' => $isCoordination ? Activity::with('component')->orderBy('name')->get() : collect(),
+            'filterableActivities' => $isCoordination ? Activity::active()->with('component')->orderBy('name')->get() : collect(),
             'filterableLeaders' => $isCoordination
                 ? User::where('is_active', true)
                     ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))

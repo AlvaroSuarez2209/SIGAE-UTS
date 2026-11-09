@@ -41,7 +41,7 @@ class CrossCuttingReport extends Component
         return view('livewire.reports.cross-cutting-report', [
             'report' => $report,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
-            'commitments' => CrossCuttingCommitment::orderBy('name')->get(),
+            'commitments' => CrossCuttingCommitment::active()->orderBy('name')->get(),
             'statusOptions' => EvidenceStatus::cases(),
         ]);
     }

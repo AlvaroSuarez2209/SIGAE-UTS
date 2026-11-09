@@ -23,7 +23,7 @@ class ProgramUnitIndex extends Component
 
     public string $search = '';
 
-    public string $statusFilter = '';
+    public bool $showInactive = false;
 
     public string $deactivationError = '';
 
@@ -124,7 +124,7 @@ class ProgramUnitIndex extends Component
         return view('livewire.catalogs.program-unit-index', [
             'programUnits' => ProgramUnit::newestFirst()
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->when(! $this->showInactive, fn ($query) => $query->active())
                 ->get(),
         ]);
     }

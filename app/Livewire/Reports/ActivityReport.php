@@ -48,7 +48,8 @@ class ActivityReport extends Component
             return;
         }
 
-        $this->activityFilter = Activity::whereHas('teacherAssignments', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
+        $this->activityFilter = Activity::active()
+            ->whereHas('teacherAssignments', fn ($q) => $q->where('academic_period_id', $this->periodFilter))
             ->orderByAccentInsensitive('name')
             ->value('id');
     }
@@ -68,7 +69,7 @@ class ActivityReport extends Component
         return view('livewire.reports.activity-report', [
             'report' => $report,
             'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
-            'activities' => Activity::with('component')->orderBy('name')->get(),
+            'activities' => Activity::active()->with('component')->orderBy('name')->get(),
             'statusOptions' => EvidenceStatus::cases(),
         ]);
     }

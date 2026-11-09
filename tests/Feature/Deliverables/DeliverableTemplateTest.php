@@ -33,6 +33,24 @@ class DeliverableTemplateTest extends TestCase
         return $user;
     }
 
+    /**
+     * Revisión de la directora, punto 1: mismo interruptor "Mostrar
+     * inactivos" que los demás catálogos, apagado por defecto.
+     */
+    public function test_template_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        DeliverableTemplate::factory()->create(['name' => 'Plantilla activa']);
+        DeliverableTemplate::factory()->create(['name' => 'Plantilla inactiva', 'is_active' => false]);
+
+        Livewire::actingAs($coordination)
+            ->test(TemplateIndex::class)
+            ->assertSee('Plantilla activa')
+            ->assertDontSee('Plantilla inactiva')
+            ->set('showInactive', true)
+            ->assertSee('Plantilla inactiva');
+    }
+
     public function test_coordination_can_create_a_template(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
@@ -44,7 +62,7 @@ class DeliverableTemplateTest extends TestCase
             ->set('allowed_evidence_types', [EvidenceType::File->value])
             ->call('save')
             ->assertHasNoErrors()
-            ->assertRedirect(route('deliverable-templates.index', ['search' => '', 'statusFilter' => '']));
+            ->assertRedirect(route('deliverable-templates.index', ['search' => '', 'showInactive' => false]));
 
         $this->assertDatabaseHas('deliverable_templates', ['name' => 'Informe trimestral']);
 

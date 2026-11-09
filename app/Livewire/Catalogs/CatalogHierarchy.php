@@ -21,14 +21,18 @@ class CatalogHierarchy extends LivewireComponent
     public function render()
     {
         return view('livewire.catalogs.catalog-hierarchy', [
-            'components' => Component::with([
-                'subcomponents' => fn ($query) => $query->orderBy('name'),
-                'subcomponents.activities' => fn ($query) => $query->orderBy('name'),
-                // Actividades adscritas directamente al componente, sin
-                // subcomponente — Activity::component_id nunca es nulo,
-                // así que toca pedirlas aparte de 'subcomponents.activities'.
-                'activities' => fn ($query) => $query->whereNull('subcomponent_id')->orderBy('name'),
-            ])->orderBy('name')->get(),
+            // Revisión de la directora, punto 1: vista de solo lectura, sin
+            // interruptor propio — oculta inactivos en los 3 niveles,
+            // siempre.
+            'components' => Component::active()
+                ->with([
+                    'subcomponents' => fn ($query) => $query->active()->orderBy('name'),
+                    'subcomponents.activities' => fn ($query) => $query->active()->orderBy('name'),
+                    // Actividades adscritas directamente al componente, sin
+                    // subcomponente — Activity::component_id nunca es nulo,
+                    // así que toca pedirlas aparte de 'subcomponents.activities'.
+                    'activities' => fn ($query) => $query->active()->whereNull('subcomponent_id')->orderBy('name'),
+                ])->orderBy('name')->get(),
         ]);
     }
 }

@@ -38,7 +38,7 @@ class ActivityIndex extends LivewireComponent
 
     public string $search = '';
 
-    public string $statusFilter = '';
+    public bool $showInactive = false;
 
     public string $deactivationError = '';
 
@@ -54,7 +54,7 @@ class ActivityIndex extends LivewireComponent
         $this->resetPage();
     }
 
-    public function updatingStatusFilter(): void
+    public function updatingShowInactive(): void
     {
         $this->resetPage();
     }
@@ -175,12 +175,22 @@ class ActivityIndex extends LivewireComponent
         return view('livewire.catalogs.activity-index', [
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+                ->when(! $this->showInactive, fn ($query) => $query->active())
                 ->newestFirst()
                 ->paginate(self::PER_PAGE),
-            'components' => Component::where('is_active', true)->orderBy('name')->get(),
+            // Selectores del modal: solo activos, salvo que sea justo el
+            // componente/subcomponente que ya tiene asignado el que se
+            // está editando (uno inactivo no desaparece de su propia
+            // actividad ya guardada).
+            'components' => Component::where('is_active', true)
+                ->orWhere('id', $this->component_id)
+                ->orderBy('name')
+                ->get(),
             'availableSubcomponents' => $this->component_id
-                ? Subcomponent::where('component_id', $this->component_id)->orderBy('name')->get()
+                ? Subcomponent::where('component_id', $this->component_id)
+                    ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $this->subcomponent_id))
+                    ->orderBy('name')
+                    ->get()
                 : collect(),
         ]);
     }
