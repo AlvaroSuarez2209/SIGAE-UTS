@@ -567,17 +567,26 @@ class ReviewShowTest extends TestCase
 
     // --- Punto 5: material de referencia (enlace + archivo) en la vista del revisor ---
 
-    public function test_shows_the_reference_link_opening_in_a_new_tab(): void
+    public function test_shows_the_reference_material_card_with_the_link_domain_opening_in_a_new_tab(): void
     {
         [$evidence, $leader] = $this->submittedEvidenceWithLeader();
         $evidence->deliverable->update(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
 
-        $this->assertStringContainsString('Abrir enlace', $html);
+        $this->assertStringContainsString('Material de referencia', $html);
+        $this->assertStringContainsString('uts.edu.co', $html);
         $this->assertStringContainsString('href="https://uts.edu.co/referencia.pdf"', $html);
         $this->assertStringContainsString('target="_blank"', $html);
         $this->assertStringContainsString('rel="noopener noreferrer"', $html);
+    }
+
+    public function test_leader_outside_scope_cannot_see_or_reach_the_reference_material(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader(leaderInScope: false);
+        $evidence->deliverable->update(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
+
+        $this->actingAs($leader)->get('/reviews/'.$evidence->id)->assertForbidden();
     }
 
     /**

@@ -1491,7 +1491,7 @@ class EvidenceWorkspaceTest extends TestCase
 
     // --- Punto 5: material de referencia (enlace + archivo) en el espacio de trabajo ---
 
-    public function test_shows_the_reference_link_opening_in_a_new_tab(): void
+    public function test_shows_the_reference_material_card_with_the_link_domain_opening_in_a_new_tab(): void
     {
         $evidence = $this->evidenceFor(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
 
@@ -1499,13 +1499,14 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->html();
 
-        $this->assertStringContainsString('Abrir enlace', $html);
+        $this->assertStringContainsString('Material de referencia', $html);
+        $this->assertStringContainsString('uts.edu.co', $html);
         $this->assertStringContainsString('href="https://uts.edu.co/referencia.pdf"', $html);
         $this->assertStringContainsString('target="_blank"', $html);
         $this->assertStringContainsString('rel="noopener noreferrer"', $html);
     }
 
-    public function test_does_not_show_the_reference_link_block_without_a_link_or_reference_files(): void
+    public function test_does_not_show_the_reference_material_card_without_a_link_or_reference_files(): void
     {
         $evidence = $this->evidenceFor();
 
@@ -1513,7 +1514,17 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->html();
 
-        $this->assertStringNotContainsString('Enlace de referencia', $html);
+        $this->assertStringNotContainsString('Material de referencia', $html);
+    }
+
+    public function test_an_unassigned_teacher_cannot_see_or_reach_the_reference_material(): void
+    {
+        $evidence = $this->evidenceFor(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
+        $otherTeacher = $this->userWithRole(RoleName::Teacher);
+
+        $this->actingAs($otherTeacher)
+            ->get('/my-deliverables/'.$evidence->id)
+            ->assertForbidden();
     }
 
     /**
