@@ -11,6 +11,7 @@ use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\Deliverable;
 use App\Models\DeliverableReferenceFile;
+use App\Models\DeliverableTemplate;
 use App\Models\Evidence;
 use App\Models\Leadership;
 use App\Models\ProgramUnit;
@@ -461,5 +462,172 @@ class DeliverableReferenceFileTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->once()
             ->withArgs(fn ($message, $context) => $context === ['deliverable_reference_file_id' => $file->id]);
+    }
+
+    // --- Punto 5: archivo de plantilla, CHECK de un solo dueño, borrado seguro ---
+
+    public function test_a_reference_file_can_belong_to_a_template_instead_of_a_deliverable(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+
+        $file = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $this->assertNull($file->deliverable_id);
+        $this->assertSame($template->id, $file->deliverable_template_id);
+        $this->assertDatabaseHas('deliverable_reference_files', [
+            'id' => $file->id,
+            'deliverable_id' => null,
+            'deliverable_template_id' => $template->id,
+        ]);
+    }
+
+    /**
+     * El CHECK deliverable_reference_files_exactly_one_owner rechaza
+     * cualquier fila con los dos dueños o ninguno.
+     */
+    public function test_the_database_rejects_a_reference_file_with_both_owners_or_neither(): void
+    {
+        $deliverable = Deliverable::factory()->create();
+        $template = DeliverableTemplate::factory()->create();
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        DeliverableReferenceFile::create([
+            'deliverable_id' => $deliverable->id,
+            'deliverable_template_id' => $template->id,
+            'original_name' => 'x.pdf',
+            'stored_name' => 'both-owners.pdf',
+            'disk_path' => 'x/both-owners.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10,
+        ]);
+    }
+
+    public function test_the_database_rejects_a_reference_file_with_no_owner_at_all(): void
+    {
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        DeliverableReferenceFile::create([
+            'original_name' => 'x.pdf',
+            'stored_name' => 'no-owner.pdf',
+            'disk_path' => 'x/no-owner.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10,
+        ]);
+    }
+
+    /**
+     * Punto 5: crear un entregable desde una plantilla duplica la fila
+     * del archivo de referencia compartiendo disk_path (ver
+     * DeliverableForm::copyReferenceFileFromTemplate()) — las dos filas
+     * (la de la plantilla y la copiada al entregable) deben reconocerse
+     * mutuamente vía isDiskPathReferencedElsewhere().
+     */
+    public function test_two_reference_files_sharing_a_disk_path_each_detect_the_other(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+        $templateFile = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $deliverable = Deliverable::factory()->create();
+        $copiedFile = $deliverable->referenceFiles()->create([
+            'original_name' => $templateFile->original_name,
+            'stored_name' => 'copia-'.$templateFile->stored_name,
+            'disk_path' => $templateFile->disk_path,
+            'mime_type' => $templateFile->mime_type,
+            'size_bytes' => $templateFile->size_bytes,
+            'uploaded_by' => $admin->id,
+        ]);
+
+        $this->assertTrue($templateFile->isDiskPathReferencedElsewhere());
+        $this->assertTrue($copiedFile->isDiskPathReferencedElsewhere());
+
+        // Un tercer archivo sin relación, con su propio disk_path, no
+        // detecta ninguno de los dos.
+        $unrelated = $template->attachReferenceFile(UploadedFile::fake()->create('otro.pdf', 50, 'application/pdf'), $admin);
+        $this->assertFalse($unrelated->isDiskPathReferencedElsewhere());
+    }
+
+    /**
+     * "Eliminar o reemplazar un archivo de referencia nunca borra el
+     * archivo físico si otra fila referencia el mismo disk_path" —
+     * removeReferenceFile() de hoy ya nunca toca el disco (solo
+     * is_active=false), así que esto queda garantizado incluso con
+     * disk_path compartido entre la plantilla y el entregable copiado;
+     * el archivo sigue existiendo y la otra fila lo sigue sirviendo.
+     */
+    public function test_removing_one_of_two_reference_files_sharing_a_disk_path_leaves_the_physical_file_and_the_other_row_intact(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $template = DeliverableTemplate::factory()->create();
+        $templateFile = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $deliverable = Deliverable::factory()->create();
+        $copiedFile = $deliverable->referenceFiles()->create([
+            'original_name' => $templateFile->original_name,
+            'stored_name' => 'copia-'.$templateFile->stored_name,
+            'disk_path' => $templateFile->disk_path,
+            'mime_type' => $templateFile->mime_type,
+            'size_bytes' => $templateFile->size_bytes,
+            'uploaded_by' => $admin->id,
+        ]);
+
+        $template->removeReferenceFile($templateFile, $admin);
+
+        $templateFile->refresh();
+        $this->assertFalse($templateFile->is_active);
+        Storage::disk('local')->assertExists($templateFile->disk_path);
+
+        // La fila del entregable (la otra dueña del mismo disk_path)
+        // sigue intacta y descargable.
+        $copiedFile->refresh();
+        $this->assertTrue($copiedFile->is_active);
+        $this->actingAs($admin)
+            ->get(route('deliverable-reference-files.download', $copiedFile))
+            ->assertOk();
+    }
+
+    // --- Punto 5: permisos sobre el archivo de una plantilla ---
+
+    public function test_administrator_and_coordination_can_download_a_templates_reference_file(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $template = DeliverableTemplate::factory()->create();
+        $file = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $this->actingAs($admin)->get(route('deliverable-reference-files.download', $file))->assertOk();
+        $this->actingAs($coordination)->get(route('deliverable-reference-files.download', $file))->assertOk();
+    }
+
+    /**
+     * Permisos: "quien hoy puede editar entregables y plantillas, y
+     * nadie más" — un docente nunca ve el archivo de una PLANTILLA
+     * directamente (solo el que se copia a su propio entregable, que ya
+     * cubren los tests de arriba con isReferenceFileViewableBy()).
+     */
+    public function test_a_teacher_cannot_download_a_templates_reference_file(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $template = DeliverableTemplate::factory()->create();
+        $file = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $this->actingAs($teacher)
+            ->get(route('deliverable-reference-files.download', $file))
+            ->assertForbidden();
+    }
+
+    public function test_auditor_cannot_download_a_templates_reference_file(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $auditor = $this->userWithRole(RoleName::Auditor);
+        $template = DeliverableTemplate::factory()->create();
+        $file = $template->attachReferenceFile(UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'), $admin);
+
+        $this->actingAs($auditor)
+            ->get(route('deliverable-reference-files.download', $file))
+            ->assertForbidden();
     }
 }

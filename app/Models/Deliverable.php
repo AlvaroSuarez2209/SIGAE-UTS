@@ -43,6 +43,7 @@ class Deliverable extends Model
         'description',
         'instructions',
         'completion_criteria',
+        'institutional_format_url',
         'is_mandatory',
         'periodicity_type',
         'opens_at',
