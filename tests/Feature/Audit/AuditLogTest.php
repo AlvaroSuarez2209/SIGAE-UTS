@@ -714,33 +714,33 @@ class AuditLogTest extends TestCase
      * cubierto automáticamente sin código de auditoría a medida, mismo
      * criterio que document_type/employment_type.
      */
-    public function test_a_deliverables_institutional_format_url_change_is_audited_with_the_previous_and_new_value(): void
+    public function test_a_deliverables_reference_url_change_is_audited_with_the_previous_and_new_value(): void
     {
-        $deliverable = Deliverable::factory()->create(['institutional_format_url' => 'https://uts.edu.co/v1.pdf']);
+        $deliverable = Deliverable::factory()->create(['reference_url' => 'https://uts.edu.co/v1.pdf']);
 
-        $deliverable->update(['institutional_format_url' => 'https://uts.edu.co/v2.pdf']);
+        $deliverable->update(['reference_url' => 'https://uts.edu.co/v2.pdf']);
 
         $log = AuditLog::where('action', 'updated')->where('auditable_type', Deliverable::class)->where('auditable_id', $deliverable->id)->latest('id')->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals('https://uts.edu.co/v1.pdf', $log->metadata['previous']['institutional_format_url']);
-        $this->assertEquals('https://uts.edu.co/v2.pdf', $log->metadata['changes']['institutional_format_url']);
+        $this->assertEquals('https://uts.edu.co/v1.pdf', $log->metadata['previous']['reference_url']);
+        $this->assertEquals('https://uts.edu.co/v2.pdf', $log->metadata['changes']['reference_url']);
         $this->assertEquals(
-            'Enlace al formato institucional cambió de https://uts.edu.co/v1.pdf a https://uts.edu.co/v2.pdf',
+            'Enlace de referencia cambió de https://uts.edu.co/v1.pdf a https://uts.edu.co/v2.pdf',
             AuditLogPresenter::describeChanges($log)
         );
     }
 
-    public function test_a_templates_institutional_format_url_change_is_audited_with_the_previous_and_new_value(): void
+    public function test_a_templates_reference_url_change_is_audited_with_the_previous_and_new_value(): void
     {
-        $template = DeliverableTemplate::factory()->create(['institutional_format_url' => 'https://uts.edu.co/v1.pdf']);
+        $template = DeliverableTemplate::factory()->create(['reference_url' => 'https://uts.edu.co/v1.pdf']);
 
-        $template->update(['institutional_format_url' => 'https://uts.edu.co/v2.pdf']);
+        $template->update(['reference_url' => 'https://uts.edu.co/v2.pdf']);
 
         $log = AuditLog::where('action', 'updated')->where('auditable_type', DeliverableTemplate::class)->where('auditable_id', $template->id)->latest('id')->first();
 
         $this->assertNotNull($log);
-        $this->assertEquals('https://uts.edu.co/v1.pdf', $log->metadata['previous']['institutional_format_url']);
-        $this->assertEquals('https://uts.edu.co/v2.pdf', $log->metadata['changes']['institutional_format_url']);
+        $this->assertEquals('https://uts.edu.co/v1.pdf', $log->metadata['previous']['reference_url']);
+        $this->assertEquals('https://uts.edu.co/v2.pdf', $log->metadata['changes']['reference_url']);
     }
 }

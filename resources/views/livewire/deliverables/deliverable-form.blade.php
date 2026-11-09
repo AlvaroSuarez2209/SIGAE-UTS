@@ -28,10 +28,10 @@
                 @if ($description)<p><span class="field-label">Descripción</span> {{ $description }}</p>@endif
                 @if ($instructions)<p><span class="field-label">Instrucciones</span> {{ $instructions }}</p>@endif
                 @if ($completion_criteria)<p><span class="field-label">Criterio de cumplimiento</span> {{ $completion_criteria }}</p>@endif
-                @if ($institutional_format_url)
+                @if ($reference_url)
                     <p>
-                        <span class="field-label">Formato institucional</span>
-                        <a href="{{ $institutional_format_url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">Abrir formato</a>
+                        <span class="field-label">Enlace de referencia</span>
+                        <a href="{{ $reference_url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">Abrir enlace</a>
                     </p>
                 @endif
                 @if ($referenceFiles->isNotEmpty())
@@ -219,16 +219,18 @@
                 </div>
 
                 <div>
-                    <label class="field-label">Enlace al formato institucional <span class="font-normal text-text-secondary">(opcional)</span></label>
-                    <input type="text" wire:model="institutional_format_url" placeholder="https://..." class="field-input">
-                    @error('institutional_format_url') <p class="field-error">{{ $message }}</p> @enderror
+                    <label class="field-label">Enlace de referencia <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
+                    <input type="text" wire:model="reference_url" placeholder="https://..." class="field-input">
+                    @error('reference_url') <p class="field-error">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- RF-038: plantilla/instructivo/formato de referencia --}}
+                {{-- RF-038: plantilla/instructivo/material de referencia --}}
                 <div>
                     <span class="field-label">
-                        Archivo(s) de referencia <span class="font-normal text-text-secondary">(opcional — plantilla, instructivo o formato; máx. {{ \App\Models\DeliverableReferenceFile::MAX_FILES }}, {{ \App\Models\DeliverableReferenceFile::MAX_FILE_SIZE_MB }}MB c/u, formatos: {{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => ".$e")->join(', ') }})</span>
+                        Archivo(s) de referencia <span class="font-normal text-text-secondary">(opcional — máx. {{ \App\Models\DeliverableReferenceFile::MAX_FILES }}, {{ \App\Models\DeliverableReferenceFile::MAX_FILE_SIZE_MB }}MB c/u, formatos: {{ collect(\App\Models\Deliverable::DEFAULT_ALLOWED_FILE_TYPES)->map(fn ($e) => ".$e")->join(', ') }})</span>
                     </span>
+                    <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
 
                     @if ($referenceFiles->isNotEmpty())
                         <ul class="mt-2 space-y-1">

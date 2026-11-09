@@ -65,11 +65,13 @@ class DeliverableForm extends Component
     public string $completion_criteria = '';
 
     /**
-     * Punto 5: enlace al formato institucional — se copia desde la
-     * plantilla al elegirla (ver updatedTemplateId()) y se limpia al
-     * volver a "sin plantilla", igual que los demás campos copiados.
+     * Punto 5 (renombrado en la corrección del punto B: "formato
+     * institucional" -> "referencia"): enlace de referencia — se copia
+     * desde la plantilla al elegirla (ver updatedTemplateId()) y se
+     * limpia al volver a "sin plantilla", igual que los demás campos
+     * copiados.
      */
-    public string $institutional_format_url = '';
+    public string $reference_url = '';
 
     public bool $is_mandatory = true;
 
@@ -135,7 +137,7 @@ class DeliverableForm extends Component
             $this->description = (string) $this->deliverable->description;
             $this->instructions = (string) $this->deliverable->instructions;
             $this->completion_criteria = (string) $this->deliverable->completion_criteria;
-            $this->institutional_format_url = (string) $this->deliverable->institutional_format_url;
+            $this->reference_url = (string) $this->deliverable->reference_url;
             $this->is_mandatory = $this->deliverable->is_mandatory;
             $this->periodicity_type = $this->deliverable->periodicity_type->value;
             $this->opens_at = $this->deliverable->opens_at->format('Y-m-d\TH:i');
@@ -178,7 +180,7 @@ class DeliverableForm extends Component
             $this->description = '';
             $this->instructions = '';
             $this->completion_criteria = '';
-            $this->institutional_format_url = '';
+            $this->reference_url = '';
             $this->is_mandatory = $this->defaultIsMandatory();
             $this->periodicity_type = PeriodicityType::Single->value;
             $this->allowed_evidence_types = [];
@@ -200,7 +202,7 @@ class DeliverableForm extends Component
         $this->description = (string) $template->description;
         $this->instructions = (string) $template->instructions;
         $this->completion_criteria = (string) $template->completion_criteria;
-        $this->institutional_format_url = (string) $template->institutional_format_url;
+        $this->reference_url = (string) $template->reference_url;
         $this->is_mandatory = $template->is_mandatory;
         $this->periodicity_type = $template->periodicity_type->value;
         $this->allowed_evidence_types = $template->allowed_evidence_types;
@@ -359,7 +361,7 @@ class DeliverableForm extends Component
                 'description' => ['nullable', 'string', 'max:2000'],
                 'instructions' => ['nullable', 'string', 'max:5000'],
                 'completion_criteria' => ['nullable', 'string', 'max:2000'],
-                'institutional_format_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
+                'reference_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
             ],
             3 => [
                 'periodicity_type' => ['required', 'in:'.implode(',', array_column(PeriodicityType::cases(), 'value'))],
@@ -499,7 +501,7 @@ class DeliverableForm extends Component
         $data['description'] = $data['description'] ?: null;
         $data['instructions'] = $data['instructions'] ?: null;
         $data['completion_criteria'] = $data['completion_criteria'] ?: null;
-        $data['institutional_format_url'] = $data['institutional_format_url'] ?: null;
+        $data['reference_url'] = $data['reference_url'] ?: null;
         $data['closes_at'] = $data['closes_at'] ?: null;
         $data['allowed_file_types'] = $data['allowed_file_types'] ?: null;
         $data['deliverable_template_id'] = $this->template_id;

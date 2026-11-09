@@ -167,21 +167,21 @@ class DeliverableTemplateTest extends TestCase
             ->assertSet('allowed_file_types', ['pdf', 'zip']);
     }
 
-    // --- Punto 5: enlace y archivo de formato institucional ---
+    // --- Punto 5: enlace y archivo de referencia ---
 
-    public function test_creating_a_template_with_an_institutional_format_link_and_file(): void
+    public function test_creating_a_template_with_a_reference_link_and_file(): void
     {
         \Illuminate\Support\Facades\Storage::fake('local');
 
         $coordination = $this->userWithRole(RoleName::Coordination);
-        $file = \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 500, 'application/pdf');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 500, 'application/pdf');
 
         Livewire::actingAs($coordination)
             ->test(TemplateForm::class)
             ->set('name', 'Informe trimestral')
             ->set('periodicity_type', 'by_term')
             ->set('allowed_evidence_types', [EvidenceType::File->value])
-            ->set('institutional_format_url', 'https://uts.edu.co/formato.pdf')
+            ->set('reference_url', 'https://uts.edu.co/referencia.pdf')
             ->set('newReferenceFile', $file)
             ->assertHasNoErrors()
             ->call('save')
@@ -190,11 +190,11 @@ class DeliverableTemplateTest extends TestCase
         $template = DeliverableTemplate::where('name', 'Informe trimestral')->first();
 
         $this->assertNotNull($template);
-        $this->assertSame('https://uts.edu.co/formato.pdf', $template->institutional_format_url);
+        $this->assertSame('https://uts.edu.co/referencia.pdf', $template->reference_url);
 
         $referenceFile = $template->referenceFiles()->first();
         $this->assertNotNull($referenceFile);
-        $this->assertSame('formato.pdf', $referenceFile->original_name);
+        $this->assertSame('referencia.pdf', $referenceFile->original_name);
         $this->assertTrue($referenceFile->is_active);
         \Illuminate\Support\Facades\Storage::disk('local')->assertExists($referenceFile->disk_path);
     }
@@ -203,7 +203,7 @@ class DeliverableTemplateTest extends TestCase
      * "rechaza javascript:, ftp:, texto libre" — probado contra los 3
      * sobre entregable Y plantilla, ya que ambos usan App\Rules\HttpUrl.
      */
-    public function test_an_institutional_format_url_with_a_disallowed_scheme_or_free_text_is_rejected(): void
+    public function test_a_reference_url_with_a_disallowed_scheme_or_free_text_is_rejected(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
 
@@ -213,13 +213,13 @@ class DeliverableTemplateTest extends TestCase
                 ->set('name', 'Informe '.$badUrl)
                 ->set('periodicity_type', 'by_term')
                 ->set('allowed_evidence_types', [EvidenceType::File->value])
-                ->set('institutional_format_url', $badUrl)
+                ->set('reference_url', $badUrl)
                 ->call('save')
-                ->assertHasErrors('institutional_format_url');
+                ->assertHasErrors('reference_url');
         }
     }
 
-    public function test_a_valid_https_institutional_format_url_is_accepted(): void
+    public function test_a_valid_https_reference_url_is_accepted(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
 
@@ -228,9 +228,9 @@ class DeliverableTemplateTest extends TestCase
             ->set('name', 'Informe con enlace válido')
             ->set('periodicity_type', 'by_term')
             ->set('allowed_evidence_types', [EvidenceType::File->value])
-            ->set('institutional_format_url', 'https://uts.edu.co/formato-institucional.pdf')
+            ->set('reference_url', 'https://uts.edu.co/referencia.pdf')
             ->call('save')
-            ->assertHasNoErrors('institutional_format_url');
+            ->assertHasNoErrors('reference_url');
     }
 
     public function test_the_upload_field_is_replaced_by_the_saved_file_and_a_quitar_button_once_one_exists(): void

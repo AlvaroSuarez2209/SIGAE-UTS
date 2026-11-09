@@ -1186,7 +1186,7 @@ class DeliverableTest extends TestCase
             'description' => 'Descripción de la plantilla',
             'instructions' => 'Instrucciones de la plantilla',
             'completion_criteria' => 'Criterio de la plantilla',
-            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
+            'reference_url' => 'https://uts.edu.co/referencia.pdf',
             'is_mandatory' => false,
             'periodicity_type' => PeriodicityType::Monthly,
             'allowed_evidence_types' => [EvidenceType::Text->value],
@@ -1196,7 +1196,7 @@ class DeliverableTest extends TestCase
             'weight_percentage' => 50,
         ]);
         $templateFile = $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
@@ -1205,10 +1205,10 @@ class DeliverableTest extends TestCase
             ->set('template_id', $template->id)
             ->assertSet('name', 'Plantilla de informe mensual')
             ->assertSet('max_files', 5)
-            ->assertSet('institutional_format_url', 'https://uts.edu.co/formato-institucional.pdf');
+            ->assertSet('reference_url', 'https://uts.edu.co/referencia.pdf');
 
         $component->set('template_id', null)
-            ->assertSet('institutional_format_url', '')
+            ->assertSet('reference_url', '')
             ->assertSet('name', '')
             ->assertSet('description', '')
             ->assertSet('instructions', '')
@@ -1241,10 +1241,10 @@ class DeliverableTest extends TestCase
         TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
 
         $template = DeliverableTemplate::factory()->create([
-            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
+            'reference_url' => 'https://uts.edu.co/referencia.pdf',
         ]);
         $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
@@ -1261,7 +1261,7 @@ class DeliverableTest extends TestCase
         $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
 
         $this->assertNotNull($deliverable);
-        $this->assertNull($deliverable->institutional_format_url);
+        $this->assertNull($deliverable->reference_url);
         $this->assertSame(0, $deliverable->referenceFiles()->count());
     }
 
@@ -1271,7 +1271,7 @@ class DeliverableTest extends TestCase
      * del entregable (comparte disk_path, pero no stored_name, único en
      * la base).
      */
-    public function test_creating_a_deliverable_from_a_template_copies_the_institutional_format_link_and_file(): void
+    public function test_creating_a_deliverable_from_a_template_copies_the_reference_link_and_file(): void
     {
         Storage::fake('local');
 
@@ -1281,10 +1281,10 @@ class DeliverableTest extends TestCase
         TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
 
         $template = DeliverableTemplate::factory()->create([
-            'institutional_format_url' => 'https://uts.edu.co/formato-institucional.pdf',
+            'reference_url' => 'https://uts.edu.co/referencia.pdf',
         ]);
         $templateFile = $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('formato.pdf', 100, 'application/pdf'),
+            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
@@ -1300,11 +1300,11 @@ class DeliverableTest extends TestCase
         $deliverable = Deliverable::where('name', 'Entregable de prueba')->first();
 
         $this->assertNotNull($deliverable);
-        $this->assertSame('https://uts.edu.co/formato-institucional.pdf', $deliverable->institutional_format_url);
+        $this->assertSame('https://uts.edu.co/referencia.pdf', $deliverable->reference_url);
 
         $copiedFile = $deliverable->referenceFiles()->first();
         $this->assertNotNull($copiedFile);
-        $this->assertSame('formato.pdf', $copiedFile->original_name);
+        $this->assertSame('referencia.pdf', $copiedFile->original_name);
         $this->assertSame($templateFile->disk_path, $copiedFile->disk_path);
         $this->assertNotSame($templateFile->stored_name, $copiedFile->stored_name);
         $this->assertNull($copiedFile->deliverable_template_id);

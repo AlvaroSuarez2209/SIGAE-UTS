@@ -11,7 +11,7 @@
         <x-status-badge :status="$evidence->status" />
     </div>
 
-    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria || $deliverable->institutional_format_url || $referenceFiles->isNotEmpty())
+    @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria || $deliverable->reference_url || $referenceFiles->isNotEmpty())
         <div class="card mb-6 space-y-2 p-4 text-base text-text-secondary">
             <h2 class="form-section-title mb-2">Instrucciones</h2>
             @if ($deliverable->description)
@@ -23,11 +23,11 @@
             @if ($deliverable->completion_criteria)
                 <p><span class="font-medium text-text-primary">Criterio de cumplimiento:</span> {{ $deliverable->completion_criteria }}</p>
             @endif
-            @if ($deliverable->institutional_format_url)
+            @if ($deliverable->reference_url)
                 <p>
-                    <span class="font-medium text-text-primary">Formato institucional:</span>
-                    <a href="{{ $deliverable->institutional_format_url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">
-                        Abrir formato
+                    <span class="font-medium text-text-primary">Enlace de referencia:</span>
+                    <a href="{{ $deliverable->reference_url }}" target="_blank" rel="noopener noreferrer" class="text-brand-primary hover:underline">
+                        Abrir enlace
                     </a>
                 </p>
             @endif

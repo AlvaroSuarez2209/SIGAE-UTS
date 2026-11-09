@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Punto 5: los archivos de referencia (antes exclusivos de un
  * Deliverable) ahora también pueden pertenecer a una DeliverableTemplate
- * — el archivo del formato institucional se copia a esta tabla (como
- * una fila nueva propia del entregable) al crear un entregable desde la
- * plantilla, ver DeliverableForm::save(). deliverable_id pasa a
+ * — el archivo de referencia de la plantilla se copia a esta tabla
+ * (como una fila nueva propia del entregable) al crear un entregable
+ * desde la plantilla, ver DeliverableForm::save(). deliverable_id pasa a
  * nullable y el CHECK obliga a que exactamente uno de los dos dueños
  * esté presente — mismo patrón que la restricción
  * deliverables_exactly_one_scope ya usada en la tabla `deliverables`.

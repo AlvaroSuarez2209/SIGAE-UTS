@@ -29,13 +29,15 @@
         </div>
 
         <div>
-            <label class="field-label">Enlace al formato institucional <span class="font-normal text-text-secondary">(opcional)</span></label>
-            <input type="text" wire:model="institutional_format_url" placeholder="https://..." class="field-input">
-            @error('institutional_format_url') <p class="field-error">{{ $message }}</p> @enderror
+            <label class="field-label">Enlace de referencia <span class="font-normal text-text-secondary">(opcional)</span></label>
+            <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
+            <input type="text" wire:model="reference_url" placeholder="https://..." class="field-input">
+            @error('reference_url') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <span class="field-label">Archivo del formato institucional <span class="font-normal text-text-secondary">(opcional)</span></span>
+            <span class="field-label">Archivo de referencia <span class="font-normal text-text-secondary">(opcional)</span></span>
+            <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
 
             @if ($referenceFiles->isNotEmpty())
                 <ul class="mt-2 space-y-1">

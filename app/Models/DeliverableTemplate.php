@@ -19,7 +19,7 @@ class DeliverableTemplate extends Model
         'description',
         'instructions',
         'completion_criteria',
-        'institutional_format_url',
+        'reference_url',
         'is_mandatory',
         'periodicity_type',
         'allowed_evidence_types',
@@ -61,8 +61,8 @@ class DeliverableTemplate extends Model
     }
 
     /**
-     * Punto 5: el archivo del formato institucional de la plantilla —
-     * en la práctica, a lo único que TemplateForm permite subir (un solo
+     * Punto 5: el archivo de referencia de la plantilla — en la
+     * práctica, a lo único que TemplateForm permite subir (un solo
      * archivo, a diferencia de los hasta 3 de un Deliverable), pero el
      * modelo no impone ese límite aquí; lo hace la validación del
      * formulario.

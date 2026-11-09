@@ -6,8 +6,8 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * Enlace al formato institucional (punto 5): solo http/https, nunca
- * javascript:, ftp: ni texto libre. Laravel's `url` rule por sí solo
+ * Enlace de referencia (punto 5): solo http/https, nunca javascript:,
+ * ftp: ni texto libre. Laravel's `url` rule por sí solo
  * acepta cualquier esquema con forma de URL (incluido javascript://),
  * así que no basta — aquí se exige explícitamente el esquema además de
  * la forma general de URL.

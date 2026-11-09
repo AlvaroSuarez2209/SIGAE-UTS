@@ -1489,23 +1489,23 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
 
-    // --- Punto 5: formato institucional (enlace + archivo) en el espacio de trabajo ---
+    // --- Punto 5: material de referencia (enlace + archivo) en el espacio de trabajo ---
 
-    public function test_shows_the_institutional_format_link_opening_in_a_new_tab(): void
+    public function test_shows_the_reference_link_opening_in_a_new_tab(): void
     {
-        $evidence = $this->evidenceFor(['institutional_format_url' => 'https://uts.edu.co/formato.pdf']);
+        $evidence = $this->evidenceFor(['reference_url' => 'https://uts.edu.co/referencia.pdf']);
 
         $html = Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->html();
 
-        $this->assertStringContainsString('Abrir formato', $html);
-        $this->assertStringContainsString('href="https://uts.edu.co/formato.pdf"', $html);
+        $this->assertStringContainsString('Abrir enlace', $html);
+        $this->assertStringContainsString('href="https://uts.edu.co/referencia.pdf"', $html);
         $this->assertStringContainsString('target="_blank"', $html);
         $this->assertStringContainsString('rel="noopener noreferrer"', $html);
     }
 
-    public function test_does_not_show_the_institutional_format_block_without_a_link_or_reference_files(): void
+    public function test_does_not_show_the_reference_link_block_without_a_link_or_reference_files(): void
     {
         $evidence = $this->evidenceFor();
 
@@ -1513,7 +1513,7 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->html();
 
-        $this->assertStringNotContainsString('Formato institucional', $html);
+        $this->assertStringNotContainsString('Enlace de referencia', $html);
     }
 
     /**

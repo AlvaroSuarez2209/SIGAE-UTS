@@ -47,14 +47,15 @@ class TemplateForm extends Component
     public string $completion_criteria = '';
 
     /**
-     * Punto 5: enlace al formato institucional de la plantilla — se
-     * copia a cada entregable creado a partir de ella (ver
-     * DeliverableForm::updatedTemplateId()).
+     * Punto 5 (renombrado en la corrección del punto B: "formato
+     * institucional" -> "referencia"): enlace de referencia de la
+     * plantilla — se copia a cada entregable creado a partir de ella
+     * (ver DeliverableForm::updatedTemplateId()).
      */
-    public string $institutional_format_url = '';
+    public string $reference_url = '';
 
     /**
-     * Archivo del formato institucional, pendiente de subir al
+     * Archivo de referencia de la plantilla, pendiente de subir al
      * confirmar — a diferencia de los "Archivo(s) de referencia" de un
      * Deliverable (hasta 3), una plantilla admite exactamente uno: no
      * hay otro concepto de archivo de plantilla además de este. La
@@ -89,7 +90,7 @@ class TemplateForm extends Component
             $this->description = (string) $this->template->description;
             $this->instructions = (string) $this->template->instructions;
             $this->completion_criteria = (string) $this->template->completion_criteria;
-            $this->institutional_format_url = (string) $this->template->institutional_format_url;
+            $this->reference_url = (string) $this->template->reference_url;
             $this->is_mandatory = $this->template->is_mandatory;
             $this->periodicity_type = $this->template->periodicity_type->value;
             $this->allowed_evidence_types = $this->template->allowed_evidence_types;
@@ -144,7 +145,7 @@ class TemplateForm extends Component
             'description' => ['nullable', 'string', 'max:2000'],
             'instructions' => ['nullable', 'string', 'max:5000'],
             'completion_criteria' => ['nullable', 'string', 'max:2000'],
-            'institutional_format_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
+            'reference_url' => ['nullable', 'string', 'max:2048', new HttpUrl],
             'is_mandatory' => ['boolean'],
             'periodicity_type' => ['required', 'in:'.implode(',', array_column(PeriodicityType::cases(), 'value'))],
             'allowed_evidence_types' => ['required', 'array', 'min:1'],
@@ -159,7 +160,7 @@ class TemplateForm extends Component
         $data['description'] = $data['description'] ?: null;
         $data['instructions'] = $data['instructions'] ?: null;
         $data['completion_criteria'] = $data['completion_criteria'] ?: null;
-        $data['institutional_format_url'] = $data['institutional_format_url'] ?: null;
+        $data['reference_url'] = $data['reference_url'] ?: null;
         $data['allowed_file_types'] = $data['allowed_file_types'] ?: null;
 
         if ($this->template) {

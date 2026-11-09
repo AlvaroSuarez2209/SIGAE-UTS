@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Archivo de referencia (plantilla/instructivo/formato) adjunto a un
- * entregable o a una plantilla de entregable (punto 5: el archivo del
- * formato institucional) — RF-038. Mismo patrón que `EvidenceFile`:
+ * Archivo de referencia (plantilla/instructivo/material adicional)
+ * adjunto a un entregable o a una plantilla de entregable — RF-038.
+ * Mismo patrón que `EvidenceFile`:
  * disco privado, `stored_name` aleatorio, nunca una URL pública.
  * `is_active` en vez de borrado físico (ver
  * Deliverable::removeReferenceFile()). Pertenece a exactamente UNO de

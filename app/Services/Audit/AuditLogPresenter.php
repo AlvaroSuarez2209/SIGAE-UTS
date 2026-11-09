@@ -100,7 +100,7 @@ class AuditLogPresenter
         'description' => 'Descripción',
         'instructions' => 'Instrucciones',
         'completion_criteria' => 'Criterio de cumplimiento',
-        'institutional_format_url' => 'Enlace al formato institucional',
+        'reference_url' => 'Enlace de referencia',
         'is_mandatory' => 'Obligatorio',
         'periodicity_type' => 'Periodicidad',
         'opens_at' => 'Fecha de apertura',
