@@ -5,17 +5,19 @@ namespace App\Livewire\Leaderships;
 use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
+use App\Models\Component;
 use App\Models\Leadership;
 use App\Models\ProgramUnit;
+use App\Models\Subcomponent;
 use App\Models\User;
 use App\Notifications\Leadership\LeadershipAssignedNotification;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
-use Livewire\Component;
+use Livewire\Component as LivewireComponent;
 
 #[Layout('layouts.app')]
-class LeadershipForm extends Component
+class LeadershipForm extends LivewireComponent
 {
     public ?Leadership $leadership = null;
 
@@ -44,6 +46,15 @@ class LeadershipForm extends Component
 
     public ?int $activity_id = null;
 
+    /**
+     * Revisión de la directora, punto 13: filtros puramente de interfaz
+     * para acotar qué actividad elegir — nunca se guardan, activity_id
+     * sigue siendo el único campo real (ver save()).
+     */
+    public ?int $component_id = null;
+
+    public ?int $subcomponent_id = null;
+
     public string $starts_at = '';
 
     public string $ends_at = '';
@@ -59,12 +70,30 @@ class LeadershipForm extends Component
             $this->academic_period_id = $this->leadership->academic_period_id;
             $this->program_unit_id = $this->leadership->program_unit_id;
             $this->activity_id = $this->leadership->activity_id;
+
+            if ($this->activity_id) {
+                $activity = Activity::find($this->activity_id);
+                $this->component_id = $activity?->component_id;
+                $this->subcomponent_id = $activity?->subcomponent_id;
+            }
+
             $this->starts_at = $this->leadership->starts_at->toDateString();
             $this->ends_at = $this->leadership->ends_at?->toDateString() ?? '';
             $this->periodLocked = in_array($this->leadership->academicPeriod->status->value, ['closed', 'archived']);
         } else {
             $this->starts_at = now()->toDateString();
         }
+    }
+
+    public function updatedComponentId(): void
+    {
+        $this->subcomponent_id = null;
+        $this->activity_id = null;
+    }
+
+    public function updatedSubcomponentId(): void
+    {
+        $this->activity_id = null;
     }
 
     public function save(): void
@@ -109,7 +138,7 @@ class LeadershipForm extends Component
         return view('livewire.leaderships.leadership-form', [
             'leaders' => User::where('is_active', true)
                 ->whereHas('roles', fn ($q) => $q->where('name', RoleName::Leader->value))
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
             'periods' => AcademicPeriod::whereIn('status', ['planning', 'active'])
                 ->orWhere('id', $this->academic_period_id)
@@ -117,13 +146,29 @@ class LeadershipForm extends Component
                 ->get(),
             'programUnits' => ProgramUnit::where('is_active', true)
                 ->orWhere('id', $this->program_unit_id)
-                ->orderBy('name')
+                ->orderByAccentInsensitive('name')
                 ->get(),
-            'activities' => Activity::with(['component', 'subcomponent'])
-                ->where('is_active', true)
-                ->orWhere('id', $this->activity_id)
-                ->orderBy('name')
+            // Cascada Componente > Subcomponente > Actividad (punto 13):
+            // cada nivel solo ofrece activos (punto 1) en orden A-Z
+            // (punto 6), salvo el que ya tenga asignado el liderazgo que
+            // se está editando, aunque se haya desactivado después.
+            'components' => Component::where('is_active', true)
+                ->orWhere('id', $this->component_id)
+                ->orderByAccentInsensitive('name')
                 ->get(),
+            'availableSubcomponents' => $this->component_id
+                ? Subcomponent::where('component_id', $this->component_id)
+                    ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $this->subcomponent_id))
+                    ->orderByAccentInsensitive('name')
+                    ->get()
+                : collect(),
+            'activities' => $this->component_id
+                ? Activity::where('component_id', $this->component_id)
+                    ->when($this->subcomponent_id, fn ($query) => $query->where('subcomponent_id', $this->subcomponent_id))
+                    ->where(fn ($query) => $query->where('is_active', true)->orWhere('id', $this->activity_id))
+                    ->orderByAccentInsensitive('name')
+                    ->get()
+                : collect(),
         ])->title($this->leadership ? 'Editar liderazgo' : 'Nuevo liderazgo');
     }
 }
