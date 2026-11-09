@@ -132,6 +132,7 @@ class UserIndex extends Component
                 ->whereHas('roles', fn ($q) => $q->where('name', $this->roleFilter))
             )
             ->orderByAccentInsensitive('name')
+            ->orderBy('id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.admin.users.user-index', [

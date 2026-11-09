@@ -48,12 +48,13 @@ class AssignmentIndex extends Component
     public function render()
     {
         $assignments = TeacherAssignment::query()
+            ->select('teacher_assignments.*')
+            ->join('users', 'users.id', '=', 'teacher_assignments.user_id')
             ->with(['user', 'academicPeriod', 'activity.component', 'activity.subcomponent', 'programUnit'])
-            ->when($this->search, fn ($query) => $query
-                ->whereHas('user', fn ($q) => $q->whereAccentInsensitive('name', $this->search))
-            )
-            ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
-            ->orderByDesc('created_at')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('users.name', $this->search))
+            ->when($this->periodFilter, fn ($query) => $query->where('teacher_assignments.academic_period_id', $this->periodFilter))
+            ->orderByAccentInsensitive('users.name')
+            ->orderBy('teacher_assignments.id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.distribution.assignment-index', [

@@ -4,14 +4,13 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasActiveScope;
-use App\Models\Concerns\OrdersNewestFirst;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProgramUnit extends Model
 {
-    use Auditable, HasActiveScope, HasFactory, OrdersNewestFirst;
+    use Auditable, HasActiveScope, HasFactory;
 
     protected $fillable = [
         'name',

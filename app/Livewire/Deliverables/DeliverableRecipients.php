@@ -50,7 +50,7 @@ class DeliverableRecipients extends Component
         ]);
 
         $rows = $this->deliverable->evidences
-            ->sortBy(fn ($evidence) => $evidence->user->name)
+            ->sortByAccentInsensitive(fn ($evidence) => $evidence->user->name)
             ->values();
 
         return view('livewire.deliverables.deliverable-recipients', [

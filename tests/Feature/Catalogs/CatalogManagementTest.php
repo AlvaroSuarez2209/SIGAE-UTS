@@ -59,16 +59,46 @@ class CatalogManagementTest extends TestCase
         $this->assertDatabaseHas('components', ['name' => 'Bienestar institucional', 'is_active' => true]);
     }
 
-    public function test_component_index_lists_newest_first(): void
+    /**
+     * Punto 6 (ampliación), corrección tras pruebas manuales: el listado
+     * principal de cada catálogo vuelve a ser alfabético (antes era "más
+     * reciente primero", ver OrdersNewestFirst ya eliminado) e insensible
+     * a tildes.
+     */
+    public function test_component_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $older = Component::factory()->create();
-        $newer = Component::factory()->create();
+        Component::factory()->create(['name' => 'Zonas de bienestar']);
+        Component::factory()->create(['name' => 'Áreas académicas']);
+        Component::factory()->create(['name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(ComponentIndex::class)
-            ->assertViewHas('components', fn ($components) => $components->first()->is($newer)
-                && $components->last()->is($older));
+            ->assertViewHas('components', fn ($components) => $components->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
+    }
+
+    public function test_a_newly_created_component_appears_in_its_alphabetical_position_not_at_the_top(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Component::factory()->create(['name' => 'Áreas académicas']);
+        Component::factory()->create(['name' => 'Zonas de bienestar']);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->set('name', 'Bienestar institucional')
+            ->call('save');
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->assertViewHas('components', fn ($components) => $components->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
     }
 
     public function test_deactivating_a_component_does_not_delete_it(): void
@@ -226,16 +256,47 @@ class CatalogManagementTest extends TestCase
             });
     }
 
-    public function test_activity_index_lists_newest_first(): void
+    public function test_activity_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $older = Activity::factory()->create();
-        $newer = Activity::factory()->create();
+        Activity::factory()->create(['name' => 'Zonas de bienestar']);
+        Activity::factory()->create(['name' => 'Áreas académicas']);
+        Activity::factory()->create(['name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(ActivityIndex::class)
-            ->assertViewHas('activities', fn ($activities) => $activities->first()->is($newer)
-                && $activities->last()->is($older));
+            ->assertViewHas('activities', fn ($activities) => $activities->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
+    }
+
+    /**
+     * ActivityIndex pagina (a diferencia de los otros 4 catálogos, que
+     * usan ->get()) — el desempate por id importa para que la paginación
+     * no repita ni pierda filas cuando varias actividades comparten el
+     * mismo nombre normalizado.
+     */
+    public function test_activity_index_pagination_is_stable_with_duplicate_normalized_names(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $activities = Activity::factory()->count(30)->create(['name' => 'Actividad repetida']);
+
+        $page1 = Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->call('gotoPage', 1)
+            ->viewData('activities');
+
+        $page2 = Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->call('gotoPage', 2)
+            ->viewData('activities');
+
+        $seenIds = $page1->pluck('id')->merge($page2->pluck('id'));
+
+        $this->assertSame($activities->pluck('id')->sort()->values()->all(), $seenIds->sort()->values()->all());
+        $this->assertSame($seenIds->unique()->count(), $seenIds->count());
     }
 
     public function test_deactivating_an_activity_preserves_historical_reference(): void
@@ -304,16 +365,20 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Clases teóricas');
     }
 
-    public function test_program_unit_index_lists_newest_first(): void
+    public function test_program_unit_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $older = ProgramUnit::factory()->create();
-        $newer = ProgramUnit::factory()->create();
+        ProgramUnit::factory()->create(['name' => 'Zonas de bienestar']);
+        ProgramUnit::factory()->create(['name' => 'Áreas académicas']);
+        ProgramUnit::factory()->create(['name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(ProgramUnitIndex::class)
-            ->assertViewHas('programUnits', fn ($programUnits) => $programUnits->first()->is($newer)
-                && $programUnits->last()->is($older));
+            ->assertViewHas('programUnits', fn ($programUnits) => $programUnits->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
     }
 
     public function test_program_unit_edit_does_not_inherit_errors_from_a_failed_create(): void
@@ -331,16 +396,20 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Facultad de Ciencias Naturales');
     }
 
-    public function test_cross_cutting_commitment_index_lists_newest_first(): void
+    public function test_cross_cutting_commitment_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $older = CrossCuttingCommitment::factory()->create();
-        $newer = CrossCuttingCommitment::factory()->create();
+        CrossCuttingCommitment::factory()->create(['name' => 'Zonas de bienestar']);
+        CrossCuttingCommitment::factory()->create(['name' => 'Áreas académicas']);
+        CrossCuttingCommitment::factory()->create(['name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(CrossCuttingCommitmentIndex::class)
-            ->assertViewHas('commitments', fn ($commitments) => $commitments->first()->is($newer)
-                && $commitments->last()->is($older));
+            ->assertViewHas('commitments', fn ($commitments) => $commitments->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
     }
 
     public function test_cross_cutting_commitment_edit_does_not_inherit_errors_from_a_failed_create(): void
@@ -552,16 +621,21 @@ class CatalogManagementTest extends TestCase
         $test->assertSee('Siguiente');
     }
 
-    public function test_subcomponent_index_lists_newest_first(): void
+    public function test_subcomponent_index_lists_alphabetically_without_accents(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $older = Subcomponent::factory()->create();
-        $newer = Subcomponent::factory()->create();
+        $component = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $component->id, 'name' => 'Zonas de bienestar']);
+        Subcomponent::factory()->create(['component_id' => $component->id, 'name' => 'Áreas académicas']);
+        Subcomponent::factory()->create(['component_id' => $component->id, 'name' => 'Bienestar institucional']);
 
         Livewire::actingAs($admin)
             ->test(SubcomponentIndex::class)
-            ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->first()->is($newer)
-                && $subcomponents->last()->is($older));
+            ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->pluck('name')->all() === [
+                'Áreas académicas',
+                'Bienestar institucional',
+                'Zonas de bienestar',
+            ]);
     }
 
     public function test_subcomponent_search_filters_by_name(): void

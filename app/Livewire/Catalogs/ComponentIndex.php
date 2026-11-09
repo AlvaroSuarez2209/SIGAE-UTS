@@ -130,7 +130,8 @@ class ComponentIndex extends LivewireComponent
     public function render()
     {
         return view('livewire.catalogs.component-index', [
-            'components' => Component::newestFirst()
+            'components' => Component::orderByAccentInsensitive('name')
+                ->orderBy('id')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),

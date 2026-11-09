@@ -55,12 +55,13 @@ class LeadershipIndex extends Component
     public function render()
     {
         $leaderships = Leadership::query()
+            ->select('leaderships.*')
+            ->join('users', 'users.id', '=', 'leaderships.user_id')
             ->with(['user', 'activity.component', 'programUnit', 'academicPeriod'])
-            ->when($this->search, fn ($query) => $query
-                ->whereHas('user', fn ($q) => $q->whereAccentInsensitive('name', $this->search))
-            )
-            ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
-            ->orderByDesc('starts_at')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('users.name', $this->search))
+            ->when($this->periodFilter, fn ($query) => $query->where('leaderships.academic_period_id', $this->periodFilter))
+            ->orderByAccentInsensitive('users.name')
+            ->orderBy('leaderships.id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.leaderships.leadership-index', [

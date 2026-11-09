@@ -6,8 +6,10 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Symfony\Component\Mailer\Transport;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerReadableDateMacro();
         $this->registerBrevoApiMailTransport();
         $this->registerAccentInsensitiveSearchMacro();
+        $this->registerAccentInsensitiveCollectionSortMacro();
 
         // Red de seguridad preventiva contra N+1 nuevos: lanza una excepción
         // en vez de disparar una consulta silenciosa al acceder a una
@@ -129,6 +132,23 @@ class AppServiceProvider extends ServiceProvider
             $direction = $direction === 'desc' ? 'desc' : 'asc';
 
             return $this->orderByRaw("translate(lower({$column}), 'áéíóúñü', 'aeiounu') {$direction}");
+        });
+    }
+
+    /**
+     * Equivalente de orderByAccentInsensitive() para Collection en vez de
+     * Builder — para los pocos listados que ordenan en PHP (porque la
+     * clave de orden es una relación ya cargada, no una columna de la
+     * tabla principal) y no pueden resolverlo con un orderByRaw en SQL.
+     * Punto 6 de la revisión de la directora.
+     */
+    private function registerAccentInsensitiveCollectionSortMacro(): void
+    {
+        Collection::macro('sortByAccentInsensitive', function (callable|string $keyBy) {
+            /** @var Collection $this */
+            $resolver = is_string($keyBy) ? fn ($item) => data_get($item, $keyBy) : $keyBy;
+
+            return $this->sortBy(fn ($item) => Str::of((string) $resolver($item))->lower()->ascii()->toString());
         });
     }
 }

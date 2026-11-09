@@ -251,4 +251,28 @@ class TeacherAssignmentTest extends TestCase
             ->assertViewHas('assignments', fn ($assignments) => $assignments->total() === 1
                 && $assignments->first()->user->name === 'Andrés Peña');
     }
+
+    /**
+     * Punto 6 (ampliación): el listado se ordena por el nombre del
+     * docente (no por fecha de creación), insensible a tildes.
+     */
+    public function test_assignment_index_lists_alphabetically_by_teacher_name_without_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $zoe = $this->teacher();
+        $zoe->update(['name' => 'Zoe Ramírez']);
+        $andrea = $this->teacher();
+        $andrea->update(['name' => 'Ángela Torres']);
+
+        TeacherAssignment::factory()->create(['user_id' => $zoe->id]);
+        TeacherAssignment::factory()->create(['user_id' => $andrea->id]);
+
+        Livewire::actingAs($admin)
+            ->test(AssignmentIndex::class)
+            ->set('periodFilter', null)
+            ->assertViewHas('assignments', fn ($assignments) => $assignments->pluck('user.name')->all() === [
+                'Ángela Torres',
+                'Zoe Ramírez',
+            ]);
+    }
 }

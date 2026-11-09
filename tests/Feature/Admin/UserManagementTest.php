@@ -598,4 +598,32 @@ class UserManagementTest extends TestCase
             ->assertViewHas('users', fn ($users) => $users->total() === 1
                 && $users->first()->name === 'Andrés Peña');
     }
+
+    /**
+     * Punto 6 (ampliación): el desempate por id importa para que la
+     * paginación no repita ni pierda filas cuando varios usuarios
+     * comparten el mismo nombre normalizado.
+     */
+    public function test_user_index_pagination_is_stable_with_duplicate_normalized_names(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teachers = User::factory()->count(30)->create(['name' => 'Usuario repetido', 'is_active' => true]);
+        $teachers->each(fn ($user) => $user->roles()->attach(Role::where('name', RoleName::Teacher->value)->first()));
+
+        $page1 = Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('gotoPage', 1)
+            ->viewData('users');
+
+        $page2 = Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->call('gotoPage', 2)
+            ->viewData('users');
+
+        $seenIds = $page1->pluck('id')->merge($page2->pluck('id'))
+            ->filter(fn ($id) => $teachers->pluck('id')->contains($id));
+
+        $this->assertSame($teachers->pluck('id')->sort()->values()->all(), $seenIds->sort()->values()->all());
+        $this->assertSame($seenIds->unique()->count(), $seenIds->count());
+    }
 }

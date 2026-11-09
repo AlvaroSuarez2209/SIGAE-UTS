@@ -123,7 +123,8 @@ class SubcomponentIndex extends LivewireComponent
             'subcomponents' => Subcomponent::with('component')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->newestFirst()
+                ->orderByAccentInsensitive('name')
+                ->orderBy('id')
                 ->get(),
             // Selector del modal (a qué componente pertenece): solo activos,
             // salvo que sea justo el que ya tiene asignado el que se está

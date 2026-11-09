@@ -62,6 +62,7 @@ class TemplateIndex extends Component
     {
         return view('livewire.deliverables.template-index', [
             'templates' => DeliverableTemplate::orderByAccentInsensitive('name')
+                ->orderBy('id')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),

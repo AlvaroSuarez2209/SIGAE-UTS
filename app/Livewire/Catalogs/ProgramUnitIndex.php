@@ -122,7 +122,8 @@ class ProgramUnitIndex extends Component
     public function render()
     {
         return view('livewire.catalogs.program-unit-index', [
-            'programUnits' => ProgramUnit::newestFirst()
+            'programUnits' => ProgramUnit::orderByAccentInsensitive('name')
+                ->orderBy('id')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),

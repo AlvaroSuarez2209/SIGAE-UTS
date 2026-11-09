@@ -300,4 +300,28 @@ class LeadershipTest extends TestCase
             ->assertViewHas('leaderships', fn ($leaderships) => $leaderships->total() === 1
                 && $leaderships->first()->user->name === 'Andrés Peña');
     }
+
+    /**
+     * Punto 6 (ampliación): el listado se ordena por el nombre del
+     * líder (no por fecha de inicio), insensible a tildes.
+     */
+    public function test_leadership_index_lists_alphabetically_by_leader_name_without_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $zoe = $this->userWithRole(RoleName::Leader);
+        $zoe->update(['name' => 'Zoe Ramírez']);
+        $angela = $this->userWithRole(RoleName::Leader);
+        $angela->update(['name' => 'Ángela Torres']);
+
+        Leadership::factory()->create(['user_id' => $zoe->id]);
+        Leadership::factory()->create(['user_id' => $angela->id]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipIndex::class)
+            ->set('periodFilter', null)
+            ->assertViewHas('leaderships', fn ($leaderships) => $leaderships->pluck('user.name')->all() === [
+                'Ángela Torres',
+                'Zoe Ramírez',
+            ]);
+    }
 }

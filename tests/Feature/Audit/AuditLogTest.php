@@ -664,6 +664,31 @@ class AuditLogTest extends TestCase
      * rechazo arriba). Se baja el tope a propósito para confirmar que ni
      * así cambia el botón.
      */
+    /**
+     * Punto 6 de las correcciones post-prueba: el filtro "Acción" debe
+     * ordenarse por la etiqueta YA TRADUCIDA (AuditLogPresenter::actionLabel),
+     * no por el valor crudo en inglés. 'logout' -> "Cierre de sesión" y
+     * 'created' -> "Creación": por valor crudo "created" va antes que
+     * "logout", pero por etiqueta "Cierre de sesión" va antes que
+     * "Creación" — un orden que se invierte entre ambos criterios, así que
+     * sirve para distinguir cuál de los dos se está usando de verdad.
+     */
+    public function test_audit_log_action_filter_sorts_by_translated_label_not_raw_value(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        AuditLog::create(['action' => 'logout', 'user_id' => $teacher->id, 'created_at' => now()]);
+
+        Livewire::actingAs($admin)
+            ->test(AuditLogIndex::class)
+            ->assertViewHas('actions', function ($actions) {
+                $values = $actions->values()->all();
+
+                return array_search('logout', $values, true) < array_search('created', $values, true);
+            });
+    }
+
     public function test_pdf_and_excel_buttons_are_always_present_and_enabled(): void
     {
         config(['audit.pdf_row_limit' => 1, 'audit.excel_row_limit' => 1]);

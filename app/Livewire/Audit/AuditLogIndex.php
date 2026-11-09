@@ -5,6 +5,7 @@ namespace App\Livewire\Audit;
 use App\Livewire\Concerns\HasStandardPagination;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\Audit\AuditLogPresenter;
 use App\Services\Audit\AuditLogQuery;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
@@ -75,8 +76,8 @@ class AuditLogIndex extends Component
             'actions' => Cache::remember(
                 'audit-log-distinct-actions',
                 now()->addMinutes(10),
-                fn () => AuditLog::query()->distinct()->orderBy('action')->pluck('action')
-            ),
+                fn () => AuditLog::query()->distinct()->pluck('action')
+            )->sortByAccentInsensitive(fn ($action) => AuditLogPresenter::actionLabel($action))->values(),
         ]);
     }
 }
