@@ -46,41 +46,38 @@
 
         <div>
             <label class="field-label">
+                Componente <span class="font-normal text-text-secondary">(opcional — solo sirve para filtrar las actividades)</span>
+            </label>
+            <select wire:model.live="component_id" class="field-input" @if ($periodLocked) disabled @endif>
+                <option value="">Selecciona...</option>
+                @foreach ($components as $component)
+                    <option value="{{ $component->id }}">{{ $component->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="field-label">
+                Subcomponente <span class="font-normal text-text-secondary">(opcional — solo sirve para filtrar las actividades)</span>
+            </label>
+            <select wire:model.live="subcomponent_id" class="field-input" @if ($periodLocked || ! $component_id) disabled @endif>
+                <option value="">Todos</option>
+                @foreach ($availableSubcomponents as $subcomponent)
+                    <option value="{{ $subcomponent->id }}">{{ $subcomponent->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div>
+            <label class="field-label">
                 Actividad <span class="font-normal text-text-secondary">(opcional — deja en blanco para liderar todo el programa)</span>
             </label>
-            <p class="field-help">Acota primero por componente (y, si quieres, subcomponente) para elegir la actividad.</p>
-
-            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                    <label class="field-help">Componente</label>
-                    <select wire:model.live="component_id" class="field-input" @if ($periodLocked) disabled @endif>
-                        <option value="">Selecciona...</option>
-                        @foreach ($components as $component)
-                            <option value="{{ $component->id }}">{{ $component->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="field-help">Subcomponente</label>
-                    <select wire:model.live="subcomponent_id" class="field-input" @if ($periodLocked || ! $component_id) disabled @endif>
-                        <option value="">Todos</option>
-                        @foreach ($availableSubcomponents as $subcomponent)
-                            <option value="{{ $subcomponent->id }}">{{ $subcomponent->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
-                    <label class="field-help">Actividad</label>
-                    <select wire:model="activity_id" class="field-input" @if ($periodLocked || ! $component_id) disabled @endif>
-                        <option value="">Todo el programa</option>
-                        @foreach ($activities as $activity)
-                            <option value="{{ $activity->id }}">{{ $activity->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+            <select wire:model="activity_id" class="field-input" @if ($periodLocked || ! $component_id) disabled @endif>
+                <option value="">Todo el programa</option>
+                @foreach ($activities as $activity)
+                    <option value="{{ $activity->id }}">{{ $activity->name }}</option>
+                @endforeach
+            </select>
             @error('activity_id') <p class="field-error">{{ $message }}</p> @enderror
         </div>
 

@@ -235,4 +235,27 @@ class LeadershipCascadeTest extends TestCase
         $this->assertTrue($component2->viewData('availableSubcomponents')->contains('id', $subcomponent->id));
         $this->assertTrue($component2->viewData('activities')->contains('id', $activity->id));
     }
+
+    /**
+     * Punto 13 (rediseño visual), corrección tras pruebas manuales: los
+     * 3 selectores pasan de una fila de 3 columnas a 3 filas completas
+     * con el mismo estilo de Líder/Periodo/Programa — y se quita el
+     * título "Actividad (opcional...)" duplicado y el texto "Acota
+     * primero por componente...".
+     */
+    public function test_the_cascade_no_longer_shows_the_duplicated_title_or_the_old_header_text(): void
+    {
+        $admin = $this->admin();
+
+        $html = Livewire::actingAs($admin)
+            ->test(LeadershipForm::class)
+            ->html();
+
+        $this->assertStringNotContainsString('Acota primero por componente', $html);
+        $this->assertSame(1, substr_count($html, 'Actividad <span'));
+
+        $this->assertStringContainsString('Componente <span class="font-normal text-text-secondary">(opcional — solo sirve para filtrar las actividades)</span>', $html);
+        $this->assertStringContainsString('Subcomponente <span class="font-normal text-text-secondary">(opcional — solo sirve para filtrar las actividades)</span>', $html);
+        $this->assertStringContainsString('Actividad <span class="font-normal text-text-secondary">(opcional — deja en blanco para liderar todo el programa)</span>', $html);
+    }
 }
