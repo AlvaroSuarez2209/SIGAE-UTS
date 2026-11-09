@@ -19,10 +19,11 @@
             class="w-full max-w-xs"
         />
 
-        <label class="flex items-center gap-2 text-sm text-text-secondary">
-            <input type="checkbox" wire:model.live="showInactive" class="field-checkbox">
-            Mostrar inactivos
-        </label>
+        <select wire:model.live="statusFilter" class="field-input mt-0 w-full md:w-auto">
+            <option value="">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+        </select>
     </div>
 
     <div class="table-shell">

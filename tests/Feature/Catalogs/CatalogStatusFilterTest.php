@@ -21,14 +21,14 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Revisión de la directora, punto 1: cada pantalla de administración de
- * catálogo tiene su propio interruptor "Mostrar inactivos", apagado por
- * defecto (antes era un <select> de 3 estados cuyo valor por defecto
- * mostraba TODO, justo lo contrario de lo pedido). El estado no se
- * comparte entre pantallas: cada una arranca apagada sin importar lo que
- * hagan las demás.
+ * Corrección tras pruebas manuales al punto 1: se revirtió el
+ * interruptor "Mostrar inactivos" — ahora los inactivos SIEMPRE
+ * aparecen en estas listas (con su insignia de estado), para poder
+ * editarlos/reactivarlos sin un paso extra. El filtro de 3 estados
+ * (Todos/Activos/Inactivos) solo acota la lista que ya los muestra a
+ * todos por defecto. Reemplaza a ShowInactiveToggleTest.
  */
-class ShowInactiveToggleTest extends TestCase
+class CatalogStatusFilterTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -47,22 +47,49 @@ class ShowInactiveToggleTest extends TestCase
         return $user;
     }
 
-    public function test_component_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    public function test_component_index_always_shows_inactive_records_with_their_badge(): void
     {
         $admin = $this->admin();
-        $active = Component::factory()->create(['name' => 'Docencia activa']);
-        $inactive = Component::factory()->create(['name' => 'Investigación inactiva', 'is_active' => false]);
+        Component::factory()->create(['name' => 'Docencia activa']);
+        Component::factory()->create(['name' => 'Investigación inactiva', 'is_active' => false]);
 
         Livewire::actingAs($admin)
             ->test(ComponentIndex::class)
             ->assertSee('Docencia activa')
-            ->assertDontSee('Investigación inactiva')
-            ->set('showInactive', true)
+            ->assertSee('Investigación inactiva')
+            ->assertSee('Inactivo');
+    }
+
+    public function test_component_index_status_filter_narrows_the_always_visible_list(): void
+    {
+        $admin = $this->admin();
+        Component::factory()->create(['name' => 'Docencia activa']);
+        Component::factory()->create(['name' => 'Investigación inactiva', 'is_active' => false]);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->set('statusFilter', 'active')
             ->assertSee('Docencia activa')
+            ->assertDontSee('Investigación inactiva')
+            ->set('statusFilter', 'inactive')
+            ->assertDontSee('Docencia activa')
             ->assertSee('Investigación inactiva');
     }
 
-    public function test_subcomponent_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    public function test_reactivating_from_the_list_still_works(): void
+    {
+        $admin = $this->admin();
+        $inactive = Component::factory()->create(['name' => 'Investigación inactiva', 'is_active' => false]);
+
+        Livewire::actingAs($admin)
+            ->test(ComponentIndex::class)
+            ->call('toggleActive', $inactive)
+            ->assertSee('Investigación inactiva');
+
+        $this->assertTrue($inactive->refresh()->is_active);
+    }
+
+    public function test_subcomponent_index_always_shows_inactive_records(): void
     {
         $admin = $this->admin();
         $component = Component::factory()->create();
@@ -72,12 +99,10 @@ class ShowInactiveToggleTest extends TestCase
         Livewire::actingAs($admin)
             ->test(SubcomponentIndex::class)
             ->assertSee('Procesos activos')
-            ->assertDontSee('Procesos inactivos')
-            ->set('showInactive', true)
             ->assertSee('Procesos inactivos');
     }
 
-    public function test_activity_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    public function test_activity_index_always_shows_inactive_records(): void
     {
         $admin = $this->admin();
         Activity::factory()->create(['name' => 'Clases activas']);
@@ -86,12 +111,10 @@ class ShowInactiveToggleTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ActivityIndex::class)
             ->assertSee('Clases activas')
-            ->assertDontSee('Clases inactivas')
-            ->set('showInactive', true)
             ->assertSee('Clases inactivas');
     }
 
-    public function test_program_unit_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    public function test_program_unit_index_always_shows_inactive_records(): void
     {
         $admin = $this->admin();
         ProgramUnit::factory()->create(['name' => 'Programa activo']);
@@ -100,12 +123,10 @@ class ShowInactiveToggleTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ProgramUnitIndex::class)
             ->assertSee('Programa activo')
-            ->assertDontSee('Programa inactivo')
-            ->set('showInactive', true)
             ->assertSee('Programa inactivo');
     }
 
-    public function test_cross_cutting_commitment_index_hides_inactive_by_default_and_shows_them_when_toggled(): void
+    public function test_cross_cutting_commitment_index_always_shows_inactive_records(): void
     {
         $admin = $this->admin();
         CrossCuttingCommitment::factory()->create(['name' => 'Compromiso activo']);
@@ -114,38 +135,15 @@ class ShowInactiveToggleTest extends TestCase
         Livewire::actingAs($admin)
             ->test(CrossCuttingCommitmentIndex::class)
             ->assertSee('Compromiso activo')
-            ->assertDontSee('Compromiso inactivo')
-            ->set('showInactive', true)
             ->assertSee('Compromiso inactivo');
     }
 
     /**
-     * El interruptor es por pantalla, no global — encenderlo en
-     * Componentes nunca debe afectar lo que muestra Actividades.
+     * Los "selectores de uso" dentro de los modales (a qué
+     * componente/subcomponente pertenece) siguen ocultando inactivos por
+     * defecto — esto no cambia con la reversión del punto 1.
      */
-    public function test_the_toggle_state_is_never_shared_between_screens(): void
-    {
-        $admin = $this->admin();
-        Component::factory()->create(['name' => 'Componente inactivo', 'is_active' => false]);
-        Activity::factory()->create(['name' => 'Actividad inactiva', 'is_active' => false]);
-
-        Livewire::actingAs($admin)
-            ->test(ComponentIndex::class)
-            ->set('showInactive', true)
-            ->assertSee('Componente inactivo');
-
-        Livewire::actingAs($admin)
-            ->test(ActivityIndex::class)
-            ->assertDontSee('Actividad inactiva');
-    }
-
-    /**
-     * Las dos casillas del modal de Subcomponentes/Actividades (a qué
-     * componente/subcomponente pertenece) también son "selectores de
-     * uso": ocultan inactivos por defecto, SIN depender del interruptor
-     * de la propia pantalla.
-     */
-    public function test_the_component_select_inside_the_subcomponent_modal_hides_inactive_components(): void
+    public function test_the_component_select_inside_the_subcomponent_modal_still_hides_inactive_components(): void
     {
         $admin = $this->admin();
         $active = Component::factory()->create(['name' => 'Componente activo']);
@@ -157,12 +155,6 @@ class ShowInactiveToggleTest extends TestCase
                 && ! $components->contains('id', $inactive->id));
     }
 
-    /**
-     * Edición: si el componente de un subcomponente ya guardado se
-     * desactivó después, el modal de edición debe seguir ofreciéndolo
-     * (para no romper el valor ya guardado), aunque no aparezca para
-     * crear uno nuevo.
-     */
     public function test_editing_a_subcomponent_whose_component_is_now_inactive_still_offers_it(): void
     {
         $admin = $this->admin();
@@ -175,7 +167,7 @@ class ShowInactiveToggleTest extends TestCase
             ->assertViewHas('components', fn ($components) => $components->contains('id', $component->id));
     }
 
-    public function test_the_subcomponent_select_inside_the_activity_modal_hides_inactive_subcomponents(): void
+    public function test_the_subcomponent_select_inside_the_activity_modal_still_hides_inactive_subcomponents(): void
     {
         $admin = $this->admin();
         $component = Component::factory()->create();

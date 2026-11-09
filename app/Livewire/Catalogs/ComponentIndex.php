@@ -24,11 +24,13 @@ class ComponentIndex extends LivewireComponent
     public string $search = '';
 
     /**
-     * Revisión de la directora, punto 1: interruptor "Mostrar inactivos",
-     * apagado por defecto — el estado no se comparte entre pantallas
-     * (cada catálogo tiene el suyo, sin persistir en la URL).
+     * Corrección tras pruebas manuales al punto 1: el interruptor
+     * "Mostrar inactivos" se revierte — los inactivos ahora SIEMPRE
+     * aparecen en esta lista (con su insignia de estado), para poder
+     * editarlos o reactivarlos sin un paso extra. Vuelve el filtro de 3
+     * estados que ya existía antes de ese cambio.
      */
-    public bool $showInactive = false;
+    public string $statusFilter = '';
 
     public string $deactivationError = '';
 
@@ -130,7 +132,7 @@ class ComponentIndex extends LivewireComponent
         return view('livewire.catalogs.component-index', [
             'components' => Component::newestFirst()
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when(! $this->showInactive, fn ($query) => $query->active())
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),
         ]);
     }

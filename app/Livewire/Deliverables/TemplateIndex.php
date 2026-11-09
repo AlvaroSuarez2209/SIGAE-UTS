@@ -17,7 +17,7 @@ class TemplateIndex extends Component
     public string $search = '';
 
     #[Url]
-    public bool $showInactive = false;
+    public string $statusFilter = '';
 
     public string $deactivationError = '';
 
@@ -63,7 +63,7 @@ class TemplateIndex extends Component
         return view('livewire.deliverables.template-index', [
             'templates' => DeliverableTemplate::orderByAccentInsensitive('name')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when(! $this->showInactive, fn ($query) => $query->active())
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),
         ]);
     }

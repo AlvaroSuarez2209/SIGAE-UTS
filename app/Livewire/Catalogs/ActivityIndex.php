@@ -38,7 +38,7 @@ class ActivityIndex extends LivewireComponent
 
     public string $search = '';
 
-    public bool $showInactive = false;
+    public string $statusFilter = '';
 
     public string $deactivationError = '';
 
@@ -54,7 +54,7 @@ class ActivityIndex extends LivewireComponent
         $this->resetPage();
     }
 
-    public function updatingShowInactive(): void
+    public function updatingStatusFilter(): void
     {
         $this->resetPage();
     }
@@ -175,7 +175,7 @@ class ActivityIndex extends LivewireComponent
         return view('livewire.catalogs.activity-index', [
             'activities' => Activity::with(['component', 'subcomponent'])
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when(! $this->showInactive, fn ($query) => $query->active())
+                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->newestFirst()
                 ->paginate(self::PER_PAGE),
             // Selectores del modal: solo activos, salvo que sea justo el
