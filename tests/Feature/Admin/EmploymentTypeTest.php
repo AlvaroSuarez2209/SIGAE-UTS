@@ -50,6 +50,37 @@ class EmploymentTypeTest extends TestCase
             ->assertSee('Tipo de vinculación');
     }
 
+    /**
+     * Hallazgo de pruebas manuales (puntos 2 y 5): diagnóstico — no es un
+     * fallo de reactividad. wire:model.live SÍ está en los checkboxes de
+     * rol (ver user-form.blade.php) y showsEmploymentType() se evalúa en
+     * cada render, nunca una sola vez. A diferencia de la prueba de
+     * arriba (actor Administrador, cuyas casillas nunca incluyen Docente/
+     * Líder — ver assignableRoleNames()), esta usa Coordinación, el
+     * actor real para el que esas casillas sí existen, alternando
+     * marcar/desmarcar varias veces como lo haría un clic real.
+     */
+    public function test_the_field_reacts_live_to_checking_and_unchecking_teacher_or_leader_as_coordination(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $component = Livewire::actingAs($coordination)
+            ->test(UserForm::class)
+            ->assertDontSee('Tipo de vinculación');
+
+        $component->set('selectedRoles', [RoleName::Teacher->value])
+            ->assertSee('Tipo de vinculación');
+
+        $component->set('selectedRoles', [])
+            ->assertDontSee('Tipo de vinculación');
+
+        $component->set('selectedRoles', [RoleName::Leader->value])
+            ->assertSee('Tipo de vinculación');
+
+        $component->set('selectedRoles', [RoleName::Auditor->value])
+            ->assertDontSee('Tipo de vinculación');
+    }
+
     public function test_coordination_can_set_the_employment_type_when_creating_a_teacher(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);
@@ -90,6 +121,44 @@ class EmploymentTypeTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame('planta', $teacher->fresh()->employment_type);
+    }
+
+    /**
+     * Hallazgo de pruebas manuales (puntos 2 y 5), segunda mitad: el
+     * Administrador SÍ ve el campo (con el valor ya guardado) al editar
+     * un Docente o Líder existente — nunca al crear uno nuevo (sus
+     * casillas de rol no incluyen esos dos) ni al editar un Administrador/
+     * Coordinación (nunca aplica).
+     */
+    public function test_administrator_sees_the_field_prefilled_when_editing_an_existing_teacher_or_leader(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $teacher = $this->userWithRole(RoleName::Teacher, [
+            'document_type' => 'CC',
+            'program_unit_id' => ProgramUnit::factory()->create()->id,
+            'employment_type' => 'planta',
+        ]);
+        $leader = $this->userWithRole(RoleName::Leader, ['employment_type' => 'medio_tiempo_4m']);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class, ['user' => $teacher])
+            ->assertSee('Tipo de vinculación')
+            ->assertSet('employment_type', 'planta');
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class, ['user' => $leader])
+            ->assertSee('Tipo de vinculación')
+            ->assertSet('employment_type', 'medio_tiempo_4m');
+    }
+
+    public function test_administrator_never_sees_the_field_when_creating_a_new_user(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserForm::class)
+            ->set('selectedRoles', [RoleName::Coordination->value])
+            ->assertDontSee('Tipo de vinculación');
     }
 
     public function test_saving_without_an_employment_type_is_never_blocked(): void
