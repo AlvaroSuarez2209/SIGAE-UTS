@@ -1091,4 +1091,23 @@ class DashboardTest extends TestCase
         $response->assertSee('Mis entregables');
         $response->assertSee('Revisión');
     }
+
+    /**
+     * Corrección tras pruebas manuales al punto 14: la línea "Roles: ..."
+     * del encabezado es redundante una vez que las pestañas ya muestran
+     * de forma más visible qué puede ver este usuario — se oculta solo
+     * cuando hay pestañas (2+ bloques); con un solo bloque, el
+     * encabezado se queda exactamente como antes.
+     */
+    public function test_the_roles_line_hides_only_when_the_view_selector_is_shown(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $html = Livewire::actingAs($teacher)->test(Dashboard::class)->html();
+        $this->assertStringContainsString('Roles:', $html);
+
+        $multiRole = $this->userWithRole(RoleName::Teacher);
+        $multiRole->roles()->attach(Role::where('name', RoleName::Leader->value)->first());
+        $html = Livewire::actingAs($multiRole)->test(Dashboard::class)->html();
+        $this->assertStringNotContainsString('Roles:', $html);
+    }
 }

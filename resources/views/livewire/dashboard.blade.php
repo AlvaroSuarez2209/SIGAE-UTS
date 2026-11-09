@@ -2,9 +2,11 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h1 class="page-title">Bienvenido, <span class="text-brand-primary">{{ auth()->user()->name }}</span></h1>
-            <p class="text-sm text-text-secondary">
-                Roles: {{ auth()->user()->roles->pluck('label')->join(', ') ?: 'Sin roles asignados' }}
-            </p>
+            @if (count($availableViews) <= 1)
+                <p class="text-sm text-text-secondary">
+                    Roles: {{ auth()->user()->roles->pluck('label')->join(', ') ?: 'Sin roles asignados' }}
+                </p>
+            @endif
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -31,7 +33,7 @@
                     type="button"
                     wire:click="setView('{{ $availableView }}')"
                     @class([
-                        'border-b-2 px-4 py-2 text-sm font-medium -mb-px',
+                        'border-b-[3px] -mb-px px-5 py-3 text-base font-semibold transition-colors',
                         'border-brand-primary text-brand-primary' => $view === $availableView,
                         'border-transparent text-text-secondary hover:text-text-primary' => $view !== $availableView,
                     ])
@@ -211,51 +213,53 @@
         <section>
             <h2 class="mb-4 text-xl font-semibold text-text-primary">Panel de coordinación</h2>
 
-            <div class="mb-6 flex flex-wrap items-end gap-3">
-                <div class="w-full md:w-auto">
-                    <label class="field-label">Programa</label>
-                    <select wire:model.live="programFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
-                        <option value="">Todos</option>
-                        @foreach ($programUnits as $programUnit)
-                            <option value="{{ $programUnit->id }}">{{ $programUnit->name }}</option>
-                        @endforeach
-                    </select>
+            <div class="mb-6">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <div>
+                        <label class="field-label">Programa</label>
+                        <select wire:model.live="programFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full">
+                            <option value="">Todos</option>
+                            @foreach ($programUnits as $programUnit)
+                                <option value="{{ $programUnit->id }}">{{ $programUnit->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Docente</label>
+                        <select wire:model.live="teacherFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full">
+                            <option value="">Todos</option>
+                            @foreach ($filterableTeachers as $filterableTeacher)
+                                <option value="{{ $filterableTeacher->id }}">{{ $filterableTeacher->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Actividad</label>
+                        <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full">
+                            <option value="">Todas</option>
+                            <x-activity-select-options :activities="$filterableActivities" />
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Líder</label>
+                        <select wire:model.live="leaderFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full">
+                            <option value="">Todos</option>
+                            @foreach ($filterableLeaders as $filterableLeader)
+                                <option value="{{ $filterableLeader->id }}">{{ $filterableLeader->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Estado</label>
+                        <select wire:model.live="evidenceStatusFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full">
+                            <option value="">Todos</option>
+                            @foreach ($evidenceStatusOptions as $status)
+                                <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
-                <div class="w-full md:w-auto">
-                    <label class="field-label">Docente</label>
-                    <select wire:model.live="teacherFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
-                        <option value="">Todos</option>
-                        @foreach ($filterableTeachers as $filterableTeacher)
-                            <option value="{{ $filterableTeacher->id }}">{{ $filterableTeacher->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="w-full md:w-auto">
-                    <label class="field-label">Actividad</label>
-                    <select wire:model.live="activityFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
-                        <option value="">Todas</option>
-                        <x-activity-select-options :activities="$filterableActivities" />
-                    </select>
-                </div>
-                <div class="w-full md:w-auto">
-                    <label class="field-label">Líder</label>
-                    <select wire:model.live="leaderFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
-                        <option value="">Todos</option>
-                        @foreach ($filterableLeaders as $filterableLeader)
-                            <option value="{{ $filterableLeader->id }}">{{ $filterableLeader->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="w-full md:w-auto">
-                    <label class="field-label">Estado</label>
-                    <select wire:model.live="evidenceStatusFilter" wire:loading.attr="disabled" class="field-input mt-0 w-full md:w-auto">
-                        <option value="">Todos</option>
-                        @foreach ($evidenceStatusOptions as $status)
-                            <option value="{{ $status->value }}">{{ $status->label() }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <x-loading-indicator />
+                <x-loading-indicator class="mt-3" />
             </div>
 
             @php
