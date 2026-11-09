@@ -70,6 +70,52 @@ class EmploymentTypeHourLimitIndexTest extends TestCase
         $this->actingAs($teacher)->get('/admin/employment-type-hour-limits')->assertForbidden();
     }
 
+    public function test_leader_cannot_view_the_screen(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+
+        $this->actingAs($leader)->get('/admin/employment-type-hour-limits')->assertForbidden();
+    }
+
+    public function test_auditor_cannot_view_the_screen(): void
+    {
+        $auditor = $this->userWithRole(RoleName::Auditor);
+
+        $this->actingAs($auditor)->get('/admin/employment-type-hour-limits')->assertForbidden();
+    }
+
+    /**
+     * Hallazgo de pruebas manuales: la pantalla no cargaba para NINGÚN
+     * rol — causa raíz: las 2 migraciones de este lote (employment_type
+     * en users, y la tabla employment_type_hour_limits) nunca se habían
+     * corrido en la base de datos real (solo se aplican automáticamente
+     * en la base de pruebas, vía RefreshDatabase). No era un bug de ruta/
+     * policy/menú — ambos ya estaban bien. Estas pruebas de acceso ya
+     * existían y ya pasaban aquí porque RefreshDatabase siempre migra
+     * desde cero; lo que faltaba era correr `php artisan migrate` en la
+     * base real.
+     */
+    public function test_the_menu_link_exists_for_an_administrator(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $this->actingAs($admin)->get('/dashboard')->assertSee('Topes de horas');
+    }
+
+    public function test_the_menu_link_exists_for_coordination(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+
+        $this->actingAs($coordination)->get('/dashboard')->assertSee('Topes de horas');
+    }
+
+    public function test_the_menu_link_does_not_appear_for_a_teacher(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+
+        $this->actingAs($teacher)->get('/dashboard')->assertDontSee('Topes de horas');
+    }
+
     public function test_administrator_can_update_a_limit(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
