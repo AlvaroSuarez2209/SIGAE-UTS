@@ -77,6 +77,21 @@
                                     })"
                                 >Reabrir</button>
                             @endif
+                            @can('delete', $period)
+                                @php $blockingMessage = $deletionMessages[$period->id] ?? null; @endphp
+                                @if ($blockingMessage)
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
+                                        disabled
+                                        title="{{ $blockingMessage }}"
+                                    >Eliminar</button>
+                                @else
+                                    <button type="button" wire:click="openDeleteConfirmation({{ $period->id }})" class="btn-text ml-4 text-status-error">
+                                        Eliminar
+                                    </button>
+                                @endif
+                            @endcan
                         </td>
                     </tr>
                 @empty
@@ -154,6 +169,51 @@
                         @endunless
                         <button type="button" wire:click="closeModal" class="btn-text text-text-secondary">
                             {{ $periodLocked ? 'Cerrar' : 'Cancelar' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($deletingPeriod)
+        <div
+            class="fixed inset-0 z-10 flex items-center justify-center bg-text-primary/40 px-4"
+            x-on:keydown.escape.window="$wire.closeDeleteConfirmation()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-period-modal-title"
+        >
+            <div class="card w-full max-w-md p-6 shadow-lg">
+                <h2 id="delete-period-modal-title" class="mb-2 text-base font-semibold text-text-primary">
+                    Eliminar periodo académico
+                </h2>
+                <p class="mb-4 text-sm text-text-secondary">
+                    Esta acción no se puede deshacer. Para confirmar, escribe el código del periodo:
+                    <strong>{{ $deletingPeriod->name }}</strong>
+                </p>
+
+                @if ($deletionError)
+                    <div class="mb-4 flex items-center gap-2 rounded-md bg-status-error-subtle p-4 text-sm text-status-error">
+                        <x-icon name="alert-triangle" class="h-4 w-4 shrink-0" />
+                        {{ $deletionError }}
+                    </div>
+                @endif
+
+                <form wire:submit="deletePeriod" class="space-y-4">
+                    <div>
+                        <label class="field-label">Código del periodo</label>
+                        <input type="text" wire:model="deleteConfirmationCode" class="field-input" autocomplete="off">
+                        @error('deleteConfirmationCode') <p class="field-error">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-2">
+                        <button type="submit" class="btn-danger" wire:loading.attr="disabled" wire:target="deletePeriod">
+                            <span wire:loading.remove wire:target="deletePeriod">Eliminar periodo</span>
+                            <span wire:loading wire:target="deletePeriod">Eliminando...</span>
+                        </button>
+                        <button type="button" wire:click="closeDeleteConfirmation" class="btn-text text-text-secondary">
+                            Cancelar
                         </button>
                     </div>
                 </form>

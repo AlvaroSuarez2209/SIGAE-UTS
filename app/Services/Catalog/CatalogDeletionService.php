@@ -2,6 +2,7 @@
 
 namespace App\Services\Catalog;
 
+use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\Component;
@@ -115,6 +116,34 @@ class CatalogDeletionService
                 if ($file->existsOnDisk() && ! $file->isDiskPathReferencedElsewhere()) {
                     $file->disk()->delete($file->disk_path);
                 }
+            }
+
+            return self::performDelete($locked);
+        });
+    }
+
+    /**
+     * El código protegido (ver config/catalogs.php) se comprueba ANTES
+     * de abrir la transacción — puro blindaje extra, para que un
+     * periodo protegido ni siquiera llegue a lockForUpdate() — y otra
+     * vez DENTRO, sobre la fila ya bloqueada, por la misma razón de
+     * condición de carrera que el resto de este servicio: el código no
+     * puede cambiar entre ambas comprobaciones (name es inmutable en la
+     * práctica, pero el chequeo doble no cuesta nada y es el mismo
+     * patrón que el resto de deleteX()).
+     */
+    public static function deleteAcademicPeriod(AcademicPeriod $period): CatalogDeletionResult
+    {
+        if (CatalogDeletionChecker::isProtectedAcademicPeriod($period)) {
+            return CatalogDeletionResult::blocked(CatalogDeletionChecker::blockingMessageForAcademicPeriod($period));
+        }
+
+        return DB::transaction(function () use ($period) {
+            $locked = AcademicPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
+            $message = CatalogDeletionChecker::blockingMessageForAcademicPeriod($locked);
+
+            if ($message !== null) {
+                return CatalogDeletionResult::blocked($message);
             }
 
             return self::performDelete($locked);

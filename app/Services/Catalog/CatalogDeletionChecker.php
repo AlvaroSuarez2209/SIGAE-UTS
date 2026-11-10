@@ -111,6 +111,17 @@ class CatalogDeletionChecker
     }
 
     /**
+     * Punto 2: el periodo de pruebas de la directora (ver config/catalogs.php)
+     * nunca se puede borrar, ni siquiera sin ningún dependiente — a
+     * diferencia de los otros 6 tipos, esto no es una regla de
+     * dependencias, es una lista de códigos protegidos.
+     */
+    public static function isProtectedAcademicPeriod(AcademicPeriod $period): bool
+    {
+        return in_array($period->name, config('catalogs.protected_academic_period_codes', []), true);
+    }
+
+    /**
      * Único punto que arma el mensaje visible (tooltip del botón
      * deshabilitado Y error del modal si la comprobación final dentro
      * de la transacción también bloquea) — nunca se reconstruye este
@@ -158,12 +169,19 @@ class CatalogDeletionChecker
     /**
      * Los periodos académicos no tienen un interruptor de
      * activo/inactivo que ofrecer como alternativa — a diferencia de
-     * los otros 6 tipos, el mensaje no invita a "desactivarlo".
-     *
-     * @param  list<string>  $blockers
+     * los otros 6 tipos, el mensaje no invita a "desactivarlo". La
+     * protección por código (isProtectedAcademicPeriod()) se comprueba
+     * primero y es definitiva: un periodo protegido nunca se describe
+     * como "sin dependientes", aunque de hecho no tenga ninguno.
      */
-    public static function blockingMessageForAcademicPeriod(array $blockers): ?string
+    public static function blockingMessageForAcademicPeriod(AcademicPeriod $period): ?string
     {
+        if (self::isProtectedAcademicPeriod($period)) {
+            return 'Este periodo está protegido y no se puede eliminar.';
+        }
+
+        $blockers = self::blockersForAcademicPeriod($period);
+
         if ($blockers === []) {
             return null;
         }
