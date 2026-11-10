@@ -16,12 +16,13 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Punto 2: un periodo académico solo se puede borrar sin ningún
- * dependiente — igual que los otros 6 tipos — más una regla extra:
- * ciertos códigos (config('catalogs.protected_academic_period_codes'),
+ * Punto 2 + su ajuste: un periodo académico solo se puede borrar sin
+ * ningún dependiente — igual que los otros 6 tipos — más una regla
+ * extra: ciertos códigos (config('catalogs.protected_academic_period_codes'),
  * por defecto incluye PRUEBA-COORD-20261026, el periodo de pruebas de la
- * directora) nunca se pueden borrar, tengan o no dependientes. La
- * confirmación exige escribir el código del periodo, no solo un clic.
+ * directora) nunca se pueden borrar, tengan o no dependientes. El botón
+ * nunca está deshabilitado; la confirmación exige escribir el código
+ * del periodo, no solo un clic.
  */
 class AcademicPeriodDeletionTest extends TestCase
 {
@@ -50,6 +51,31 @@ class AcademicPeriodDeletionTest extends TestCase
         return $user;
     }
 
+    public function test_the_delete_button_is_never_disabled_even_for_the_protected_period(): void
+    {
+        config(['catalogs.protected_academic_period_codes' => ['PRUEBA-COORD-20261026']]);
+        $period = AcademicPeriod::factory()->create(['name' => 'PRUEBA-COORD-20261026']);
+
+        $html = Livewire::actingAs($this->admin())->test(PeriodIndex::class)->html();
+
+        $this->assertStringContainsString('btn-delete', $html);
+        $this->assertStringContainsString('openDeleteConfirmation('.$period->id.')', $html);
+        $this->assertStringNotContainsString('cursor-not-allowed', $html);
+    }
+
+    public function test_opening_the_modal_without_dependents_shows_the_confirmation_variant(): void
+    {
+        $period = AcademicPeriod::factory()->create(['name' => '2027-1']);
+
+        Livewire::actingAs($this->admin())
+            ->test(PeriodIndex::class)
+            ->call('openDeleteConfirmation', $period)
+            ->assertSet('deletionBlockers', [])
+            ->assertSet('deletionProtectedMessage', null)
+            ->assertSeeHtml('Eliminar definitivamente')
+            ->assertDontSeeHtml('No se puede eliminar');
+    }
+
     public function test_administrator_can_delete_a_period_without_dependents_by_typing_its_code(): void
     {
         $period = AcademicPeriod::factory()->create(['name' => '2027-1']);
@@ -57,8 +83,7 @@ class AcademicPeriodDeletionTest extends TestCase
         Livewire::actingAs($this->admin())
             ->test(PeriodIndex::class)
             ->call('openDeleteConfirmation', $period)
-            ->set('deleteConfirmationCode', '2027-1')
-            ->call('deletePeriod');
+            ->call('deletePeriod', '2027-1');
 
         $this->assertDatabaseMissing('academic_periods', ['id' => $period->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -75,14 +100,13 @@ class AcademicPeriodDeletionTest extends TestCase
         Livewire::actingAs($this->admin())
             ->test(PeriodIndex::class)
             ->call('openDeleteConfirmation', $period)
-            ->set('deleteConfirmationCode', 'codigo-incorrecto')
-            ->call('deletePeriod')
-            ->assertHasErrors(['deleteConfirmationCode']);
+            ->call('deletePeriod', 'codigo-incorrecto')
+            ->assertSet('deletionError', fn ($message) => str_contains($message, 'no coincide'));
 
         $this->assertDatabaseHas('academic_periods', ['id' => $period->id]);
     }
 
-    public function test_cannot_delete_a_period_with_a_teacher_assignment(): void
+    public function test_opening_the_modal_with_dependents_shows_the_blocked_variant_with_quantities(): void
     {
         $period = AcademicPeriod::factory()->create(['name' => '2027-1']);
         TeacherAssignment::factory()->create(['academic_period_id' => $period->id]);
@@ -90,9 +114,9 @@ class AcademicPeriodDeletionTest extends TestCase
         Livewire::actingAs($this->admin())
             ->test(PeriodIndex::class)
             ->call('openDeleteConfirmation', $period)
-            ->set('deleteConfirmationCode', '2027-1')
-            ->call('deletePeriod')
-            ->assertSet('deletionError', fn ($message) => str_contains($message, '1 asignación docente'));
+            ->assertSet('deletionBlockers', ['1 asignación docente'])
+            ->assertSeeHtml('No se puede eliminar')
+            ->assertDontSeeHtml('Eliminar definitivamente');
 
         $this->assertDatabaseHas('academic_periods', ['id' => $period->id]);
     }
@@ -105,14 +129,12 @@ class AcademicPeriodDeletionTest extends TestCase
         Livewire::actingAs($this->admin())
             ->test(PeriodIndex::class)
             ->call('openDeleteConfirmation', $period)
-            ->set('deleteConfirmationCode', '2027-1')
-            ->call('deletePeriod')
-            ->assertSet('deletionError', fn ($message) => str_contains($message, '1 liderazgo'));
+            ->assertSet('deletionBlockers', ['1 liderazgo']);
 
         $this->assertDatabaseHas('academic_periods', ['id' => $period->id]);
     }
 
-    public function test_the_protected_period_can_never_be_deleted_even_without_any_dependents(): void
+    public function test_the_protected_period_shows_its_own_message_even_without_any_dependents(): void
     {
         config(['catalogs.protected_academic_period_codes' => ['PRUEBA-COORD-20261026']]);
         $period = AcademicPeriod::factory()->create(['name' => 'PRUEBA-COORD-20261026']);
@@ -120,9 +142,9 @@ class AcademicPeriodDeletionTest extends TestCase
         Livewire::actingAs($this->admin())
             ->test(PeriodIndex::class)
             ->call('openDeleteConfirmation', $period)
-            ->set('deleteConfirmationCode', 'PRUEBA-COORD-20261026')
-            ->call('deletePeriod')
-            ->assertSet('deletionError', fn ($message) => str_contains($message, 'protegido'));
+            ->assertSet('deletionProtectedMessage', 'Este periodo está protegido y no puede eliminarse.')
+            ->assertSeeHtml('protegido')
+            ->assertDontSeeHtml('Eliminar definitivamente');
 
         $this->assertDatabaseHas('academic_periods', ['id' => $period->id]);
     }
@@ -139,9 +161,12 @@ class AcademicPeriodDeletionTest extends TestCase
         $this->assertDatabaseHas('academic_periods', ['id' => $period->id]);
     }
 
-    public function test_coordination_cannot_delete_a_period(): void
+    public function test_coordination_does_not_see_the_delete_button_and_cannot_open_the_modal(): void
     {
         $period = AcademicPeriod::factory()->create(['name' => '2027-1']);
+
+        $html = Livewire::actingAs($this->coordination())->test(PeriodIndex::class)->html();
+        $this->assertStringNotContainsString('openDeleteConfirmation(', $html);
 
         Livewire::actingAs($this->coordination())
             ->test(PeriodIndex::class)

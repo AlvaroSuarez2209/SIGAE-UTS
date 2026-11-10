@@ -23,6 +23,10 @@ class TemplateIndex extends Component
 
     public string $deactivationError = '';
 
+    public ?DeliverableTemplate $deleting = null;
+
+    public string $deletionError = '';
+
     public function toggleActive(DeliverableTemplate $template): void
     {
         $this->deactivationError = '';
@@ -61,6 +65,24 @@ class TemplateIndex extends Component
     }
 
     /**
+     * Ajuste al punto 2: sin regla de dependencias, siempre va directo
+     * a la variante de confirmación del modal compartido (ver
+     * blockersForDeliverableTemplate() en CatalogDeletionChecker).
+     */
+    public function openDeleteConfirmation(DeliverableTemplate $template): void
+    {
+        Gate::authorize('delete', $template);
+
+        $this->deleting = $template;
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionError']);
+    }
+
+    /**
      * Punto 2: borrado real, exclusivo de Administrador. A diferencia de
      * los demás catálogos, una plantilla no tiene regla de dependencias
      * que la bloquee (los entregables ya creados a partir de ella dejan
@@ -69,18 +91,19 @@ class TemplateIndex extends Component
      * archivo físico únicamente si ninguna otra fila comparte su
      * disk_path.
      */
-    public function deleteTemplate(DeliverableTemplate $template): void
+    public function deleteTemplate(): void
     {
-        Gate::authorize('delete', $template);
+        Gate::authorize('delete', $this->deleting);
 
-        $result = CatalogDeletionService::deleteDeliverableTemplate($template);
+        $result = CatalogDeletionService::deleteDeliverableTemplate($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Plantilla eliminada correctamente.');
     }
 

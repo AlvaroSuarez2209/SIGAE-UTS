@@ -45,6 +45,15 @@ class ActivityIndex extends LivewireComponent
 
     public string $deactivationError = '';
 
+    public ?Activity $deleting = null;
+
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionSuggestion = null;
+
+    public string $deletionError = '';
+
     public function updatedComponentId(): void
     {
         if (! $this->editing || $this->editing->component_id !== $this->component_id) {
@@ -137,6 +146,7 @@ class ActivityIndex extends LivewireComponent
         }
 
         $activity->update(['is_active' => ! $activity->is_active]);
+        $this->closeDeleteConfirmation();
 
         session()->flash('status', $activity->is_active ? 'Actividad activada.' : 'Actividad desactivada.');
     }
@@ -174,21 +184,42 @@ class ActivityIndex extends LivewireComponent
     }
 
     /**
-     * Punto 2: borrado real, exclusivo de Administrador. Ver el
-     * docblock equivalente en ComponentIndex::deleteComponent().
+     * Ajuste al punto 2: dependencias calculadas al abrir el modal, no
+     * al pintar la lista — ver el docblock equivalente en
+     * ComponentIndex::openDeleteConfirmation().
      */
-    public function deleteActivity(Activity $activity): void
+    public function openDeleteConfirmation(Activity $activity): void
     {
         Gate::authorize('delete', $activity);
 
-        $result = CatalogDeletionService::deleteActivity($activity);
+        $this->deleting = $activity;
+        $this->deletionBlockers = CatalogDeletionChecker::blockersForActivity($activity);
+        $this->deletionSuggestion = CatalogDeletionChecker::deactivationSuggestionForActivity();
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionBlockers', 'deletionSuggestion', 'deletionError']);
+    }
+
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteActivity(): void
+    {
+        Gate::authorize('delete', $this->deleting);
+
+        $result = CatalogDeletionService::deleteActivity($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Actividad eliminada correctamente.');
     }
 
@@ -202,9 +233,6 @@ class ActivityIndex extends LivewireComponent
 
         return view('livewire.catalogs.activity-index', [
             'activities' => $activities,
-            'deletionMessages' => $activities->getCollection()->mapWithKeys(
-                fn (Activity $activity) => [$activity->id => CatalogDeletionChecker::blockingMessageForActivity($activity)]
-            ),
             // Selectores del modal: solo activos, salvo que sea justo el
             // componente/subcomponente que ya tiene asignado el que se
             // está editando (uno inactivo no desaparece de su propia

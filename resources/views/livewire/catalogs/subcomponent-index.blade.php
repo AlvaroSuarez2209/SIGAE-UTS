@@ -64,27 +64,7 @@
                                 </button>
                             @endif
                             @can('delete', $subcomponent)
-                                @php $blockingMessage = $deletionMessages[$subcomponent->id] ?? null; @endphp
-                                @if ($blockingMessage)
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
-                                        disabled
-                                        title="{{ $blockingMessage }}"
-                                    >Eliminar</button>
-                                @else
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 text-status-error"
-                                        @click="$dispatch('confirm-modal', {
-                                            title: 'Eliminar subcomponente',
-                                            body: '¿Eliminar el subcomponente <strong>{{ e($subcomponent->name) }}</strong>? Esta acción no se puede deshacer.',
-                                            confirmLabel: 'Eliminar',
-                                            variant: 'danger',
-                                            action: () => $wire.deleteSubcomponent({{ $subcomponent->id }}),
-                                        })"
-                                    >Eliminar</button>
-                                @endif
+                                <x-delete-button wire:click="openDeleteConfirmation({{ $subcomponent->id }})">Eliminar</x-delete-button>
                             @endcan
                         </td>
                     </tr>
@@ -148,4 +128,14 @@
             </div>
         </div>
     @endif
+
+    <x-catalog-delete-modal
+        :model="$deleting"
+        type-label="subcomponente"
+        :blockers="$deletionBlockers"
+        :suggestion="$deletionSuggestion"
+        :error="$deletionError"
+        delete-action="deleteSubcomponent"
+        deactivate-action="toggleActive"
+    />
 </div>

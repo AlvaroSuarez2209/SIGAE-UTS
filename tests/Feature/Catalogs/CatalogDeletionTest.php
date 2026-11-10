@@ -12,7 +12,6 @@ use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Livewire\Deliverables\TemplateIndex;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
-use App\Models\AuditLog;
 use App\Models\Component;
 use App\Models\CrossCuttingCommitment;
 use App\Models\Deliverable;
@@ -33,9 +32,13 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Punto 2: borrado real (físico) de los 6 tipos de catálogo que lo
- * permiten (periodos académicos, con su regla extra de protección por
- * código, se cubren en su propio test — ver AcademicPeriodDeletionTest).
+ * Punto 2 + su ajuste: borrado real (físico) de los 6 tipos de catálogo
+ * que lo permiten (periodos académicos, con su regla extra de
+ * protección por código, se cubren en AcademicPeriodDeletionTest). El
+ * botón "Eliminar" nunca está deshabilitado — la comprobación de
+ * dependencias se hace al abrir el modal, no al pintar la lista — y el
+ * modal tiene dos variantes: confirmación directa (sin dependientes) o
+ * bloqueo con el detalle y un botón "Desactivar" (con dependientes).
  */
 class CatalogDeletionTest extends TestCase
 {
@@ -66,13 +69,66 @@ class CatalogDeletionTest extends TestCase
 
     // --- Componente ---
 
+    public function test_the_delete_button_is_never_disabled_even_with_dependents(): void
+    {
+        $component = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $component->id]);
+
+        $html = Livewire::actingAs($this->admin())->test(ComponentIndex::class)->html();
+
+        $this->assertStringContainsString('btn-delete', $html);
+        $this->assertStringContainsString('openDeleteConfirmation('.$component->id.')', $html);
+        $this->assertStringNotContainsString('cursor-not-allowed', $html);
+    }
+
+    public function test_opening_the_modal_without_dependents_shows_the_confirmation_variant(): void
+    {
+        $component = Component::factory()->create();
+
+        Livewire::actingAs($this->admin())
+            ->test(ComponentIndex::class)
+            ->call('openDeleteConfirmation', $component)
+            ->assertSet('deletionBlockers', [])
+            ->assertSeeHtml('Eliminar definitivamente')
+            ->assertDontSeeHtml('No se puede eliminar');
+    }
+
+    public function test_opening_the_modal_with_dependents_shows_the_blocked_variant_with_quantities(): void
+    {
+        $component = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $component->id, 'is_active' => false]);
+
+        Livewire::actingAs($this->admin())
+            ->test(ComponentIndex::class)
+            ->call('openDeleteConfirmation', $component)
+            ->assertSet('deletionBlockers', ['1 subcomponente'])
+            ->assertSeeHtml('No se puede eliminar')
+            ->assertSeeHtml('Tiene 1 subcomponente')
+            ->assertDontSeeHtml('Eliminar definitivamente');
+    }
+
+    public function test_deactivating_from_the_blocked_modal_deactivates_and_closes_it(): void
+    {
+        $component = Component::factory()->create(['is_active' => true]);
+        Subcomponent::factory()->create(['component_id' => $component->id, 'is_active' => false]);
+
+        Livewire::actingAs($this->admin())
+            ->test(ComponentIndex::class)
+            ->call('openDeleteConfirmation', $component)
+            ->call('toggleActive', $component)
+            ->assertSet('deleting', null);
+
+        $this->assertFalse($component->fresh()->is_active);
+    }
+
     public function test_administrator_can_delete_a_component_without_dependents(): void
     {
         $component = Component::factory()->create();
 
         Livewire::actingAs($this->admin())
             ->test(ComponentIndex::class)
-            ->call('deleteComponent', $component);
+            ->call('openDeleteConfirmation', $component)
+            ->call('deleteComponent');
 
         $this->assertDatabaseMissing('components', ['id' => $component->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -82,26 +138,16 @@ class CatalogDeletionTest extends TestCase
         ]);
     }
 
-    public function test_cannot_delete_a_component_with_an_inactive_subcomponent(): void
+    public function test_coordination_does_not_see_the_delete_button_and_cannot_open_the_modal(): void
     {
         $component = Component::factory()->create();
-        Subcomponent::factory()->create(['component_id' => $component->id, 'is_active' => false]);
 
-        Livewire::actingAs($this->admin())
-            ->test(ComponentIndex::class)
-            ->call('deleteComponent', $component)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 subcomponente'));
-
-        $this->assertDatabaseHas('components', ['id' => $component->id]);
-    }
-
-    public function test_coordination_cannot_delete_a_component(): void
-    {
-        $component = Component::factory()->create();
+        $html = Livewire::actingAs($this->coordination())->test(ComponentIndex::class)->html();
+        $this->assertStringNotContainsString('openDeleteConfirmation(', $html);
 
         Livewire::actingAs($this->coordination())
             ->test(ComponentIndex::class)
-            ->call('deleteComponent', $component)
+            ->call('openDeleteConfirmation', $component)
             ->assertForbidden();
 
         $this->assertDatabaseHas('components', ['id' => $component->id]);
@@ -109,13 +155,33 @@ class CatalogDeletionTest extends TestCase
 
     // --- Subcomponente ---
 
+    public function test_subcomponent_modal_blocked_variant_shows_quantities_and_deactivate_works(): void
+    {
+        $subcomponent = Subcomponent::factory()->create(['is_active' => true]);
+        Activity::factory()->create([
+            'component_id' => $subcomponent->component_id,
+            'subcomponent_id' => $subcomponent->id,
+            'is_active' => false,
+        ]);
+
+        Livewire::actingAs($this->admin())
+            ->test(SubcomponentIndex::class)
+            ->call('openDeleteConfirmation', $subcomponent)
+            ->assertSet('deletionBlockers', ['1 actividad'])
+            ->call('toggleActive', $subcomponent)
+            ->assertSet('deleting', null);
+
+        $this->assertFalse($subcomponent->fresh()->is_active);
+    }
+
     public function test_administrator_can_delete_a_subcomponent_without_dependents(): void
     {
         $subcomponent = Subcomponent::factory()->create();
 
         Livewire::actingAs($this->admin())
             ->test(SubcomponentIndex::class)
-            ->call('deleteSubcomponent', $subcomponent);
+            ->call('openDeleteConfirmation', $subcomponent)
+            ->call('deleteSubcomponent');
 
         $this->assertDatabaseMissing('subcomponents', ['id' => $subcomponent->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -125,30 +191,13 @@ class CatalogDeletionTest extends TestCase
         ]);
     }
 
-    public function test_cannot_delete_a_subcomponent_with_an_inactive_activity(): void
-    {
-        $subcomponent = Subcomponent::factory()->create();
-        Activity::factory()->create([
-            'component_id' => $subcomponent->component_id,
-            'subcomponent_id' => $subcomponent->id,
-            'is_active' => false,
-        ]);
-
-        Livewire::actingAs($this->admin())
-            ->test(SubcomponentIndex::class)
-            ->call('deleteSubcomponent', $subcomponent)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 actividad'));
-
-        $this->assertDatabaseHas('subcomponents', ['id' => $subcomponent->id]);
-    }
-
-    public function test_coordination_cannot_delete_a_subcomponent(): void
+    public function test_coordination_cannot_open_the_subcomponent_delete_modal(): void
     {
         $subcomponent = Subcomponent::factory()->create();
 
         Livewire::actingAs($this->coordination())
             ->test(SubcomponentIndex::class)
-            ->call('deleteSubcomponent', $subcomponent)
+            ->call('openDeleteConfirmation', $subcomponent)
             ->assertForbidden();
 
         $this->assertDatabaseHas('subcomponents', ['id' => $subcomponent->id]);
@@ -162,7 +211,8 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(ActivityIndex::class)
-            ->call('deleteActivity', $activity);
+            ->call('openDeleteConfirmation', $activity)
+            ->call('deleteActivity');
 
         $this->assertDatabaseMissing('activities', ['id' => $activity->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -172,31 +222,19 @@ class CatalogDeletionTest extends TestCase
         ]);
     }
 
-    public function test_cannot_delete_an_activity_with_a_deliverable_in_a_closed_period(): void
+    public function test_activity_modal_shows_combined_quantities_for_multiple_blockers(): void
     {
         $activity = Activity::factory()->create();
         $closedPeriod = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed]);
         Deliverable::factory()->create(['activity_id' => $activity->id, 'academic_period_id' => $closedPeriod->id]);
-
-        Livewire::actingAs($this->admin())
-            ->test(ActivityIndex::class)
-            ->call('deleteActivity', $activity)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 entregable'));
-
-        $this->assertDatabaseHas('activities', ['id' => $activity->id]);
-    }
-
-    public function test_cannot_delete_an_activity_with_a_teacher_assignment(): void
-    {
-        $activity = Activity::factory()->create();
         TeacherAssignment::factory()->create(['activity_id' => $activity->id]);
 
         Livewire::actingAs($this->admin())
             ->test(ActivityIndex::class)
-            ->call('deleteActivity', $activity)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 asignación docente'));
-
-        $this->assertDatabaseHas('activities', ['id' => $activity->id]);
+            ->call('openDeleteConfirmation', $activity)
+            ->assertSet('deletionBlockers', ['1 entregable', '1 asignación docente'])
+            ->assertSeeHtml('Puedes desactivarla')
+            ->assertDontSeeHtml('Eliminar definitivamente');
     }
 
     public function test_cannot_delete_an_activity_with_a_leadership(): void
@@ -206,19 +244,19 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(ActivityIndex::class)
-            ->call('deleteActivity', $activity)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 liderazgo'));
+            ->call('openDeleteConfirmation', $activity)
+            ->assertSet('deletionBlockers', ['1 liderazgo']);
 
         $this->assertDatabaseHas('activities', ['id' => $activity->id]);
     }
 
-    public function test_coordination_cannot_delete_an_activity(): void
+    public function test_coordination_cannot_open_the_activity_delete_modal(): void
     {
         $activity = Activity::factory()->create();
 
         Livewire::actingAs($this->coordination())
             ->test(ActivityIndex::class)
-            ->call('deleteActivity', $activity)
+            ->call('openDeleteConfirmation', $activity)
             ->assertForbidden();
 
         $this->assertDatabaseHas('activities', ['id' => $activity->id]);
@@ -232,7 +270,8 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(ProgramUnitIndex::class)
-            ->call('deleteProgramUnit', $programUnit);
+            ->call('openDeleteConfirmation', $programUnit)
+            ->call('deleteProgramUnit');
 
         $this->assertDatabaseMissing('program_units', ['id' => $programUnit->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -242,43 +281,26 @@ class CatalogDeletionTest extends TestCase
         ]);
     }
 
-    public function test_cannot_delete_a_program_unit_with_an_expired_leadership(): void
-    {
-        $programUnit = ProgramUnit::factory()->create();
-        Leadership::factory()->create([
-            'program_unit_id' => $programUnit->id,
-            'starts_at' => now()->subMonths(2),
-            'ends_at' => now()->subMonth(),
-        ]);
-
-        Livewire::actingAs($this->admin())
-            ->test(ProgramUnitIndex::class)
-            ->call('deleteProgramUnit', $programUnit)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 liderazgo'));
-
-        $this->assertDatabaseHas('program_units', ['id' => $programUnit->id]);
-    }
-
-    public function test_cannot_delete_a_program_unit_with_a_user_assigned_directly(): void
+    public function test_program_unit_modal_blocks_on_a_directly_assigned_user(): void
     {
         $programUnit = ProgramUnit::factory()->create();
         User::factory()->create(['program_unit_id' => $programUnit->id]);
 
         Livewire::actingAs($this->admin())
             ->test(ProgramUnitIndex::class)
-            ->call('deleteProgramUnit', $programUnit)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], 'asignado directamente'));
+            ->call('openDeleteConfirmation', $programUnit)
+            ->assertSet('deletionBlockers', ['1 docente/líder asignado directamente']);
 
         $this->assertDatabaseHas('program_units', ['id' => $programUnit->id]);
     }
 
-    public function test_coordination_cannot_delete_a_program_unit(): void
+    public function test_coordination_cannot_open_the_program_unit_delete_modal(): void
     {
         $programUnit = ProgramUnit::factory()->create();
 
         Livewire::actingAs($this->coordination())
             ->test(ProgramUnitIndex::class)
-            ->call('deleteProgramUnit', $programUnit)
+            ->call('openDeleteConfirmation', $programUnit)
             ->assertForbidden();
 
         $this->assertDatabaseHas('program_units', ['id' => $programUnit->id]);
@@ -292,7 +314,8 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(CrossCuttingCommitmentIndex::class)
-            ->call('deleteCommitment', $commitment);
+            ->call('openDeleteConfirmation', $commitment)
+            ->call('deleteCommitment');
 
         $this->assertDatabaseMissing('cross_cutting_commitments', ['id' => $commitment->id]);
         $this->assertDatabaseHas('audit_logs', [
@@ -302,7 +325,7 @@ class CatalogDeletionTest extends TestCase
         ]);
     }
 
-    public function test_cannot_delete_a_commitment_with_a_deliverable_in_a_closed_period(): void
+    public function test_commitment_modal_blocks_on_a_deliverable_in_a_closed_period(): void
     {
         $commitment = CrossCuttingCommitment::factory()->create();
         $closedPeriod = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Archived]);
@@ -313,19 +336,19 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(CrossCuttingCommitmentIndex::class)
-            ->call('deleteCommitment', $commitment)
-            ->assertDispatched('confirm-modal', fn ($name, $params) => str_contains($params['body'], '1 entregable'));
+            ->call('openDeleteConfirmation', $commitment)
+            ->assertSet('deletionBlockers', ['1 entregable']);
 
         $this->assertDatabaseHas('cross_cutting_commitments', ['id' => $commitment->id]);
     }
 
-    public function test_coordination_cannot_delete_a_commitment(): void
+    public function test_coordination_cannot_open_the_commitment_delete_modal(): void
     {
         $commitment = CrossCuttingCommitment::factory()->create();
 
         Livewire::actingAs($this->coordination())
             ->test(CrossCuttingCommitmentIndex::class)
-            ->call('deleteCommitment', $commitment)
+            ->call('openDeleteConfirmation', $commitment)
             ->assertForbidden();
 
         $this->assertDatabaseHas('cross_cutting_commitments', ['id' => $commitment->id]);
@@ -340,7 +363,8 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(TemplateIndex::class)
-            ->call('deleteTemplate', $template);
+            ->call('openDeleteConfirmation', $template)
+            ->call('deleteTemplate');
 
         $this->assertDatabaseMissing('deliverable_templates', ['id' => $template->id]);
         $this->assertDatabaseHas('deliverables', ['id' => $deliverable->id]);
@@ -363,7 +387,8 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(TemplateIndex::class)
-            ->call('deleteTemplate', $template);
+            ->call('openDeleteConfirmation', $template)
+            ->call('deleteTemplate');
 
         $this->assertDatabaseMissing('deliverable_reference_files', ['id' => $referenceFile->id]);
         Storage::disk('local')->assertMissing($referenceFile->disk_path);
@@ -392,20 +417,21 @@ class CatalogDeletionTest extends TestCase
 
         Livewire::actingAs($this->admin())
             ->test(TemplateIndex::class)
-            ->call('deleteTemplate', $template);
+            ->call('openDeleteConfirmation', $template)
+            ->call('deleteTemplate');
 
         $this->assertDatabaseMissing('deliverable_templates', ['id' => $template->id]);
         $this->assertDatabaseMissing('deliverable_reference_files', ['id' => $referenceFile->id]);
         Storage::disk('local')->assertExists($referenceFile->disk_path);
     }
 
-    public function test_coordination_cannot_delete_a_template(): void
+    public function test_coordination_cannot_open_the_template_delete_modal(): void
     {
         $template = DeliverableTemplate::factory()->create();
 
         Livewire::actingAs($this->coordination())
             ->test(TemplateIndex::class)
-            ->call('deleteTemplate', $template)
+            ->call('openDeleteConfirmation', $template)
             ->assertForbidden();
 
         $this->assertDatabaseHas('deliverable_templates', ['id' => $template->id]);
@@ -414,18 +440,16 @@ class CatalogDeletionTest extends TestCase
     // --- Condición de carrera ---
 
     /**
-     * Simula una dependencia creada justo entre el render (que decidió
-     * mostrar el botón "Eliminar" habilitado) y el clic real: el segundo
-     * chequeo, hecho dentro de la transacción con lockForUpdate(), debe
-     * atraparla igual — nunca debe llegar a un 500 ni borrar el
-     * componente con una actividad ya colgada de él.
+     * Simula una dependencia creada justo entre el momento en que se
+     * abrió el modal (que mostró la confirmación, sin bloqueo) y el
+     * clic real: el segundo chequeo, hecho dentro de la transacción con
+     * lockForUpdate(), debe atraparla igual — nunca debe llegar a un
+     * 500 ni borrar el componente con una actividad ya colgada de él.
      */
     public function test_a_dependency_created_right_before_the_delete_click_is_still_caught(): void
     {
         $component = Component::factory()->create();
 
-        // La actividad aparece después del momento en que la UI
-        // decidió que el botón debía estar habilitado.
         Activity::factory()->create(['component_id' => $component->id, 'is_active' => false]);
 
         $result = CatalogDeletionService::deleteComponent($component);

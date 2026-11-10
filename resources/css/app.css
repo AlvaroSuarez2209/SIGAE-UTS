@@ -34,6 +34,7 @@
     --color-status-warning: #9a5b12;
     --color-status-warning-subtle: #fbf1e4;
     --color-status-error: #b3261e;
+    --color-status-error-dark: #7a1b16;
     --color-status-error-subtle: #fbeceb;
 
     /* Neutros (fríos, no cálidos) */
@@ -90,6 +91,15 @@
     }
     .btn-text {
         @apply text-base font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary rounded-sm;
+    }
+    /* Punto 2 (ajuste): botón "Eliminar" de los listados de catálogo —
+       mismo estilo de texto que .btn-text pero en rojo, con un tono más
+       oscuro al pasar el cursor (nunca el mismo rojo, para que el hover
+       sea perceptible) y separación propia (ml-6, más que el ml-4 entre
+       Editar/Desactivar) para distinguirlo como la acción más
+       delicada. Nunca lleva disabled — ver <x-delete-button>. */
+    .btn-delete {
+        @apply ml-6 text-base font-medium text-status-error hover:text-status-error-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-error rounded-sm;
     }
 
     /* Formularios */

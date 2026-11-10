@@ -30,6 +30,15 @@ class ProgramUnitIndex extends Component
 
     public string $deactivationError = '';
 
+    public ?ProgramUnit $deleting = null;
+
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionSuggestion = null;
+
+    public string $deletionError = '';
+
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'is_active']);
@@ -88,6 +97,7 @@ class ProgramUnitIndex extends Component
         }
 
         $programUnit->update(['is_active' => ! $programUnit->is_active]);
+        $this->closeDeleteConfirmation();
 
         session()->flash('status', $programUnit->is_active ? 'Programa activado.' : 'Programa desactivado.');
     }
@@ -123,21 +133,42 @@ class ProgramUnitIndex extends Component
     }
 
     /**
-     * Punto 2: borrado real, exclusivo de Administrador. Ver el
-     * docblock equivalente en ComponentIndex::deleteComponent().
+     * Ajuste al punto 2: dependencias calculadas al abrir el modal, no
+     * al pintar la lista — ver el docblock equivalente en
+     * ComponentIndex::openDeleteConfirmation().
      */
-    public function deleteProgramUnit(ProgramUnit $programUnit): void
+    public function openDeleteConfirmation(ProgramUnit $programUnit): void
     {
         Gate::authorize('delete', $programUnit);
 
-        $result = CatalogDeletionService::deleteProgramUnit($programUnit);
+        $this->deleting = $programUnit;
+        $this->deletionBlockers = CatalogDeletionChecker::blockersForProgramUnit($programUnit);
+        $this->deletionSuggestion = CatalogDeletionChecker::deactivationSuggestionForProgramUnit();
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionBlockers', 'deletionSuggestion', 'deletionError']);
+    }
+
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteProgramUnit(): void
+    {
+        Gate::authorize('delete', $this->deleting);
+
+        $result = CatalogDeletionService::deleteProgramUnit($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Programa eliminado correctamente.');
     }
 
@@ -151,9 +182,6 @@ class ProgramUnitIndex extends Component
 
         return view('livewire.catalogs.program-unit-index', [
             'programUnits' => $programUnits,
-            'deletionMessages' => $programUnits->mapWithKeys(
-                fn (ProgramUnit $programUnit) => [$programUnit->id => CatalogDeletionChecker::blockingMessageForProgramUnit($programUnit)]
-            ),
         ]);
     }
 }

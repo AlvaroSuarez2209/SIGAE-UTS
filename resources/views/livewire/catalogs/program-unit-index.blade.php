@@ -58,27 +58,7 @@
                                 </button>
                             @endif
                             @can('delete', $unit)
-                                @php $blockingMessage = $deletionMessages[$unit->id] ?? null; @endphp
-                                @if ($blockingMessage)
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
-                                        disabled
-                                        title="{{ $blockingMessage }}"
-                                    >Eliminar</button>
-                                @else
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 text-status-error"
-                                        @click="$dispatch('confirm-modal', {
-                                            title: 'Eliminar programa',
-                                            body: '¿Eliminar el programa <strong>{{ e($unit->name) }}</strong>? Esta acción no se puede deshacer.',
-                                            confirmLabel: 'Eliminar',
-                                            variant: 'danger',
-                                            action: () => $wire.deleteProgramUnit({{ $unit->id }}),
-                                        })"
-                                    >Eliminar</button>
-                                @endif
+                                <x-delete-button wire:click="openDeleteConfirmation({{ $unit->id }})">Eliminar</x-delete-button>
                             @endcan
                         </td>
                     </tr>
@@ -131,4 +111,14 @@
             </div>
         </div>
     @endif
+
+    <x-catalog-delete-modal
+        :model="$deleting"
+        type-label="programa"
+        :blockers="$deletionBlockers"
+        :suggestion="$deletionSuggestion"
+        :error="$deletionError"
+        delete-action="deleteProgramUnit"
+        deactivate-action="toggleActive"
+    />
 </div>

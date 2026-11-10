@@ -30,6 +30,15 @@ class CrossCuttingCommitmentIndex extends Component
 
     public string $deactivationError = '';
 
+    public ?CrossCuttingCommitment $deleting = null;
+
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionSuggestion = null;
+
+    public string $deletionError = '';
+
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'is_active']);
@@ -88,6 +97,7 @@ class CrossCuttingCommitmentIndex extends Component
         }
 
         $commitment->update(['is_active' => ! $commitment->is_active]);
+        $this->closeDeleteConfirmation();
 
         session()->flash('status', $commitment->is_active ? 'Compromiso transversal activado.' : 'Compromiso transversal desactivado.');
     }
@@ -113,21 +123,42 @@ class CrossCuttingCommitmentIndex extends Component
     }
 
     /**
-     * Punto 2: borrado real, exclusivo de Administrador. Ver el
-     * docblock equivalente en ComponentIndex::deleteComponent().
+     * Ajuste al punto 2: dependencias calculadas al abrir el modal, no
+     * al pintar la lista — ver el docblock equivalente en
+     * ComponentIndex::openDeleteConfirmation().
      */
-    public function deleteCommitment(CrossCuttingCommitment $commitment): void
+    public function openDeleteConfirmation(CrossCuttingCommitment $commitment): void
     {
         Gate::authorize('delete', $commitment);
 
-        $result = CatalogDeletionService::deleteCrossCuttingCommitment($commitment);
+        $this->deleting = $commitment;
+        $this->deletionBlockers = CatalogDeletionChecker::blockersForCrossCuttingCommitment($commitment);
+        $this->deletionSuggestion = CatalogDeletionChecker::deactivationSuggestionForCrossCuttingCommitment();
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionBlockers', 'deletionSuggestion', 'deletionError']);
+    }
+
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteCommitment(): void
+    {
+        Gate::authorize('delete', $this->deleting);
+
+        $result = CatalogDeletionService::deleteCrossCuttingCommitment($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Compromiso transversal eliminado correctamente.');
     }
 
@@ -141,9 +172,6 @@ class CrossCuttingCommitmentIndex extends Component
 
         return view('livewire.catalogs.cross-cutting-commitment-index', [
             'commitments' => $commitments,
-            'deletionMessages' => $commitments->mapWithKeys(
-                fn (CrossCuttingCommitment $commitment) => [$commitment->id => CatalogDeletionChecker::blockingMessageForCrossCuttingCommitment($commitment)]
-            ),
         ]);
     }
 }

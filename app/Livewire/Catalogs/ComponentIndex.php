@@ -37,6 +37,15 @@ class ComponentIndex extends LivewireComponent
 
     public string $deactivationError = '';
 
+    public ?Component $deleting = null;
+
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionSuggestion = null;
+
+    public string $deletionError = '';
+
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'is_active']);
@@ -96,6 +105,11 @@ class ComponentIndex extends LivewireComponent
 
         $component->update(['is_active' => ! $component->is_active]);
 
+        // Ajuste al punto 2: "Desactivar" también se dispara desde el
+        // modal de borrado bloqueado (<x-catalog-delete-modal>) — si
+        // de verdad desactivó, ese modal ya no tiene sentido abierto.
+        $this->closeDeleteConfirmation();
+
         session()->flash('status', $component->is_active ? 'Componente activado.' : 'Componente desactivado.');
     }
 
@@ -131,26 +145,46 @@ class ComponentIndex extends LivewireComponent
     }
 
     /**
-     * Punto 2: borrado real (físico), exclusivo de Administrador. La
-     * regla de dependencias es más estricta que blocksDeactivation()
-     * de arriba — cuenta CUALQUIER subcomponente/actividad, activo o
-     * no — así que el botón puede estar deshabilitado aquí incluso
-     * cuando sí se podría desactivar. CatalogDeletionService vuelve a
-     * comprobar dentro de una transacción con bloqueo antes de borrar
-     * de verdad, por si algo cambió desde que se renderizó este botón.
+     * Ajuste al punto 2: la comprobación de dependencias ya no se hace
+     * al pintar la lista (sería una consulta por fila) — se hace aquí,
+     * justo al abrir el modal, con datos frescos. La regla es más
+     * estricta que blocksDeactivation() de arriba — cuenta CUALQUIER
+     * subcomponente/actividad, activo o no.
      */
-    public function deleteComponent(Component $component): void
+    public function openDeleteConfirmation(Component $component): void
     {
         Gate::authorize('delete', $component);
 
-        $result = CatalogDeletionService::deleteComponent($component);
+        $this->deleting = $component;
+        $this->deletionBlockers = CatalogDeletionChecker::blockersForComponent($component);
+        $this->deletionSuggestion = CatalogDeletionChecker::deactivationSuggestionForComponent();
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionBlockers', 'deletionSuggestion', 'deletionError']);
+    }
+
+    /**
+     * Punto 2: borrado real (físico), exclusivo de Administrador.
+     * CatalogDeletionService vuelve a comprobar dentro de una
+     * transacción con bloqueo antes de borrar de verdad, por si algo
+     * cambió desde que se abrió el modal (condición de carrera).
+     */
+    public function deleteComponent(): void
+    {
+        Gate::authorize('delete', $this->deleting);
+
+        $result = CatalogDeletionService::deleteComponent($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Componente eliminado correctamente.');
     }
 
@@ -164,9 +198,6 @@ class ComponentIndex extends LivewireComponent
 
         return view('livewire.catalogs.component-index', [
             'components' => $components,
-            'deletionMessages' => $components->mapWithKeys(
-                fn (Component $component) => [$component->id => CatalogDeletionChecker::blockingMessageForComponent($component)]
-            ),
         ]);
     }
 }

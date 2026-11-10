@@ -33,6 +33,15 @@ class SubcomponentIndex extends LivewireComponent
 
     public string $deactivationError = '';
 
+    public ?Subcomponent $deleting = null;
+
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionSuggestion = null;
+
+    public string $deletionError = '';
+
     public function openCreate(): void
     {
         $this->reset(['editing', 'name', 'component_id', 'is_active']);
@@ -96,6 +105,7 @@ class SubcomponentIndex extends LivewireComponent
         }
 
         $subcomponent->update(['is_active' => ! $subcomponent->is_active]);
+        $this->closeDeleteConfirmation();
 
         session()->flash('status', $subcomponent->is_active ? 'Subcomponente activado.' : 'Subcomponente desactivado.');
     }
@@ -121,21 +131,42 @@ class SubcomponentIndex extends LivewireComponent
     }
 
     /**
-     * Punto 2: borrado real, exclusivo de Administrador. Ver el
-     * docblock equivalente en ComponentIndex::deleteComponent().
+     * Ajuste al punto 2: dependencias calculadas al abrir el modal, no
+     * al pintar la lista — ver el docblock equivalente en
+     * ComponentIndex::openDeleteConfirmation().
      */
-    public function deleteSubcomponent(Subcomponent $subcomponent): void
+    public function openDeleteConfirmation(Subcomponent $subcomponent): void
     {
         Gate::authorize('delete', $subcomponent);
 
-        $result = CatalogDeletionService::deleteSubcomponent($subcomponent);
+        $this->deleting = $subcomponent;
+        $this->deletionBlockers = CatalogDeletionChecker::blockersForSubcomponent($subcomponent);
+        $this->deletionSuggestion = CatalogDeletionChecker::deactivationSuggestionForSubcomponent();
+        $this->deletionError = '';
+    }
+
+    public function closeDeleteConfirmation(): void
+    {
+        $this->reset(['deleting', 'deletionBlockers', 'deletionSuggestion', 'deletionError']);
+    }
+
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteSubcomponent(): void
+    {
+        Gate::authorize('delete', $this->deleting);
+
+        $result = CatalogDeletionService::deleteSubcomponent($this->deleting);
 
         if (! $result->deleted) {
-            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+            $this->deletionError = $result->message;
 
             return;
         }
 
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Subcomponente eliminado correctamente.');
     }
 
@@ -150,9 +181,6 @@ class SubcomponentIndex extends LivewireComponent
 
         return view('livewire.catalogs.subcomponent-index', [
             'subcomponents' => $subcomponents,
-            'deletionMessages' => $subcomponents->mapWithKeys(
-                fn (Subcomponent $subcomponent) => [$subcomponent->id => CatalogDeletionChecker::blockingMessageForSubcomponent($subcomponent)]
-            ),
             // Selector del modal (a qué componente pertenece): solo activos,
             // salvo que sea justo el que ya tiene asignado el que se está
             // editando (un componente inactivo no desaparece de su propio

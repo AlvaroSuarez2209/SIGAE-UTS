@@ -28,9 +28,12 @@ class PeriodIndex extends Component
 
     public bool $periodLocked = false;
 
-    public ?AcademicPeriod $deletingPeriod = null;
+    public ?AcademicPeriod $deleting = null;
 
-    public string $deleteConfirmationCode = '';
+    /** @var list<string> */
+    public array $deletionBlockers = [];
+
+    public ?string $deletionProtectedMessage = null;
 
     public string $deletionError = '';
 
@@ -139,40 +142,44 @@ class PeriodIndex extends Component
     }
 
     /**
-     * Punto 2: borrado real, exclusivo de Administrador. A diferencia de
-     * los otros 6 tipos, un periodo académico exige escribir su código
-     * (columna `name`) para confirmar — demasiado destructivo para un
-     * solo clic — así que este modal es propio en vez del confirm-modal
-     * genérico (ver openDeleteConfirmation()/deletePeriod() y la
-     * sección correspondiente en period-index.blade.php).
+     * Ajuste al punto 2: dependencias (y la protección por código)
+     * calculadas al abrir el modal, no al pintar la lista. A diferencia
+     * de los otros 6 tipos, un periodo académico exige escribir su
+     * código (columna `name`) para confirmar — demasiado destructivo
+     * para un solo clic — así que <x-catalog-delete-modal
+     * requires-code> pasa el código escrito como argumento directo de
+     * deletePeriod(), sin pasar por un wire:model.
      */
     public function openDeleteConfirmation(AcademicPeriod $period): void
     {
         Gate::authorize('delete', $period);
 
-        $this->deletingPeriod = $period;
-        $this->deleteConfirmationCode = '';
+        $this->deleting = $period;
+        $this->deletionProtectedMessage = CatalogDeletionChecker::isProtectedAcademicPeriod($period)
+            ? 'Este periodo está protegido y no puede eliminarse.'
+            : null;
+        $this->deletionBlockers = $this->deletionProtectedMessage === null
+            ? CatalogDeletionChecker::blockersForAcademicPeriod($period)
+            : [];
         $this->deletionError = '';
-        $this->resetValidation();
     }
 
     public function closeDeleteConfirmation(): void
     {
-        $this->reset(['deletingPeriod', 'deleteConfirmationCode', 'deletionError']);
-        $this->resetValidation();
+        $this->reset(['deleting', 'deletionBlockers', 'deletionProtectedMessage', 'deletionError']);
     }
 
-    public function deletePeriod(): void
+    public function deletePeriod(string $typedCode): void
     {
-        Gate::authorize('delete', $this->deletingPeriod);
+        Gate::authorize('delete', $this->deleting);
 
-        if ($this->deleteConfirmationCode !== $this->deletingPeriod->name) {
-            $this->addError('deleteConfirmationCode', 'El código no coincide con el del periodo.');
+        if ($typedCode !== $this->deleting->name) {
+            $this->deletionError = 'El código no coincide con el del periodo.';
 
             return;
         }
 
-        $result = CatalogDeletionService::deleteAcademicPeriod($this->deletingPeriod);
+        $result = CatalogDeletionService::deleteAcademicPeriod($this->deleting);
 
         if (! $result->deleted) {
             $this->deletionError = $result->message;
@@ -180,19 +187,14 @@ class PeriodIndex extends Component
             return;
         }
 
-        $this->reset(['deletingPeriod', 'deleteConfirmationCode', 'deletionError']);
+        $this->closeDeleteConfirmation();
         session()->flash('status', 'Periodo eliminado correctamente.');
     }
 
     public function render()
     {
-        $periods = AcademicPeriod::orderByDesc('start_date')->get();
-
         return view('livewire.periods.period-index', [
-            'periods' => $periods,
-            'deletionMessages' => $periods->mapWithKeys(
-                fn (AcademicPeriod $period) => [$period->id => CatalogDeletionChecker::blockingMessageForAcademicPeriod($period)]
-            ),
+            'periods' => AcademicPeriod::orderByDesc('start_date')->get(),
         ]);
     }
 }

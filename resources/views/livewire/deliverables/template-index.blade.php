@@ -65,17 +65,7 @@
                                 </button>
                             @endif
                             @can('delete', $template)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-status-error"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Eliminar plantilla',
-                                        body: '¿Eliminar la plantilla <strong>{{ e($template->name) }}</strong>? Esta acción no se puede deshacer.',
-                                        confirmLabel: 'Eliminar',
-                                        variant: 'danger',
-                                        action: () => $wire.deleteTemplate({{ $template->id }}),
-                                    })"
-                                >Eliminar</button>
+                                <x-delete-button wire:click="openDeleteConfirmation({{ $template->id }})">Eliminar</x-delete-button>
                             @endcan
                         </td>
                     </tr>
@@ -89,4 +79,11 @@
             </tbody>
         </table>
     </div>
+
+    <x-catalog-delete-modal
+        :model="$deleting"
+        type-label="plantilla"
+        :error="$deletionError"
+        delete-action="deleteTemplate"
+    />
 </div>

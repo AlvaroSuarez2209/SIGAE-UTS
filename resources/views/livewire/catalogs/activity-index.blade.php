@@ -66,27 +66,7 @@
                                 </button>
                             @endif
                             @can('delete', $activity)
-                                @php $blockingMessage = $deletionMessages[$activity->id] ?? null; @endphp
-                                @if ($blockingMessage)
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
-                                        disabled
-                                        title="{{ $blockingMessage }}"
-                                    >Eliminar</button>
-                                @else
-                                    <button
-                                        type="button"
-                                        class="btn-text ml-4 text-status-error"
-                                        @click="$dispatch('confirm-modal', {
-                                            title: 'Eliminar actividad',
-                                            body: '¿Eliminar la actividad <strong>{{ e($activity->name) }}</strong>? Esta acción no se puede deshacer.',
-                                            confirmLabel: 'Eliminar',
-                                            variant: 'danger',
-                                            action: () => $wire.deleteActivity({{ $activity->id }}),
-                                        })"
-                                    >Eliminar</button>
-                                @endif
+                                <x-delete-button wire:click="openDeleteConfirmation({{ $activity->id }})">Eliminar</x-delete-button>
                             @endcan
                         </td>
                     </tr>
@@ -182,4 +162,14 @@
             </div>
         </div>
     @endif
+
+    <x-catalog-delete-modal
+        :model="$deleting"
+        type-label="actividad"
+        :blockers="$deletionBlockers"
+        :suggestion="$deletionSuggestion"
+        :error="$deletionError"
+        delete-action="deleteActivity"
+        deactivate-action="toggleActive"
+    />
 </div>

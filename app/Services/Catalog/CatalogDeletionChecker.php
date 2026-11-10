@@ -122,13 +122,14 @@ class CatalogDeletionChecker
     }
 
     /**
-     * Único punto que arma el mensaje visible (tooltip del botón
-     * deshabilitado Y error del modal si la comprobación final dentro
-     * de la transacción también bloquea) — nunca se reconstruye este
-     * texto por separado en la vista ni en el servicio, para que los
-     * dos lugares digan siempre exactamente lo mismo. $pronoun es 'lo'
-     * o 'la' según el género del tipo ("desactivarlo" un componente,
-     * "desactivarla" una actividad).
+     * Único punto que arma el mensaje combinado — usado solo por
+     * CatalogDeletionService como mensaje de respaldo si la
+     * comprobación final dentro de la transacción también bloquea (la
+     * UI, desde el ajuste al punto 2, ya no pinta esta frase completa:
+     * usa blockersForX()/deactivationSuggestionForX() por separado, ver
+     * <x-catalog-delete-modal>). $pronoun es 'lo' o 'la' según el
+     * género del tipo ("desactivarlo" un componente, "desactivarla" una
+     * actividad).
      *
      * @param  list<string>  $blockers
      */
@@ -138,7 +139,43 @@ class CatalogDeletionChecker
             return null;
         }
 
-        return 'No se puede eliminar: tiene '.implode(' y ', $blockers).". Puedes desactivar{$pronoun}.";
+        return 'No se puede eliminar: tiene '.implode(' y ', $blockers).'. '.self::deactivationSuggestion($pronoun);
+    }
+
+    /**
+     * Frase de salida que ofrece el modal de borrado cuando hay
+     * dependientes — nunca se repite este texto por separado en cada
+     * Index, para que la UI y el mensaje de respaldo del servicio
+     * (blockingMessage()) digan siempre lo mismo.
+     */
+    public static function deactivationSuggestion(string $pronoun = 'lo'): string
+    {
+        return "Puedes desactivar{$pronoun} para que deje de aparecer en el sistema.";
+    }
+
+    public static function deactivationSuggestionForComponent(): string
+    {
+        return self::deactivationSuggestion('lo');
+    }
+
+    public static function deactivationSuggestionForSubcomponent(): string
+    {
+        return self::deactivationSuggestion('lo');
+    }
+
+    public static function deactivationSuggestionForActivity(): string
+    {
+        return self::deactivationSuggestion('la');
+    }
+
+    public static function deactivationSuggestionForProgramUnit(): string
+    {
+        return self::deactivationSuggestion('lo');
+    }
+
+    public static function deactivationSuggestionForCrossCuttingCommitment(): string
+    {
+        return self::deactivationSuggestion('lo');
     }
 
     public static function blockingMessageForComponent(Component $component): ?string
@@ -177,7 +214,7 @@ class CatalogDeletionChecker
     public static function blockingMessageForAcademicPeriod(AcademicPeriod $period): ?string
     {
         if (self::isProtectedAcademicPeriod($period)) {
-            return 'Este periodo está protegido y no se puede eliminar.';
+            return 'Este periodo está protegido y no puede eliminarse.';
         }
 
         $blockers = self::blockersForAcademicPeriod($period);

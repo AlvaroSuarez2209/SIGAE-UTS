@@ -9,7 +9,9 @@ use App\Livewire\Catalogs\CrossCuttingCommitmentIndex;
 use App\Livewire\Catalogs\ProgramUnitIndex;
 use App\Livewire\Catalogs\SubcomponentIndex;
 use App\Livewire\Periods\PeriodIndex;
+use App\Models\Component;
 use App\Models\Role;
+use App\Models\Subcomponent;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -75,5 +77,27 @@ class ModalCloseBehaviorTest extends TestCase
         $response->assertOk();
         $this->assertStringNotContainsString('click.outside', $response->getContent());
         $this->assertStringContainsString('keydown.escape', $response->getContent());
+    }
+
+    /**
+     * Ajuste al punto 2: el nuevo modal de borrado real
+     * (<x-catalog-delete-modal>) sigue el mismo criterio que el resto —
+     * nunca un clic fuera, ver docstring de esta clase.
+     */
+    public function test_catalog_delete_modal_has_no_click_outside_handler(): void
+    {
+        $component = Component::factory()->create();
+        Subcomponent::factory()->create(['component_id' => $component->id]);
+
+        $html = Livewire::actingAs($this->admin())
+            ->test(ComponentIndex::class)
+            ->call('openDeleteConfirmation', $component)
+            ->html();
+
+        $this->assertStringNotContainsString('click.outside', $html);
+        $this->assertStringContainsString('keydown.escape', $html);
+        $this->assertStringContainsString('closeDeleteConfirmation', $html);
+        $this->assertStringContainsString('role="dialog"', $html);
+        $this->assertStringContainsString('aria-modal="true"', $html);
     }
 }
