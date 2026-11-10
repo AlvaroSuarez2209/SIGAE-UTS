@@ -5,6 +5,9 @@ namespace App\Livewire\Catalogs;
 use App\Models\Component;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
@@ -127,14 +130,43 @@ class ComponentIndex extends LivewireComponent
         return true;
     }
 
+    /**
+     * Punto 2: borrado real (físico), exclusivo de Administrador. La
+     * regla de dependencias es más estricta que blocksDeactivation()
+     * de arriba — cuenta CUALQUIER subcomponente/actividad, activo o
+     * no — así que el botón puede estar deshabilitado aquí incluso
+     * cuando sí se podría desactivar. CatalogDeletionService vuelve a
+     * comprobar dentro de una transacción con bloqueo antes de borrar
+     * de verdad, por si algo cambió desde que se renderizó este botón.
+     */
+    public function deleteComponent(Component $component): void
+    {
+        Gate::authorize('delete', $component);
+
+        $result = CatalogDeletionService::deleteComponent($component);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Componente eliminado correctamente.');
+    }
+
     public function render()
     {
+        $components = Component::orderByAccentInsensitive('name')
+            ->orderBy('id')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+            ->get();
+
         return view('livewire.catalogs.component-index', [
-            'components' => Component::orderByAccentInsensitive('name')
-                ->orderBy('id')
-                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->get(),
+            'components' => $components,
+            'deletionMessages' => $components->mapWithKeys(
+                fn (Component $component) => [$component->id => CatalogDeletionChecker::blockingMessageForComponent($component)]
+            ),
         ]);
     }
 }

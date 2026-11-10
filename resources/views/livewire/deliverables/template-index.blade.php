@@ -64,6 +64,19 @@
                                     Activar
                                 </button>
                             @endif
+                            @can('delete', $template)
+                                <button
+                                    type="button"
+                                    class="btn-text ml-4 text-status-error"
+                                    @click="$dispatch('confirm-modal', {
+                                        title: 'Eliminar plantilla',
+                                        body: '¿Eliminar la plantilla <strong>{{ e($template->name) }}</strong>? Esta acción no se puede deshacer.',
+                                        confirmLabel: 'Eliminar',
+                                        variant: 'danger',
+                                        action: () => $wire.deleteTemplate({{ $template->id }}),
+                                    })"
+                                >Eliminar</button>
+                            @endcan
                         </td>
                     </tr>
                 @empty

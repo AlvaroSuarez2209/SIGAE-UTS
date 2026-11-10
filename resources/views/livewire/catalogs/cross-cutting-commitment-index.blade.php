@@ -61,6 +61,29 @@
                                     Activar
                                 </button>
                             @endif
+                            @can('delete', $commitment)
+                                @php $blockingMessage = $deletionMessages[$commitment->id] ?? null; @endphp
+                                @if ($blockingMessage)
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
+                                        disabled
+                                        title="{{ $blockingMessage }}"
+                                    >Eliminar</button>
+                                @else
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 text-status-error"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Eliminar compromiso',
+                                            body: '¿Eliminar el compromiso <strong>{{ e($commitment->name) }}</strong>? Esta acción no se puede deshacer.',
+                                            confirmLabel: 'Eliminar',
+                                            variant: 'danger',
+                                            action: () => $wire.deleteCommitment({{ $commitment->id }}),
+                                        })"
+                                    >Eliminar</button>
+                                @endif
+                            @endcan
                         </td>
                     </tr>
                 @empty

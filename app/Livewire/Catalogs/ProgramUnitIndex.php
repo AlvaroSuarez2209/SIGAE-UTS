@@ -5,6 +5,9 @@ namespace App\Livewire\Catalogs;
 use App\Models\ProgramUnit;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -119,14 +122,38 @@ class ProgramUnitIndex extends Component
         return true;
     }
 
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteProgramUnit(ProgramUnit $programUnit): void
+    {
+        Gate::authorize('delete', $programUnit);
+
+        $result = CatalogDeletionService::deleteProgramUnit($programUnit);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Programa eliminado correctamente.');
+    }
+
     public function render()
     {
+        $programUnits = ProgramUnit::orderByAccentInsensitive('name')
+            ->orderBy('id')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+            ->get();
+
         return view('livewire.catalogs.program-unit-index', [
-            'programUnits' => ProgramUnit::orderByAccentInsensitive('name')
-                ->orderBy('id')
-                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->get(),
+            'programUnits' => $programUnits,
+            'deletionMessages' => $programUnits->mapWithKeys(
+                fn (ProgramUnit $programUnit) => [$programUnit->id => CatalogDeletionChecker::blockingMessageForProgramUnit($programUnit)]
+            ),
         ]);
     }
 }

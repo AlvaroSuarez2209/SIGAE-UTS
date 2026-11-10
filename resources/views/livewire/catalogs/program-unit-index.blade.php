@@ -57,6 +57,29 @@
                                     Activar
                                 </button>
                             @endif
+                            @can('delete', $unit)
+                                @php $blockingMessage = $deletionMessages[$unit->id] ?? null; @endphp
+                                @if ($blockingMessage)
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
+                                        disabled
+                                        title="{{ $blockingMessage }}"
+                                    >Eliminar</button>
+                                @else
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 text-status-error"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Eliminar programa',
+                                            body: '¿Eliminar el programa <strong>{{ e($unit->name) }}</strong>? Esta acción no se puede deshacer.',
+                                            confirmLabel: 'Eliminar',
+                                            variant: 'danger',
+                                            action: () => $wire.deleteProgramUnit({{ $unit->id }}),
+                                        })"
+                                    >Eliminar</button>
+                                @endif
+                            @endcan
                         </td>
                     </tr>
                 @empty

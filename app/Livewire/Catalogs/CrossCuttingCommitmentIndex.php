@@ -5,6 +5,9 @@ namespace App\Livewire\Catalogs;
 use App\Models\CrossCuttingCommitment;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -109,14 +112,38 @@ class CrossCuttingCommitmentIndex extends Component
         return true;
     }
 
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteCommitment(CrossCuttingCommitment $commitment): void
+    {
+        Gate::authorize('delete', $commitment);
+
+        $result = CatalogDeletionService::deleteCrossCuttingCommitment($commitment);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Compromiso transversal eliminado correctamente.');
+    }
+
     public function render()
     {
+        $commitments = CrossCuttingCommitment::orderByAccentInsensitive('name')
+            ->orderBy('id')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+            ->get();
+
         return view('livewire.catalogs.cross-cutting-commitment-index', [
-            'commitments' => CrossCuttingCommitment::orderByAccentInsensitive('name')
-                ->orderBy('id')
-                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->get(),
+            'commitments' => $commitments,
+            'deletionMessages' => $commitments->mapWithKeys(
+                fn (CrossCuttingCommitment $commitment) => [$commitment->id => CatalogDeletionChecker::blockingMessageForCrossCuttingCommitment($commitment)]
+            ),
         ]);
     }
 }

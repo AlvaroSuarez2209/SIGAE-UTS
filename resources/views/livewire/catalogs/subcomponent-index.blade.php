@@ -63,6 +63,29 @@
                                     Activar
                                 </button>
                             @endif
+                            @can('delete', $subcomponent)
+                                @php $blockingMessage = $deletionMessages[$subcomponent->id] ?? null; @endphp
+                                @if ($blockingMessage)
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 cursor-not-allowed text-text-secondary opacity-60"
+                                        disabled
+                                        title="{{ $blockingMessage }}"
+                                    >Eliminar</button>
+                                @else
+                                    <button
+                                        type="button"
+                                        class="btn-text ml-4 text-status-error"
+                                        @click="$dispatch('confirm-modal', {
+                                            title: 'Eliminar subcomponente',
+                                            body: '¿Eliminar el subcomponente <strong>{{ e($subcomponent->name) }}</strong>? Esta acción no se puede deshacer.',
+                                            confirmLabel: 'Eliminar',
+                                            variant: 'danger',
+                                            action: () => $wire.deleteSubcomponent({{ $subcomponent->id }}),
+                                        })"
+                                    >Eliminar</button>
+                                @endif
+                            @endcan
                         </td>
                     </tr>
                 @empty

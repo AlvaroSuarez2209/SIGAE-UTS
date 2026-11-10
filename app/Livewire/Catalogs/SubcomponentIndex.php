@@ -6,6 +6,9 @@ use App\Models\Component;
 use App\Models\Subcomponent;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component as LivewireComponent;
@@ -117,15 +120,39 @@ class SubcomponentIndex extends LivewireComponent
         return true;
     }
 
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteSubcomponent(Subcomponent $subcomponent): void
+    {
+        Gate::authorize('delete', $subcomponent);
+
+        $result = CatalogDeletionService::deleteSubcomponent($subcomponent);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Subcomponente eliminado correctamente.');
+    }
+
     public function render()
     {
+        $subcomponents = Subcomponent::with('component')
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+            ->orderByAccentInsensitive('name')
+            ->orderBy('id')
+            ->get();
+
         return view('livewire.catalogs.subcomponent-index', [
-            'subcomponents' => Subcomponent::with('component')
-                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->orderByAccentInsensitive('name')
-                ->orderBy('id')
-                ->get(),
+            'subcomponents' => $subcomponents,
+            'deletionMessages' => $subcomponents->mapWithKeys(
+                fn (Subcomponent $subcomponent) => [$subcomponent->id => CatalogDeletionChecker::blockingMessageForSubcomponent($subcomponent)]
+            ),
             // Selector del modal (a qué componente pertenece): solo activos,
             // salvo que sea justo el que ya tiene asignado el que se está
             // editando (un componente inactivo no desaparece de su propio

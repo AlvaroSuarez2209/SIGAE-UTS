@@ -4,6 +4,8 @@ namespace App\Livewire\Deliverables;
 
 use App\Models\DeliverableTemplate;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -56,6 +58,30 @@ class TemplateIndex extends Component
             .' en un periodo académico vigente (en planeación o activo). Resuélvelos primero.';
 
         return true;
+    }
+
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. A diferencia de
+     * los demás catálogos, una plantilla no tiene regla de dependencias
+     * que la bloquee (los entregables ya creados a partir de ella dejan
+     * de depender de ella tras la copia, deliverable_template_id es
+     * nullOnDelete) — solo limpia sus archivos de referencia, borrando el
+     * archivo físico únicamente si ninguna otra fila comparte su
+     * disk_path.
+     */
+    public function deleteTemplate(DeliverableTemplate $template): void
+    {
+        Gate::authorize('delete', $template);
+
+        $result = CatalogDeletionService::deleteDeliverableTemplate($template);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Plantilla eliminada correctamente.');
     }
 
     public function render()

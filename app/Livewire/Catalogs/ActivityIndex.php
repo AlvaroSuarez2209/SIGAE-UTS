@@ -8,6 +8,9 @@ use App\Models\Component;
 use App\Models\Subcomponent;
 use App\Rules\CaseAccentInsensitiveUnique;
 use App\Services\CatalogDependencyChecker;
+use App\Services\Catalog\CatalogDeletionChecker;
+use App\Services\Catalog\CatalogDeletionService;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -170,14 +173,38 @@ class ActivityIndex extends LivewireComponent
         return true;
     }
 
+    /**
+     * Punto 2: borrado real, exclusivo de Administrador. Ver el
+     * docblock equivalente en ComponentIndex::deleteComponent().
+     */
+    public function deleteActivity(Activity $activity): void
+    {
+        Gate::authorize('delete', $activity);
+
+        $result = CatalogDeletionService::deleteActivity($activity);
+
+        if (! $result->deleted) {
+            $this->dispatch('confirm-modal', title: 'No se puede eliminar', body: $result->message, confirmLabel: 'Entendido', variant: 'danger');
+
+            return;
+        }
+
+        session()->flash('status', 'Actividad eliminada correctamente.');
+    }
+
     public function render()
     {
+        $activities = Activity::with(['component', 'subcomponent'])
+            ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
+            ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
+            ->orderedByHierarchy()
+            ->paginate(self::PER_PAGE);
+
         return view('livewire.catalogs.activity-index', [
-            'activities' => Activity::with(['component', 'subcomponent'])
-                ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
-                ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-                ->orderedByHierarchy()
-                ->paginate(self::PER_PAGE),
+            'activities' => $activities,
+            'deletionMessages' => $activities->getCollection()->mapWithKeys(
+                fn (Activity $activity) => [$activity->id => CatalogDeletionChecker::blockingMessageForActivity($activity)]
+            ),
             // Selectores del modal: solo activos, salvo que sea justo el
             // componente/subcomponente que ya tiene asignado el que se
             // está editando (uno inactivo no desaparece de su propia
