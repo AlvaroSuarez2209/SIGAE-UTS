@@ -6,6 +6,7 @@ use App\Enums\EvidenceStatus;
 use App\Models\AuditLog;
 use App\Models\Evidence;
 use App\Notifications\Evidence\EvidenceOverdueNotification;
+use App\Services\Mail\QueueFlusher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 
@@ -59,6 +60,12 @@ class MarkOverdueEvidences extends Command
         }
 
         $this->info("Evidencias marcadas como vencidas: {$overdue->count()}");
+
+        // Cambio: este comando corre vía /cron/mark-overdue-evidences en
+        // producción, que no vacía la cola por su cuenta (solo encola) —
+        // se vacía aquí mismo, al terminar su propio trabajo, en vez de
+        // esperar a la próxima pasada de /cron/process-queue.
+        QueueFlusher::flush();
 
         return self::SUCCESS;
     }

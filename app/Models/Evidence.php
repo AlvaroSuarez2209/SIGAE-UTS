@@ -17,6 +17,7 @@ use App\Notifications\Evidence\EvidencePendingReviewNotification;
 use App\Notifications\Evidence\EvidenceReturnConfirmedNotification;
 use App\Notifications\Evidence\EvidenceStatusNotification;
 use App\Notifications\Evidence\EvidenceSubmissionConfirmedNotification;
+use App\Services\Mail\QueueFlusher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -134,6 +135,8 @@ class Evidence extends Model
 
         $this->user->notify(new EvidenceSubmissionConfirmedNotification($this));
         Notification::send($this->reviewerRecipients(), new EvidencePendingReviewNotification($this));
+
+        QueueFlusher::deferFlush();
     }
 
     /**
@@ -153,6 +156,8 @@ class Evidence extends Model
 
         $reviewer->notify(new EvidenceApprovalConfirmedNotification($this));
         $this->user->notify(new EvidenceApprovedNotification($this));
+
+        QueueFlusher::deferFlush();
     }
 
     public function returnCurrentReviewForAdjustment(User $reviewer, string $observation): void
@@ -162,6 +167,8 @@ class Evidence extends Model
 
         $reviewer->notify(new EvidenceReturnConfirmedNotification($this));
         $this->user->notify(new EvidenceNeedsAdjustmentNotification($this));
+
+        QueueFlusher::deferFlush();
     }
 
     private function recordReview(User $reviewer, ReviewDecision $decision, ?string $observation): void
@@ -219,6 +226,8 @@ class Evidence extends Model
         $this->user->notify(new EvidenceExemptedNotification($this));
 
         $this->notifyLeadersOfExemptionChange(new EvidenceExemptedForLeaderNotification($this, $reason));
+
+        QueueFlusher::deferFlush();
     }
 
     /**
@@ -243,6 +252,8 @@ class Evidence extends Model
         ]));
 
         $this->notifyLeadersOfExemptionChange(new EvidenceExemptionRemovedForLeaderNotification($this, $previousReason));
+
+        QueueFlusher::deferFlush();
     }
 
     /**

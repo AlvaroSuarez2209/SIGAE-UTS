@@ -10,6 +10,7 @@ use App\Enums\PeriodicityType;
 use App\Enums\RoleName;
 use App\Models\Concerns\Auditable;
 use App\Notifications\Evidence\EvidenceAssignedNotification;
+use App\Services\Mail\QueueFlusher;
 use Illuminate\Database\Eloquent\Casts\AsEnumCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -221,6 +222,7 @@ class Deliverable extends Model
 
             if ($evidence->wasRecentlyCreated) {
                 $evidence->user->notify(new EvidenceAssignedNotification($evidence));
+                QueueFlusher::deferFlush();
             }
         }
     }

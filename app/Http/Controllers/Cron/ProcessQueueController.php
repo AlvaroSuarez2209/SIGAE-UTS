@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Cron;
 
 use App\Http\Controllers\Controller;
+use App\Services\Mail\QueueFlusher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -22,6 +23,13 @@ use Illuminate\Support\Facades\Artisan;
  * usuario, nunca una persona autenticada — su único control de acceso es
  * el token compartido (config/cron.php), comparado con hash_equals() para
  * evitar timing attacks.
+ *
+ * Cambio: pasa por QueueFlusher (mismo Cache::lock que el vaciado
+ * inmediato tras una acción de usuario) para nunca correr dos
+ * queue:work a la vez — su propio --max-time=50 no cambia. `ran` en la
+ * respuesta indica si este request de verdad vació la cola o se saltó
+ * porque otro vaciado ya tenía el lock (en ese caso, esa otra pasada ya
+ * está haciendo el trabajo).
  */
 class ProcessQueueController extends Controller
 {
@@ -36,13 +44,11 @@ class ProcessQueueController extends Controller
             abort(403);
         }
 
-        Artisan::call('queue:work', [
-            '--stop-when-empty' => true,
-            '--max-time' => 50,
-        ]);
+        $ran = QueueFlusher::flush(50);
 
         return response()->json([
             'ok' => true,
+            'ran' => $ran,
             'output' => trim(Artisan::output()),
         ]);
     }

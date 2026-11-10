@@ -11,6 +11,7 @@ use App\Models\ProgramUnit;
 use App\Models\Subcomponent;
 use App\Models\User;
 use App\Notifications\Leadership\LeadershipAssignedNotification;
+use App\Services\Mail\QueueFlusher;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -126,6 +127,7 @@ class LeadershipForm extends LivewireComponent
         } else {
             $this->leadership = Leadership::create($data);
             $this->leadership->user->notify(new LeadershipAssignedNotification($this->leadership));
+            QueueFlusher::deferFlush();
         }
 
         session()->flash('status', 'Liderazgo guardado correctamente.');

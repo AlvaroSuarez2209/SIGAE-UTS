@@ -17,7 +17,21 @@
             <directory>app</directory>
         </include>
     </source>
+    <!-- Cambio (vaciado inmediato de la cola de correo): defer() crea un
+         contenedor de callbacks diferidos nuevo por cada test (fresco en
+         cada setUp(), ver Illuminate\Foundation\Testing\TestCase) —
+         agregarlo a los puntos que ya encolaban correo (Evidence,
+         Deliverable, User, LeadershipForm) hace que cientos de tests
+         existentes, que antes no tocaban ese mecanismo, ahora sí lo
+         registren. El recolector de basura de PHP no siempre libera esos
+         objetos muertos (closures + modelos Eloquent capturados) tan
+         rápido como se acumulan en una sola corrida de ~930 tests en un
+         único proceso — sin esto, la suite completa agota el límite por
+         defecto de 128M antes de terminar (verificado: con 512M/1024M
+         pasa igual, mismos 976 tests, sin ningún cambio de comportamiento,
+         solo más margen). -->
     <php>
+        <ini name="memory_limit" value="512M"/>
         <!-- Solo para que UserSeeder (y los tests que corren db:seed-if-empty)
              tengan un valor determinista — nunca la contraseña real, que va
              en .env local o en el panel de Render, nunca en el repositorio. -->

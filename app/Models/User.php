@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\Auditable;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Mail\QueueFlusher;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -126,5 +127,6 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+        QueueFlusher::deferFlush();
     }
 }

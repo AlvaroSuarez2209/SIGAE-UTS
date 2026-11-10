@@ -1617,6 +1617,74 @@ sección toca `.env` ni la configuración local.
   externo gratuito, [cron-job.org](https://cron-job.org), debe golpear
   esa URL cada 2-5 minutos con el token en la query string
   (`?token=...`).
+- **Cambio: vaciado inmediato de la cola, sin esperar al cron**: antes de
+  esto, cualquier correo encolado (envío/revisión de evidencia, exención,
+  liderazgo asignado, recuperación de contraseña) esperaba a la próxima
+  vez que `cron-job.org` golpeara `/cron/process-queue` (cada 2-5
+  minutos). `App\Services\Mail\QueueFlusher::deferFlush()` registra,
+  justo después de responder al usuario (`defer()` de Laravel — primer
+  uso en este proyecto), un `queue:work --stop-when-empty` acotado a
+  `MAIL_QUEUE_IMMEDIATE_FLUSH_SECONDS` segundos (`config/queue_flush.php`,
+  10s por defecto). Lo que no alcance a salir en ese tiempo (un lote
+  grande) lo recoge `/cron/process-queue` como respaldo, que sigue
+  corriendo igual que antes — y también es quien reintenta los jobs que
+  terminaron en `failed_jobs`. Los endpoints que encolan correo por su
+  cuenta sin pasar por una acción de usuario (`evidences:mark-overdue`,
+  vía `/cron/mark-overdue-evidences`) llaman a
+  `QueueFlusher::flush()` de forma síncrona al terminar su propio
+  trabajo, en vez de esperar el defer().
+
+  `Cache::lock('mail-queue-flush', ...)` evita que dos vaciados corran a
+  la vez (p. ej. una acción de usuario y `/cron/process-queue` al mismo
+  tiempo) — capa extra, no la única protección: `DatabaseQueue::pop()`
+  ya reserva cada fila con `reserved_at` dentro de una transacción, así
+  que dos `queue:work` corriendo en paralelo nunca podrían tomar el
+  mismo job de todas formas; el lock solo evita el costo de arrancar
+  dos procesos por nada. Con `CACHE_STORE=file` (ver más arriba), ese
+  lock usa `flock()` sobre el disco del propio contenedor — coordina
+  igual de bien entre los varios procesos de `php artisan serve` del
+  punto siguiente que entre hilos de uno solo.
+
+  **Riesgo aceptado, no corregido del todo**: con un solo proceso de
+  `php artisan serve`, vaciar la cola bloquearía la app entera (ningún
+  otro usuario podría ser atendido) durante esos hasta 10 segundos. Se
+  mitiga con `PHP_CLI_SERVER_WORKERS` (siguiente punto), nunca se
+  elimina del todo — este despliegue sigue sin ser para alta
+  concurrencia real.
+- **`PHP_CLI_SERVER_WORKERS=3` (variable de entorno, con `--no-reload`
+  en `docker/start.sh`)**: mitiga el riesgo del punto anterior
+  repartiendo las peticiones entre 3 procesos del servidor embebido de
+  PHP (nativo desde PHP 8.3, que ya usa esta imagen) en vez de uno
+  solo — así que mientras uno vacía la cola, los otros dos siguen
+  atendiendo a cualquier otro usuario. Laravel solo respeta esa
+  variable junto con `--no-reload`
+  (`Illuminate\Foundation\Console\ServeCommand::initialize()`: sin esa
+  flag, la ignora y avisa que vuelve a un solo proceso) — flag que de
+  todas formas es correcta para un contenedor (su único efecto es que
+  el servidor no se reinicia solo si detecta cambios en un `.env`
+  local, algo que no aplica ya empaquetado en una imagen).
+
+  **Por qué no rompe sesión/caché/cola compartidas entre los 3
+  procesos**: `SESSION_DRIVER=database` y `QUEUE_CONNECTION=database`
+  viven en Neon, compartidas sin problema entre procesos (cada fila se
+  reserva/lee de forma atómica, igual que ya pasaba con un solo
+  proceso). `CACHE_STORE=file` vive en el disco local del contenedor —
+  `Cache::lock()` con ese driver usa `flock()`, que coordina
+  correctamente entre procesos del mismo contenedor, no solo entre
+  hilos de uno solo.
+
+  **Memoria (estimado, no medido en el plan real de Render)**: cada
+  proceso es un intérprete PHP 8.3 completo con las extensiones de esta
+  imagen (`pdo_pgsql`, `zip`, `gd`, `intl`, `mbstring`) — unos 20-30MB
+  en reposo cada uno, más el pico de bootstrap de Laravel+Livewire por
+  petición (30-60MB, más si genera un PDF/Excel). Con 3 procesos, el
+  peor caso razonable (los 3 atendiendo algo pesado a la vez) ronda
+  250-300MB — dentro del límite de 512MB de los planes Starter/Free de
+  Render, pero sin margen amplio. Revisar la pestaña "Metrics" de
+  Render tras el primer despliegue con este cambio; si la memoria queda
+  cerca del límite o hay reinicios por falta de memoria, bajar
+  `PHP_CLI_SERVER_WORKERS` a `2` (variable de entorno en el panel de
+  Render, sin tocar código).
 - **Limitación conocida, no cubierta por lo anterior**: `evidences:mark-overdue`
   depende del scheduler de Laravel (`Schedule::command(...)->dailyAt(...)`
   en `routes/console.php`, ver 5.7), que a su vez necesita `schedule:run`
