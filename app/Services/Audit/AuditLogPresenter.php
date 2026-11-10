@@ -54,6 +54,7 @@ class AuditLogPresenter
         'deliverable_reference_file_removed' => 'Archivo de referencia quitado',
         'teachers_bulk_imported' => 'Importación masiva de docentes',
         'admins_bulk_imported' => 'Importación masiva de administradores/coordinadores',
+        'catalog_item_deleted' => 'Eliminación',
     ];
 
     /**
@@ -279,6 +280,10 @@ class AuditLogPresenter
             return self::describeBulkImport($log);
         }
 
+        if ($log->action === 'catalog_item_deleted') {
+            return self::describeCatalogDeletion($log);
+        }
+
         $metadata = $log->metadata ?? [];
         $modelBasename = $log->auditable_type ? class_basename($log->auditable_type) : null;
         $previous = (array) ($metadata['previous'] ?? []);
@@ -324,6 +329,23 @@ class AuditLogPresenter
         $modelBasename = class_basename($log->auditable_type);
         $label = self::MODEL_LABELS[$modelBasename] ?? $modelBasename;
         $participle = in_array($modelBasename, self::FEMININE_MODELS, true) ? 'creada' : 'creado';
+        $name = $log->metadata['name'] ?? null;
+
+        return $name ? "{$label} '{$name}' {$participle}" : "{$label} {$participle}";
+    }
+
+    /**
+     * Punto 2 (borrado real de catálogo): `catalog_item_deleted` guarda
+     * `type`/`id`/`name` como instantánea — el registro real ya no
+     * existe (auditable_id queda apuntando a una fila borrada, sin FK:
+     * ver nullableMorphs() en audit_logs), así que todo lo que se
+     * muestra sale de esta instantánea, nunca de una relación en vivo.
+     */
+    private static function describeCatalogDeletion(AuditLog $log): string
+    {
+        $modelBasename = $log->metadata['type'] ?? ($log->auditable_type ? class_basename($log->auditable_type) : null);
+        $label = $modelBasename ? (self::MODEL_LABELS[$modelBasename] ?? $modelBasename) : 'Elemento';
+        $participle = in_array($modelBasename, self::FEMININE_MODELS, true) ? 'eliminada' : 'eliminado';
         $name = $log->metadata['name'] ?? null;
 
         return $name ? "{$label} '{$name}' {$participle}" : "{$label} {$participle}";
@@ -423,6 +445,16 @@ class AuditLogPresenter
 
         if (in_array($log->action, ['teachers_bulk_imported', 'admins_bulk_imported'], true)) {
             return self::bulkImportEntries($log);
+        }
+
+        if ($log->action === 'catalog_item_deleted') {
+            $metadata = $log->metadata ?? [];
+
+            return array_values(array_filter([
+                isset($metadata['type']) ? ['label' => 'Tipo', 'after' => self::MODEL_LABELS[$metadata['type']] ?? $metadata['type'], 'before' => null] : null,
+                isset($metadata['name']) ? ['label' => 'Nombre', 'after' => $metadata['name'], 'before' => null] : null,
+                isset($metadata['id']) ? ['label' => 'Id', 'after' => (string) $metadata['id'], 'before' => null] : null,
+            ]));
         }
 
         $metadata = $log->metadata ?? [];

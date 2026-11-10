@@ -33,4 +33,15 @@ class ProgramUnit extends Model
     {
         return $this->hasMany(Leadership::class);
     }
+
+    /**
+     * Punto 2 (borrado real de catálogo): un usuario puede quedar
+     * asignado a este programa directamente (users.program_unit_id,
+     * nullOnDelete) sin que exista ninguna asignación docente ni
+     * liderazgo todavía — también debe bloquear el borrado.
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }
