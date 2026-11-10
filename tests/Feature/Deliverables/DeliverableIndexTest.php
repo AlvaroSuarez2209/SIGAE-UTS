@@ -35,12 +35,13 @@ class DeliverableIndexTest extends TestCase
 
     /**
      * Un borrador es lo que más necesita atención (hay que decidir si se
-     * publica o se descarta), así que nunca debe quedar enterrado por una
-     * fecha límite lejana entre los publicados. Orden esperado: borradores
-     * primero (más reciente primero), publicados después (fecha límite
-     * ascendente) — nunca mezclados entre sí por fecha límite.
+     * publica o se descarta), así que nunca debe quedar enterrado entre
+     * los publicados. Orden esperado: borradores primero, publicados
+     * después — dentro de cada grupo, más reciente primero por fecha de
+     * creación del registro (corrección post-prueba: antes los
+     * publicados se ordenaban entre sí por fecha límite ascendente).
      */
-    public function test_drafts_appear_first_newest_first_then_published_by_due_date_ascending(): void
+    public function test_drafts_appear_first_then_published_both_newest_created_first(): void
     {
         $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
 
@@ -56,15 +57,20 @@ class DeliverableIndexTest extends TestCase
             'created_at' => now()->subDay(),
             'due_at' => now()->addDays(5),
         ]);
-        $publishedLate = Deliverable::factory()->create([
+        // due_at al revés de created_at a propósito: si el orden
+        // resultante respetara due_at en vez de created_at, este par
+        // saldría en el orden contrario al esperado abajo.
+        $publishedOlder = Deliverable::factory()->create([
             'academic_period_id' => $period->id,
-            'name' => 'Publicado tardío',
-            'due_at' => now()->addDays(20),
-        ]);
-        $publishedSoon = Deliverable::factory()->create([
-            'academic_period_id' => $period->id,
-            'name' => 'Publicado próximo',
+            'name' => 'Publicado antiguo',
+            'created_at' => now()->subDays(10),
             'due_at' => now()->addDays(2),
+        ]);
+        $publishedNewer = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'name' => 'Publicado reciente',
+            'created_at' => now()->subDay(),
+            'due_at' => now()->addDays(20),
         ]);
 
         // mount() ya selecciona automáticamente el único periodo Activo
@@ -74,7 +80,7 @@ class DeliverableIndexTest extends TestCase
             ->viewData('deliverables');
 
         $this->assertEquals(
-            [$draftNewer->id, $draftOlder->id, $publishedSoon->id, $publishedLate->id],
+            [$draftNewer->id, $draftOlder->id, $publishedNewer->id, $publishedOlder->id],
             $deliverables->pluck('id')->all()
         );
     }
