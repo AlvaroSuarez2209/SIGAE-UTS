@@ -56,6 +56,14 @@ class TableActionsAlignmentTest extends TestCase
 
     private const WRAPPER_CLASSES = 'inline-flex items-center justify-end gap-4 whitespace-nowrap';
 
+    /**
+     * Ajuste de separación: justify-center en el slot (no el
+     * flex-start por defecto), para que "Activar"/"Desactivar" queden
+     * centrados en el ancho reservado y no dejen un hueco desigual
+     * junto a "Editar" según cuál de los dos textos se muestre.
+     */
+    private const TOGGLE_SLOT_CLASSES = 'inline-flex items-center justify-center gap-2';
+
     public function test_component_active_and_inactive_rows_share_the_same_actions_structure(): void
     {
         Component::factory()->create(['is_active' => true]);
@@ -64,6 +72,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(ComponentIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -75,6 +84,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(SubcomponentIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -86,6 +96,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(ActivityIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -97,6 +108,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(ProgramUnitIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -108,6 +120,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(CrossCuttingCommitmentIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -119,6 +132,7 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(TemplateIndex::class)->html();
 
         $this->assertSame(2, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(2, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(2, substr_count($html, 'style="min-width: 7rem"'));
     }
 
@@ -139,6 +153,24 @@ class TableActionsAlignmentTest extends TestCase
         $html = Livewire::actingAs($this->admin())->test(PeriodIndex::class)->html();
 
         $this->assertSame(4, substr_count($html, self::WRAPPER_CLASSES));
+        $this->assertSame(4, substr_count($html, self::TOGGLE_SLOT_CLASSES));
         $this->assertSame(4, substr_count($html, 'style="min-width: 10rem"'));
+    }
+
+    /**
+     * Ajuste de separación: "Eliminar" solo lleva un poco más de
+     * margen (ml-2) encima del gap-4 uniforme de <x-table-actions> —
+     * nunca el ml-6 anterior, que sumado al gap-4 lo aislaba demasiado
+     * de "Desactivar". Se verifica en la fuente de .btn-delete (una
+     * clase de componentes de Tailwind compilada por @apply: el HTML
+     * solo imprime class="btn-delete", nunca las utilidades sueltas),
+     * no en el HTML renderizado.
+     */
+    public function test_the_delete_button_keeps_only_a_small_extra_margin_over_the_uniform_gap(): void
+    {
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertMatchesRegularExpression('/\.btn-delete\s*\{[^}]*\bml-2\b/s', $css);
+        $this->assertDoesNotMatchRegularExpression('/\.btn-delete\s*\{[^}]*\bml-6\b/s', $css);
     }
 }

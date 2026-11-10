@@ -92,14 +92,16 @@
     .btn-text {
         @apply text-base font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary rounded-sm;
     }
-    /* Punto 2 (ajuste): botón "Eliminar" de los listados de catálogo —
-       mismo estilo de texto que .btn-text pero en rojo, con un tono más
-       oscuro al pasar el cursor (nunca el mismo rojo, para que el hover
-       sea perceptible) y separación propia (ml-6, más que el ml-4 entre
-       Editar/Desactivar) para distinguirlo como la acción más
-       delicada. Nunca lleva disabled — ver <x-delete-button>. */
+    /* Ajuste de separación: botón "Eliminar" de los listados de
+       catálogo — mismo estilo de texto que .btn-text pero en rojo, con
+       un tono más oscuro al pasar el cursor (nunca el mismo rojo, para
+       que el hover sea perceptible). <x-table-actions> ya pone gap-4
+       uniforme entre los tres botones; este ml-2 es solo el "poco más"
+       encima de ese gap para distinguir "Eliminar" sin aislarlo (antes
+       era ml-6, que sumado al gap-4 lo alejaba demasiado de
+       "Desactivar"). Nunca lleva disabled — ver <x-delete-button>. */
     .btn-delete {
-        @apply ml-6 text-base font-medium text-status-error hover:text-status-error-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-error rounded-sm;
+        @apply ml-2 text-base font-medium text-status-error hover:text-status-error-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-status-error rounded-sm;
     }
 
     /* Formularios */
