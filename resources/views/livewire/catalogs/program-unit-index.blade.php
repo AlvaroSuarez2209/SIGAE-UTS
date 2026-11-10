@@ -28,7 +28,7 @@
                 <tr>
                     <th class="table-header-cell">Nombre</th>
                     <th class="table-header-cell">Estado</th>
-                    <th class="table-header-cell text-right">Acciones</th>
+                    <th class="table-header-cell min-w-[240px] text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border-subtle">
@@ -39,27 +39,31 @@
                             <x-active-badge :active="$unit->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <button type="button" wire:click="openEdit({{ $unit->id }})" class="btn-text">Editar</button>
-                            @if ($unit->is_active)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Desactivar programa',
-                                        body: '¿Desactivar el programa <strong>{{ e($unit->name) }}</strong>? Ya no estará disponible para nuevas asignaciones, pero las asignaciones ya creadas no se ven afectadas.',
-                                        confirmLabel: 'Desactivar',
-                                        variant: 'warning',
-                                        action: () => $wire.toggleActive({{ $unit->id }}),
-                                    })"
-                                >Desactivar</button>
-                            @else
-                                <button type="button" wire:click="toggleActive({{ $unit->id }})" class="btn-text ml-4 text-text-secondary">
-                                    Activar
-                                </button>
-                            @endif
-                            @can('delete', $unit)
-                                <x-delete-button wire:click="openDeleteConfirmation({{ $unit->id }})">Eliminar</x-delete-button>
-                            @endcan
+                            <x-table-actions>
+                                <button type="button" wire:click="openEdit({{ $unit->id }})" class="btn-text">Editar</button>
+                                <x-table-toggle-slot>
+                                    @if ($unit->is_active)
+                                        <button
+                                            type="button"
+                                            class="btn-text text-text-secondary"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Desactivar programa',
+                                                body: '¿Desactivar el programa <strong>{{ e($unit->name) }}</strong>? Ya no estará disponible para nuevas asignaciones, pero las asignaciones ya creadas no se ven afectadas.',
+                                                confirmLabel: 'Desactivar',
+                                                variant: 'warning',
+                                                action: () => $wire.toggleActive({{ $unit->id }}),
+                                            })"
+                                        >Desactivar</button>
+                                    @else
+                                        <button type="button" wire:click="toggleActive({{ $unit->id }})" class="btn-text text-text-secondary">
+                                            Activar
+                                        </button>
+                                    @endif
+                                </x-table-toggle-slot>
+                                @can('delete', $unit)
+                                    <x-delete-button wire:click="openDeleteConfirmation({{ $unit->id }})">Eliminar</x-delete-button>
+                                @endcan
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty

@@ -28,7 +28,7 @@
                 <tr>
                     <th class="table-header-cell">Nombre</th>
                     <th class="table-header-cell">Estado</th>
-                    <th class="table-header-cell text-right">Acciones</th>
+                    <th class="table-header-cell min-w-[240px] text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border-subtle">
@@ -39,27 +39,31 @@
                             <x-active-badge :active="$componentRow->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <button type="button" wire:click="openEdit({{ $componentRow->id }})" class="btn-text">Editar</button>
-                            @if ($componentRow->is_active)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Desactivar componente',
-                                        body: '¿Desactivar el componente <strong>{{ e($componentRow->name) }}</strong>? Ya no estará disponible para crear nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
-                                        confirmLabel: 'Desactivar',
-                                        variant: 'warning',
-                                        action: () => $wire.toggleActive({{ $componentRow->id }}),
-                                    })"
-                                >Desactivar</button>
-                            @else
-                                <button type="button" wire:click="toggleActive({{ $componentRow->id }})" class="btn-text ml-4 text-text-secondary">
-                                    Activar
-                                </button>
-                            @endif
-                            @can('delete', $componentRow)
-                                <x-delete-button wire:click="openDeleteConfirmation({{ $componentRow->id }})">Eliminar</x-delete-button>
-                            @endcan
+                            <x-table-actions>
+                                <button type="button" wire:click="openEdit({{ $componentRow->id }})" class="btn-text">Editar</button>
+                                <x-table-toggle-slot>
+                                    @if ($componentRow->is_active)
+                                        <button
+                                            type="button"
+                                            class="btn-text text-text-secondary"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Desactivar componente',
+                                                body: '¿Desactivar el componente <strong>{{ e($componentRow->name) }}</strong>? Ya no estará disponible para crear nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
+                                                confirmLabel: 'Desactivar',
+                                                variant: 'warning',
+                                                action: () => $wire.toggleActive({{ $componentRow->id }}),
+                                            })"
+                                        >Desactivar</button>
+                                    @else
+                                        <button type="button" wire:click="toggleActive({{ $componentRow->id }})" class="btn-text text-text-secondary">
+                                            Activar
+                                        </button>
+                                    @endif
+                                </x-table-toggle-slot>
+                                @can('delete', $componentRow)
+                                    <x-delete-button wire:click="openDeleteConfirmation({{ $componentRow->id }})">Eliminar</x-delete-button>
+                                @endcan
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty

@@ -31,7 +31,7 @@
                     <th class="table-header-cell">Subcomponente</th>
                     <th class="table-header-cell">Descripción</th>
                     <th class="table-header-cell">Estado</th>
-                    <th class="table-header-cell text-right">Acciones</th>
+                    <th class="table-header-cell min-w-[240px] text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border-subtle">
@@ -47,27 +47,31 @@
                             <x-active-badge :active="$activity->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <button type="button" wire:click="openEdit({{ $activity->id }})" class="btn-text">Editar</button>
-                            @if ($activity->is_active)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Desactivar actividad',
-                                        body: '¿Desactivar la actividad <strong>{{ e($activity->name) }}</strong>? Ya no estará disponible para nuevas asignaciones o entregables, pero las asignaciones y entregables ya creados no se ven afectados.',
-                                        confirmLabel: 'Desactivar',
-                                        variant: 'warning',
-                                        action: () => $wire.toggleActive({{ $activity->id }}),
-                                    })"
-                                >Desactivar</button>
-                            @else
-                                <button type="button" wire:click="toggleActive({{ $activity->id }})" class="btn-text ml-4 text-text-secondary">
-                                    Activar
-                                </button>
-                            @endif
-                            @can('delete', $activity)
-                                <x-delete-button wire:click="openDeleteConfirmation({{ $activity->id }})">Eliminar</x-delete-button>
-                            @endcan
+                            <x-table-actions>
+                                <button type="button" wire:click="openEdit({{ $activity->id }})" class="btn-text">Editar</button>
+                                <x-table-toggle-slot>
+                                    @if ($activity->is_active)
+                                        <button
+                                            type="button"
+                                            class="btn-text text-text-secondary"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Desactivar actividad',
+                                                body: '¿Desactivar la actividad <strong>{{ e($activity->name) }}</strong>? Ya no estará disponible para nuevas asignaciones o entregables, pero las asignaciones y entregables ya creados no se ven afectados.',
+                                                confirmLabel: 'Desactivar',
+                                                variant: 'warning',
+                                                action: () => $wire.toggleActive({{ $activity->id }}),
+                                            })"
+                                        >Desactivar</button>
+                                    @else
+                                        <button type="button" wire:click="toggleActive({{ $activity->id }})" class="btn-text text-text-secondary">
+                                            Activar
+                                        </button>
+                                    @endif
+                                </x-table-toggle-slot>
+                                @can('delete', $activity)
+                                    <x-delete-button wire:click="openDeleteConfirmation({{ $activity->id }})">Eliminar</x-delete-button>
+                                @endcan
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty

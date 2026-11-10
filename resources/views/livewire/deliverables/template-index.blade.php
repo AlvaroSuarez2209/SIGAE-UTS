@@ -33,7 +33,7 @@
                     <th class="table-header-cell">Periodicidad</th>
                     <th class="table-header-cell">Obligatorio</th>
                     <th class="table-header-cell">Estado</th>
-                    <th class="table-header-cell text-right">Acciones</th>
+                    <th class="table-header-cell min-w-[240px] text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border-subtle">
@@ -46,27 +46,31 @@
                             <x-active-badge :active="$template->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <a href="{{ route('deliverable-templates.edit', [$template, 'search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-text">Editar</a>
-                            @if ($template->is_active)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Desactivar plantilla',
-                                        body: '¿Desactivar la plantilla <strong>{{ e($template->name) }}</strong>? Ya no estará disponible para crear nuevos entregables a partir de ella, pero los entregables ya creados no se ven afectados.',
-                                        confirmLabel: 'Desactivar',
-                                        variant: 'warning',
-                                        action: () => $wire.toggleActive({{ $template->id }}),
-                                    })"
-                                >Desactivar</button>
-                            @else
-                                <button type="button" wire:click="toggleActive({{ $template->id }})" class="btn-text ml-4 text-text-secondary">
-                                    Activar
-                                </button>
-                            @endif
-                            @can('delete', $template)
-                                <x-delete-button wire:click="openDeleteConfirmation({{ $template->id }})">Eliminar</x-delete-button>
-                            @endcan
+                            <x-table-actions>
+                                <a href="{{ route('deliverable-templates.edit', [$template, 'search' => $search, 'statusFilter' => $statusFilter]) }}" class="btn-text">Editar</a>
+                                <x-table-toggle-slot>
+                                    @if ($template->is_active)
+                                        <button
+                                            type="button"
+                                            class="btn-text text-text-secondary"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Desactivar plantilla',
+                                                body: '¿Desactivar la plantilla <strong>{{ e($template->name) }}</strong>? Ya no estará disponible para crear nuevos entregables a partir de ella, pero los entregables ya creados no se ven afectados.',
+                                                confirmLabel: 'Desactivar',
+                                                variant: 'warning',
+                                                action: () => $wire.toggleActive({{ $template->id }}),
+                                            })"
+                                        >Desactivar</button>
+                                    @else
+                                        <button type="button" wire:click="toggleActive({{ $template->id }})" class="btn-text text-text-secondary">
+                                            Activar
+                                        </button>
+                                    @endif
+                                </x-table-toggle-slot>
+                                @can('delete', $template)
+                                    <x-delete-button wire:click="openDeleteConfirmation({{ $template->id }})">Eliminar</x-delete-button>
+                                @endcan
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty

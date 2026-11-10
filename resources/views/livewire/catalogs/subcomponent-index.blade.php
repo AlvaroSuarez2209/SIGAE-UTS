@@ -33,7 +33,7 @@
                     <th class="table-header-cell">Nombre</th>
                     <th class="table-header-cell">Componente</th>
                     <th class="table-header-cell">Estado</th>
-                    <th class="table-header-cell text-right">Acciones</th>
+                    <th class="table-header-cell min-w-[240px] text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-border-subtle">
@@ -45,27 +45,31 @@
                             <x-active-badge :active="$subcomponent->is_active" />
                         </td>
                         <td class="table-cell text-right">
-                            <button type="button" wire:click="openEdit({{ $subcomponent->id }})" class="btn-text">Editar</button>
-                            @if ($subcomponent->is_active)
-                                <button
-                                    type="button"
-                                    class="btn-text ml-4 text-text-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Desactivar subcomponente',
-                                        body: '¿Desactivar el subcomponente <strong>{{ e($subcomponent->name) }}</strong>? Ya no estará disponible para asociarlo a nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
-                                        confirmLabel: 'Desactivar',
-                                        variant: 'warning',
-                                        action: () => $wire.toggleActive({{ $subcomponent->id }}),
-                                    })"
-                                >Desactivar</button>
-                            @else
-                                <button type="button" wire:click="toggleActive({{ $subcomponent->id }})" class="btn-text ml-4 text-text-secondary">
-                                    Activar
-                                </button>
-                            @endif
-                            @can('delete', $subcomponent)
-                                <x-delete-button wire:click="openDeleteConfirmation({{ $subcomponent->id }})">Eliminar</x-delete-button>
-                            @endcan
+                            <x-table-actions>
+                                <button type="button" wire:click="openEdit({{ $subcomponent->id }})" class="btn-text">Editar</button>
+                                <x-table-toggle-slot>
+                                    @if ($subcomponent->is_active)
+                                        <button
+                                            type="button"
+                                            class="btn-text text-text-secondary"
+                                            @click="$dispatch('confirm-modal', {
+                                                title: 'Desactivar subcomponente',
+                                                body: '¿Desactivar el subcomponente <strong>{{ e($subcomponent->name) }}</strong>? Ya no estará disponible para asociarlo a nuevas actividades, pero las actividades ya creadas no se ven afectadas.',
+                                                confirmLabel: 'Desactivar',
+                                                variant: 'warning',
+                                                action: () => $wire.toggleActive({{ $subcomponent->id }}),
+                                            })"
+                                        >Desactivar</button>
+                                    @else
+                                        <button type="button" wire:click="toggleActive({{ $subcomponent->id }})" class="btn-text text-text-secondary">
+                                            Activar
+                                        </button>
+                                    @endif
+                                </x-table-toggle-slot>
+                                @can('delete', $subcomponent)
+                                    <x-delete-button wire:click="openDeleteConfirmation({{ $subcomponent->id }})">Eliminar</x-delete-button>
+                                @endcan
+                            </x-table-actions>
                         </td>
                     </tr>
                 @empty
