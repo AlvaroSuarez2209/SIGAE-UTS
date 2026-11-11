@@ -37,6 +37,20 @@ php artisan migrate --force --database=pgsql_migrate
 # en docs/manual-tecnico.md.
 php artisan db:seed-if-empty
 
+# Punto 1 (almacenamiento persistente) + anexo: Render free no tiene
+# consola — esta es la única forma de confirmar, en cada despliegue, que
+# el disco de soportes configurado (App\Console\Commands\StorageCheck)
+# de verdad escribe/lee/borra, sin depender de conectarse a una shell.
+# "|| true" es obligatorio aquí: con "set -e" arriba, un storage:check
+# fallido (p. ej. credenciales de Neon mal puestas) abortaría el
+# arranque entero y dejaría la app caída por un problema que, aunque
+# real, no debe impedir que el resto de la app (que no depende de
+# archivos) siga funcionando. El resultado (OK o FALLÓ, con el motivo)
+# queda igual en la salida de este script, que Render captura en su
+# pestaña "Logs" — ver LOG_CHANNEL=stderr en docs/manual-tecnico.md §8.1
+# para el mismo criterio aplicado a los logs de la propia aplicación.
+php artisan storage:check || true
+
 # Cambio (vaciado inmediato de la cola de correo): sin esto, "php artisan
 # serve" corre UN solo proceso — mientras atiende el vaciado de la cola
 # tras una acción de usuario (hasta MAIL_QUEUE_IMMEDIATE_FLUSH_SECONDS,
