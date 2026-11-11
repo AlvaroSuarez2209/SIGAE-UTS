@@ -13,7 +13,6 @@ use App\Models\TeacherAssignment;
 use App\Models\User;
 use Database\Seeders\DemoCycleSeeder;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Deshace exactamente lo que crea DemoCycleSeeder — nunca toca al docente
@@ -65,7 +64,7 @@ class DemoCycleRevert extends Command
             foreach ($deliverable->evidences as $evidence) {
                 foreach ($evidence->versions as $version) {
                     foreach ($version->files as $file) {
-                        Storage::disk('local')->delete($file->disk_path);
+                        $file->disk()->delete($file->disk_path);
                         $fileCount++;
                     }
                 }

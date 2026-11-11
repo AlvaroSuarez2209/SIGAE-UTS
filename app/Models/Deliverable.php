@@ -268,7 +268,7 @@ class Deliverable extends Model
      */
     public function attachReferenceFile(UploadedFile $file, User $actor): DeliverableReferenceFile
     {
-        $storedPath = $file->store('deliverables/'.$this->id, 'local');
+        $storedPath = $file->store('deliverables/'.$this->id, config('filesystems.attachments_disk'));
 
         $referenceFile = $this->referenceFiles()->create([
             'original_name' => $file->getClientOriginalName(),

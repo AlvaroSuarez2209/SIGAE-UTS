@@ -69,7 +69,7 @@ class DeliverableTemplate extends Model
      */
     public function attachReferenceFile(UploadedFile $file, User $actor): DeliverableReferenceFile
     {
-        $storedPath = $file->store('deliverable-templates/'.$this->id, 'local');
+        $storedPath = $file->store('deliverable-templates/'.$this->id, config('filesystems.attachments_disk'));
 
         $referenceFile = $this->referenceFiles()->create([
             'original_name' => $file->getClientOriginalName(),

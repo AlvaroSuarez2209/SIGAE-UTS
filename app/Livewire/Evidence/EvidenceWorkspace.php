@@ -208,7 +208,7 @@ class EvidenceWorkspace extends Component
         $version->update(['submission_comment' => $this->submissionComment ?: null]);
 
         foreach ($this->newFiles as $file) {
-            $storedPath = $file->store('evidence/'.$version->id, 'local');
+            $storedPath = $file->store('evidence/'.$version->id, config('filesystems.attachments_disk'));
 
             EvidenceFile::create([
                 'evidence_version_id' => $version->id,

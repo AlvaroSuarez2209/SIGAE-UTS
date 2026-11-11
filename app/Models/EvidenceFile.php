@@ -26,16 +26,24 @@ class EvidenceFile extends Model
         return $this->belongsTo(EvidenceVersion::class, 'evidence_version_id');
     }
 
+    /**
+     * Punto 1 (almacenamiento persistente): el nombre de disco sale de
+     * config('filesystems.attachments_disk') — "local" en desarrollo/
+     * pruebas, "s3" (Neon Object Storage) en producción — nunca fijo,
+     * para que cambiar de uno a otro sea solo una variable de entorno.
+     */
     public function disk()
     {
-        return Storage::disk('local');
+        return Storage::disk(config('filesystems.attachments_disk'));
     }
 
     /**
      * El disco de Render es efímero — un redeploy puede dejar la fila sin
-     * su archivo físico. Un solo chequeo de existencia en disco local
-     * ('local', no 'S3') es una llamada nativa de filesystem, no una
-     * petición de red — barato incluso con muchos archivos en pantalla.
+     * su archivo físico (ya no aplica una vez que config('filesystems.
+     * attachments_disk') es "s3", pero local sigue en "local"). Con el
+     * disco remoto, exists() es una llamada HEAD real, no gratis como la
+     * del disco local — sigue siendo barata comparada con el resto de la
+     * petición, pero ya no es "nativa de filesystem".
      */
     public function existsOnDisk(): bool
     {

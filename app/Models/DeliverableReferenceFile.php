@@ -60,9 +60,13 @@ class DeliverableReferenceFile extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
+    /**
+     * Ver el docblock equivalente en EvidenceFile::disk() — mismo disco
+     * configurable, nunca "local" fijo.
+     */
     public function disk()
     {
-        return Storage::disk('local');
+        return Storage::disk(config('filesystems.attachments_disk'));
     }
 
     /**
