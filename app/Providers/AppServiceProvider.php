@@ -2,14 +2,17 @@
 
 namespace App\Providers;
 
+use Aws\CommandInterface;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Psr\Http\Message\RequestInterface;
 use Symfony\Component\Mailer\Transport;
 
 class AppServiceProvider extends ServiceProvider
@@ -31,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerBrevoApiMailTransport();
         $this->registerAccentInsensitiveSearchMacro();
         $this->registerAccentInsensitiveCollectionSortMacro();
+        $this->stripAclFromNeonUploads();
 
         // Red de seguridad preventiva contra N+1 nuevos: lanza una excepción
         // en vez de disparar una consulta silenciosa al acceder a una
@@ -96,6 +100,56 @@ class AppServiceProvider extends ServiceProvider
                 rawurlencode((string) config('services.brevo.key'))
             ));
         });
+    }
+
+    /**
+     * Punto 1 (almacenamiento persistente): Neon Object Storage no
+     * implementa ACL — cualquier subida que lleve la cabecera
+     * "x-amz-acl" la rechaza. Quitar 'visibility' de config/filesystems.php
+     * NO alcanza por sí solo: verificado con un cliente S3 real (no solo
+     * Storage::fake) que, sin ningún 'visibility' configurado, el SDK de
+     * AWS igual manda "x-amz-acl: private" por defecto en cada
+     * PutObject/multipart — y que fijar 'options' => ['ACL' => ''] en el
+     * disco tampoco sirve: el SDK manda la cabecera igual, solo con el
+     * valor vacío ("x-amz-acl: "), que Neon rechaza lo mismo.
+     *
+     * Lo que sí funciona, verificado con ese mismo cliente real: un
+     * middleware en el paso "build" del propio Aws\S3\S3Client (antes de
+     * que el comando se serialice a una petición HTTP) que quita el
+     * parámetro ACL del comando — ahí la cabecera nunca llega a
+     * generarse, sin importar qué pida Flysystem por encima.
+     * prependBuild() (no appendBuild()): tiene que correr ANTES del paso
+     * de serialización interno del SDK, o ya es tarde — con
+     * appendBuild() el comando queda limpio pero la petición ya se
+     * había construido con la cabecera puesta.
+     *
+     * Solo se activa si el disco de soportes configurado
+     * (config('filesystems.attachments_disk')) es "s3" — en local/
+     * pruebas (disco "local") nunca hace falta, así que nunca se
+     * resuelve un S3Client real ahí.
+     *
+     * Público (no privado) a propósito: Tests\Feature\Storage\
+     * NeonAclStrippingTest necesita volver a invocarlo después de
+     * sobreescribir config('filesystems.attachments_disk') a "s3" en su
+     * propio setUp() — boot() ya corrió antes con el valor real del
+     * entorno de pruebas ("local"), que no habría registrado nada.
+     */
+    public function stripAclFromNeonUploads(): void
+    {
+        if (config('filesystems.attachments_disk') !== 's3') {
+            return;
+        }
+
+        Storage::disk('s3')->getClient()->getHandlerList()->prependBuild(
+            function (callable $handler) {
+                return function (CommandInterface $command, ?RequestInterface $request = null) use ($handler) {
+                    unset($command['ACL']);
+
+                    return $handler($command, $request);
+                };
+            },
+            'strip-acl-for-neon'
+        );
     }
 
     /**

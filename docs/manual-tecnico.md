@@ -1685,6 +1685,97 @@ sección toca `.env` ni la configuración local.
   cerca del límite o hay reinicios por falta de memoria, bajar
   `PHP_CLI_SERVER_WORKERS` a `2` (variable de entorno en el panel de
   Render, sin tocar código).
+- **Cambio: almacenamiento persistente de archivos (Neon Object
+  Storage, compatible con S3)**: el disco de Render es efímero —
+  cualquier evidencia, archivo de referencia o plantilla subido se
+  pierde en cada despliegue. `ATTACHMENTS_DISK=s3` (`config/filesystems.php`,
+  por defecto `"local"` si se omite — así que local/pruebas no necesitan
+  ningún cambio) hace que `App\Models\EvidenceFile::disk()` y
+  `App\Models\DeliverableReferenceFile::disk()`, más los 3 puntos de
+  subida (`EvidenceWorkspace::saveDraft()`,
+  `Deliverable::attachReferenceFile()`,
+  `DeliverableTemplate::attachReferenceFile()`), usen el disco `"s3"` de
+  `config/filesystems.php` en vez de `"local"` fijo — apuntado, vía las
+  variables `AWS_*` de siempre de Laravel, a un bucket de Neon Object
+  Storage (ya incluido en el plan de Neon, sin costo aparte).
+
+  **`use_path_style_endpoint = true`** (`config/filesystems.php`, a
+  diferencia del `false` de fábrica de Laravel): Neon solo admite
+  direccionamiento *path-style* (`https://endpoint/bucket/clave`), no
+  *virtual-hosted-style* (`https://bucket.endpoint/clave`). La firma
+  SigV4 no necesita configuración aparte — es lo que ya usa el SDK de
+  AWS por defecto.
+
+  **Neon no implementa ACL — `AppServiceProvider::stripAclFromNeonUploads()`**:
+  quitar `'visibility'` de la configuración del disco NO alcanza por sí
+  solo. Verificado con un cliente `Aws\S3\S3Client` real (nunca solo
+  `Storage::fake()`, que nunca construye una petición HTTP real): sin
+  ningún `'visibility'` configurado, el SDK de AWS igual manda
+  `x-amz-acl: private` en cada subida; y fijar `'options' => ['ACL' => '']`
+  en el disco tampoco sirve — la cabecera sigue mandándose, solo con el
+  valor vacío (`x-amz-acl: `), que Neon rechaza lo mismo. Lo que sí
+  funciona: un middleware en el paso **`prependBuild`** (no
+  `appendBuild` — tiene que correr *antes* de que el SDK serialice el
+  comando a una petición HTTP, o ya es tarde, verificado) del propio
+  `Aws\S3\S3Client` que quita el parámetro `ACL` del comando antes de
+  firmarlo. Se registra una sola vez, en `boot()`, solo si
+  `ATTACHMENTS_DISK` es `"s3"` (nunca se resuelve un `S3Client` real en
+  local/pruebas). `Tests\Feature\Storage\NeonAclStrippingTest` prueba
+  esto contra ese mismo cliente real (con su handler HTTP reemplazado
+  por uno que solo captura la petición, nunca llega a la red) — no hay
+  Docker/MinIO disponible en este entorno de desarrollo para un servidor
+  S3 real; si se agrega más adelante, ese archivo es el lugar natural
+  para una prueba de integración equivalente.
+
+  **Descargas, sin cambios de código**: `Illuminate\Filesystem\FilesystemAdapter::download()`
+  ya entrega el archivo en streaming desde el servidor
+  (`readStream()` + `fpassthru()`) para CUALQUIER disco, local o S3 —
+  nunca redirige a una URL firmada con parámetros `response-content-*`.
+  Esto es justo lo que hace falta para Neon, que los ignora en
+  solicitudes anónimas: `EvidenceFileDownloadController` y
+  `DeliverableReferenceFileDownloadController` (que ya comprobaban
+  permisos y que el archivo existe antes de servirlo) siguen
+  funcionando exactamente igual, solo que ahora `disk()` resuelve al
+  disco "s3" en vez de "local". El bucket se queda privado — nunca se
+  genera una URL pública ni una temporal.
+
+  **`php artisan storage:check`**: escribe, lee y borra un objeto de
+  prueba en el disco configurado y reporta el resultado — Render free
+  no tiene consola, así que `docker/start.sh` lo corre en cada arranque
+  (con `|| true`: un fallo aquí nunca debe tumbar el resto de la app) y
+  el resultado queda en la pestaña "Logs" de Render, igual que el resto
+  de la salida de ese script.
+
+  **`php artisan storage:migrate-to-s3 [--apply]`**: copia al disco
+  configurado los archivos de `EvidenceFile`/`DeliverableReferenceFile`
+  que hoy solo existen en el disco local. Sin `--apply` (el
+  comportamiento por defecto) nunca escribe nada, solo reporta qué
+  copiaría; nunca sobrescribe un archivo que ya exista en el destino.
+  `disk_path` nunca cambia (se copia bajo la misma ruta), así que
+  ninguna fila de la base necesita actualizarse. En este entorno de
+  desarrollo hay candidatos reales (evidencias y archivos de referencia
+  ya subidos localmente durante las pruebas), útiles para probar el
+  comando de punta a punta — en producción, dado que el disco de Render
+  ya era efímero *antes* de este cambio, es poco probable que sobreviva
+  ningún archivo real de un despliegue al siguiente para migrar; de
+  todas formas, sin consola en el plan gratuito de Render, este comando
+  solo se puede correr desde un entorno con shell (local, o un plan de
+  Render con acceso a ella) apuntando a la base de producción, nunca
+  automáticamente en cada arranque.
+
+  **Límites y riesgos conocidos**: tamaño máximo de archivo — ya lo
+  limita `DeliverableReferenceFile::MAX_FILE_SIZE_MB`/`EvidenceFile`
+  (10MB) desde antes de este cambio, sin relación con Neon. Neon Object
+  Storage es una funcionalidad relativamente nueva de la plataforma —
+  sin un historial largo de uso en producción fuera de este proyecto;
+  vale la pena revisar su estado/documentación oficial antes de
+  depender de él para datos verdaderamente críticos. Consistencia: al
+  ser compatible con S3, se asume consistencia de lectura-tras-escritura
+  "eventual" en el peor caso (igual que S3 estándar) — no debería
+  notarse en este proyecto (nunca se lee un archivo inmediatamente
+  después de escribirlo dentro de la misma request, salvo
+  `storage:check`, que sí lo hace y seguiría detectando un problema real
+  de todas formas).
 - **Limitación conocida, no cubierta por lo anterior**: `evidences:mark-overdue`
   depende del scheduler de Laravel (`Schedule::command(...)->dailyAt(...)`
   en `routes/console.php`, ver 5.7), que a su vez necesita `schedule:run`
