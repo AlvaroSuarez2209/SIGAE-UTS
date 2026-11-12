@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class TeacherImportWizardTest extends TestCase
@@ -431,6 +432,101 @@ class TeacherImportWizardTest extends TestCase
         $response = $component->call('downloadRejected');
 
         $response->assertFileDownloaded();
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 14: "procesar un lote mixto (filas
+     * válidas, inválidas y repetidas) y comparar el resumen en pantalla,
+     * el evento de auditoría y el reporte de rechazados (Excel): mismos
+     * conteos, motivos claros por fila y mismo orden". Reproducción con
+     * las 4 categorías en el mismo archivo: una fila válida nueva, una
+     * fila idéntica a un docente ya existente (omitida, no "actualizada"
+     * — punto 12), dos filas con el mismo documento (repetidas dentro
+     * del archivo) y una con correo inválido.
+     */
+    public function test_a_mixed_batch_reports_the_same_counts_and_order_on_screen_in_the_audit_log_and_in_the_rejected_excel(): void
+    {
+        Notification::fake();
+
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $programUnit = ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        $existing = User::factory()->create([
+            'name' => 'Docente Existente',
+            'document_number' => '999',
+            'document_type' => 'CC',
+            'email' => 'existente@uts.edu.co',
+            'program_unit_id' => $programUnit->id,
+            'is_active' => true,
+        ]);
+        $existing->roles()->attach(Role::where('name', RoleName::Teacher->value)->first());
+
+        $file = $this->csv([
+            // Fila 2: válida, nueva -> created.
+            ['CC', '1', 'Docente Nuevo', 'nuevo@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+            // Fila 3: idéntica al docente ya existente -> skip (punto 12).
+            ['CC', '999', 'Docente Existente', 'existente@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+            // Filas 4 y 5: mismo documento entre sí -> ambas rejected.
+            ['CC', '2', 'Docente Repetido Uno', 'repetido.uno@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+            ['CC', '2', 'Docente Repetido Dos', 'repetido.dos@uts.edu.co', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+            // Fila 6: correo inválido -> rejected.
+            ['CC', '3', 'Docente Correo Malo', 'esto-no-es-un-correo', 'Ingeniería de Sistemas', 'Docente', 'Activo'],
+        ]);
+
+        $component = Livewire::actingAs($coordination)
+            ->test(TeacherImportWizard::class)
+            ->set('file', $file)
+            ->call('preview');
+
+        // Vista previa: cada fila resuelve a la acción esperada, en el
+        // mismo orden del archivo (filas 2 a 6).
+        $rows = $component->get('rows');
+        $this->assertSame([2, 3, 4, 5, 6], array_column($rows, 'row_number'));
+        $this->assertSame(['create', 'skip', 'reject', 'reject', 'reject'], array_column($rows, 'action'));
+
+        $component->call('confirm');
+
+        // Resumen en pantalla.
+        $component->assertSet('summary.created', 1)
+            ->assertSet('summary.updated', 0)
+            ->assertSet('summary.skipped', 1)
+            ->assertSet('summary.rejected', 3);
+
+        // Evento de auditoría: mismos conteos que el resumen en pantalla.
+        $log = AuditLog::where('action', 'teachers_bulk_imported')->latest('id')->first();
+        $this->assertNotNull($log);
+        $this->assertSame(5, $log->metadata['processed']);
+        $this->assertSame(1, $log->metadata['created']);
+        $this->assertSame(0, $log->metadata['updated']);
+        $this->assertSame(1, $log->metadata['skipped']);
+        $this->assertSame(3, $log->metadata['rejected']);
+
+        // Reporte de rechazados (Excel): mismas 3 filas, mismo orden
+        // (filas 4, 5 y 6 del archivo) y un motivo claro y específico por
+        // fila — nunca un mensaje genérico compartido entre todas.
+        $download = $component->call('downloadRejected');
+        $download->assertFileDownloaded('docentes-rechazados.xlsx');
+
+        $content = base64_decode(data_get($download->effects, 'download.content'));
+        $tmpPath = tempnam(sys_get_temp_dir(), 'rechazados').'.xlsx';
+        file_put_contents($tmpPath, $content);
+
+        $sheet = IOFactory::load($tmpPath)->getActiveSheet();
+        $exportedRows = $sheet->toArray(null, true, true, false);
+        unset($exportedRows[0]); // encabezados
+
+        $exportedRows = array_values($exportedRows);
+
+        $this->assertCount(3, $exportedRows);
+        // Columnas: fila, tipo_documento, numero_documento, nombre_completo,
+        // correo_institucional, codigo_programa, roles, estado,
+        // tipo_vinculacion, motivo_rechazo (índice 9).
+        $this->assertSame(['4', '5', '6'], array_column($exportedRows, 0));
+        $this->assertStringContainsString('duplicado dentro del archivo', $exportedRows[0][9]);
+        $this->assertStringContainsString('duplicado dentro del archivo', $exportedRows[1][9]);
+        $this->assertStringContainsString('correo electrónico válida', $exportedRows[2][9]);
+
+        unlink($tmpPath);
     }
 
     /**
