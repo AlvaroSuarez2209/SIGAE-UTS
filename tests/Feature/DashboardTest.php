@@ -6,6 +6,7 @@ use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
 use App\Livewire\Dashboard;
+use App\Livewire\Reports\ConsolidatedReport;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Deliverable;
@@ -951,6 +952,114 @@ class DashboardTest extends TestCase
 
         // Barra de cumplimiento por programa.
         $component->assertSee(route('reports.consolidated', [...$baseFilters, 'program' => $program->id]));
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 9: "los números de las tarjetas deben
+     * corresponder a los filtros activos, y los filtros deben conservarse
+     * al abrir el listado de destino desde una tarjeta". Reproducción real
+     * (no solo la URL del enlace, como los dos tests anteriores): combina
+     * filtro de docente + actividad en el panel, compara el conteo que
+     * muestra cada tarjeta (global, por estado, barra por programa) contra
+     * lo que calcula de verdad Consolidado al abrirse con esos mismos
+     * filtros — incluyendo un docente y una evidencia FUERA de ambos
+     * filtros, que no debe contarse en ningún lado.
+     *
+     * Ya corregido por el commit 0b9f864 ("Corrige tres bugs del panel de
+     * Coordinación y sus filtros"); este test fija ese comportamiento como
+     * prueba de regresión.
+     */
+    public function test_coordination_card_counts_match_the_destination_report_when_following_the_link(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $program = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $teacher->update(['program_unit_id' => $program->id]);
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $program->id,
+        ]);
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+        ]);
+        $deliverable->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Approved]);
+
+        $secondDeliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+        ]);
+        $secondDeliverable->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $secondDeliverable->id, 'status' => EvidenceStatus::Pending]);
+
+        // Fuera de ambos filtros: otra actividad del MISMO docente (no
+        // debe contarse al filtrar por $activity) y otro docente de otra
+        // actividad (no debe contarse al filtrar por $teacher).
+        $otherActivity = Activity::factory()->create();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $otherActivity->id,
+            'program_unit_id' => $program->id,
+        ]);
+        $otherDeliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $otherActivity->id,
+            'is_mandatory' => true,
+        ]);
+        $otherDeliverable->recipients()->attach($teacher->id);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $otherDeliverable->id, 'status' => EvidenceStatus::Approved]);
+
+        $otherTeacher = $this->userWithRole(RoleName::Teacher);
+        TeacherAssignment::factory()->create([
+            'user_id' => $otherTeacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $program->id,
+        ]);
+        $otherDeliverable2 = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+        ]);
+        $otherDeliverable2->recipients()->attach($otherTeacher->id);
+        Evidence::factory()->create(['user_id' => $otherTeacher->id, 'deliverable_id' => $otherDeliverable2->id, 'status' => EvidenceStatus::Approved]);
+
+        $dashboard = Livewire::actingAs($admin)->test(Dashboard::class)
+            ->set('periodFilter', $period->id)
+            ->set('teacherFilter', $teacher->id)
+            ->set('activityFilter', $activity->id);
+
+        $panel = $dashboard->viewData('coordinationPanel');
+        $cardCountApproved = $panel['counts'][EvidenceStatus::Approved->value];
+        $cardCountPending = $panel['counts'][EvidenceStatus::Pending->value];
+
+        // Las tarjetas no cuentan nada de $otherActivity ni de $otherTeacher.
+        $this->assertSame(1, $cardCountApproved);
+        $this->assertSame(1, $cardCountPending);
+
+        // Sigue el enlace real de la tarjeta "Aprobado" con los mismos
+        // filtros (periodo + docente + actividad) hacia Consolidado, y
+        // compara contra lo que ese reporte calcula de forma independiente.
+        $report = Livewire::actingAs($admin)->test(ConsolidatedReport::class, [
+            'periodFilter' => $period->id,
+            'teacherFilter' => $teacher->id,
+            'activityFilter' => $activity->id,
+            'statusFilter' => EvidenceStatus::Approved->value,
+        ])->viewData('report');
+
+        $approvedStatusRow = collect($report['sections'][1]['rows'])->firstWhere(0, EvidenceStatus::Approved->label());
+        $this->assertSame($cardCountApproved, $approvedStatusRow[1]);
+        $this->assertCount(1, $report['sections'][0]['rows']);
     }
 
     /**
