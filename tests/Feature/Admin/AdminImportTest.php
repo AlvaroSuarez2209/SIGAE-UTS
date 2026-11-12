@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\RoleName;
+use App\Exports\AdminImportTemplateDataSheet;
 use App\Livewire\Admin\Users\AdminImportWizard;
 use App\Models\AuditLog;
 use App\Models\ProgramUnit;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 /**
@@ -212,6 +214,32 @@ class AdminImportTest extends TestCase
         $this->assertStringContainsString('no existe en los programas académicos registrados', $rows[0]['errors'][0]);
     }
 
+    /**
+     * Cuadro de seguimiento, punto 13: mismo fix que
+     * TeacherImportServiceTest::test_inactive_program_code_is_rejected_the_same_way_as_an_unknown_one() —
+     * un programa inactivo no debe poder asignarse desde esta
+     * importación, igual que ProgramUnit::active() (HasActiveScope) en
+     * el resto del sistema.
+     */
+    public function test_a_row_with_an_inactive_program_is_rejected_the_same_way_as_a_nonexistent_one(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería Agroindustrial', 'is_active' => false]);
+
+        $file = $this->csv([
+            ['CC', '1', 'Programa Inactivo', 'programainactivo@sigae.local', 'Ingeniería Agroindustrial', 'Coordinación', 'Activo'],
+        ]);
+
+        $rows = Livewire::actingAs($admin)
+            ->test(AdminImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->get('rows');
+
+        $this->assertSame('reject', $rows[0]['action']);
+        $this->assertStringContainsString('no existe en los programas académicos registrados', $rows[0]['errors'][0]);
+    }
+
     public function test_the_downloaded_template_includes_the_document_and_program_columns(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
@@ -221,14 +249,14 @@ class AdminImportTest extends TestCase
         $tmpPath = tempnam(sys_get_temp_dir(), 'plantilla').'.xlsx';
         file_put_contents($tmpPath, $response->streamedContent());
 
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($tmpPath);
+        $spreadsheet = IOFactory::load($tmpPath);
         $sheet = $spreadsheet->getSheetByName('Plantilla');
 
         $this->assertSame('tipo_documento', $sheet->getCell('A1')->getValue());
         $this->assertSame('numero_documento', $sheet->getCell('B1')->getValue());
         $this->assertSame('codigo_programa', $sheet->getCell('E1')->getValue());
         $this->assertSame(
-            \App\Exports\AdminImportTemplateDataSheet::EXAMPLE_PROGRAM_PLACEHOLDER,
+            AdminImportTemplateDataSheet::EXAMPLE_PROGRAM_PLACEHOLDER,
             $sheet->getCell('E2')->getValue()
         );
 

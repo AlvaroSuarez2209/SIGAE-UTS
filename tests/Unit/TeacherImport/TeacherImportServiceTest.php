@@ -108,6 +108,24 @@ class TeacherImportServiceTest extends TestCase
         $this->assertSame('reject', $result[0]['action']);
     }
 
+    /**
+     * Cuadro de seguimiento, punto 13: "verifica que los códigos de
+     * programa salgan del catálogo real y solo de los programas
+     * activos". Antes, codigo_programa se comparaba contra TODOS los
+     * programas (ProgramUnit::query() sin scope), así que uno inactivo
+     * se aceptaba igual, al contrario de ProgramUnit::active() (HasActiveScope)
+     * que ya usa el resto del sistema (Dashboard, Consolidado, UserForm).
+     */
+    public function test_inactive_program_code_is_rejected_the_same_way_as_an_unknown_one(): void
+    {
+        ProgramUnit::factory()->create(['name' => 'Ingeniería Agroindustrial', 'is_active' => false]);
+
+        $result = $this->validate([$this->row(['codigo_programa' => 'Ingeniería Agroindustrial'])]);
+
+        $this->assertTrue(collect($result[0]['errors'])->contains(fn ($e) => str_contains($e, 'no existe en los programas académicos')));
+        $this->assertSame('reject', $result[0]['action']);
+    }
+
     public function test_program_code_matches_regardless_of_case_or_accents(): void
     {
         ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);

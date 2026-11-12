@@ -62,7 +62,11 @@ class AdminImportService
         $documentCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['numero_documento']));
         $emailCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['correo_institucional']));
 
-        $programUnits = ProgramUnit::query()->pluck('name', 'id');
+        // Cuadro de seguimiento, punto 13: mismo fix que
+        // TeacherImportService::validateRows() — un programa inactivo no
+        // debe poder asignarse desde esta importación, igual que
+        // ProgramUnit::active() (HasActiveScope) en el resto del sistema.
+        $programUnits = ProgramUnit::query()->where('is_active', true)->pluck('name', 'id');
         $roleLabels = Role::query()->pluck('label', 'name');
 
         return $normalizedRows

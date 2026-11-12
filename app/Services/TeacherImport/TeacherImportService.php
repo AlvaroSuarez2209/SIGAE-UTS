@@ -91,7 +91,15 @@ class TeacherImportService
         $documentCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['numero_documento']));
         $emailCounts = $normalizedRows->countBy(fn ($row) => $this->normalizeExact($row['correo_institucional']));
 
-        $programUnits = ProgramUnit::query()->pluck('name', 'id');
+        // Cuadro de seguimiento, punto 13: igual que ProgramUnit::active()
+        // (HasActiveScope) en todos los demás selectores/listados/reportes
+        // del sistema — un programa inactivo no debe poder asignarse desde
+        // esta importación, aunque su nombre coincida exacto. Antes se
+        // comparaba contra TODOS los programas (query() sin scope), así que
+        // un codigo_programa que coincidiera con uno inactivo se aceptaba
+        // igual, al contrario del formulario de un solo usuario
+        // (UserForm, que ya solo ofrece los activos).
+        $programUnits = ProgramUnit::query()->where('is_active', true)->pluck('name', 'id');
         $roleLabels = Role::query()->pluck('label', 'name');
 
         return $normalizedRows
