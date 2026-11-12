@@ -245,9 +245,18 @@ class DeliverableForm extends Component
         $this->resetErrorBag('recipient_ids');
     }
 
+    /**
+     * Cuadro de seguimiento, punto 10: "que el docente seleccionado no se
+     * pierda al cambiar el periodo o la actividad en el formulario".
+     * Antes, cambiar de actividad vaciaba recipient_ids por completo,
+     * incluso si el docente ya seleccionado seguía siendo un candidato
+     * válido en la nueva actividad (ej. un docente asignado a dos
+     * actividades del mismo periodo). Ahora solo se quitan los ids que
+     * de verdad dejan de ser candidatos (ver pruneRecipientIdsToCandidates()).
+     */
     public function updatedActivityId(): void
     {
-        $this->recipient_ids = [];
+        $this->recipient_ids = $this->pruneRecipientIdsToCandidates();
         $this->resetErrorBag('recipient_ids');
         $this->is_mandatory = $this->defaultIsMandatory();
     }
@@ -267,9 +276,32 @@ class DeliverableForm extends Component
         return true;
     }
 
+    /**
+     * Mismo bug del diagnóstico anterior (ver updatedActivityId()), visto
+     * al revés: cambiar de PERIODO nunca tocaba recipient_ids, dejando
+     * ids de docentes que ya no son candidatos (sin TeacherAssignment en
+     * el periodo nuevo) seleccionados de forma invisible — su checkbox ya
+     * no aparece en la lista, que se filtra por candidateTeachers(), así
+     * que si el usuario no volvía al paso 5 a notarlo, save()/saveAsDraft()
+     * los guardaba igual como destinatarios inválidos para ese ámbito.
+     */
     public function updatedAcademicPeriodId(): void
     {
+        $this->recipient_ids = $this->pruneRecipientIdsToCandidates();
         $this->resetErrorBag('recipient_ids');
+    }
+
+    /**
+     * Quita de recipient_ids solo los que de verdad dejaron de ser
+     * candidatos para el ámbito (actividad + periodo, o transversal)
+     * actual — nunca un vaciado completo, para no perder una selección
+     * que sigue siendo válida tras el cambio.
+     */
+    private function pruneRecipientIdsToCandidates(): array
+    {
+        $candidateIds = $this->candidateTeachers()->pluck('id')->all();
+
+        return array_values(array_intersect($this->recipient_ids, $candidateIds));
     }
 
     /**

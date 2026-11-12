@@ -771,6 +771,142 @@ class DeliverableTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 10: "que el docente seleccionado no se
+     * pierda al cambiar el periodo o la actividad en el formulario".
+     * Causa exacta: updatedActivityId() vaciaba recipient_ids por
+     * completo ante CUALQUIER cambio de actividad, incluso cuando el
+     * docente ya seleccionado seguía siendo un candidato válido en la
+     * actividad nueva (ej. un docente asignado a dos actividades del
+     * mismo periodo) — se perdía la selección sin ninguna razón real.
+     */
+    public function test_changing_the_activity_keeps_a_selected_teacher_who_is_still_a_valid_candidate(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activityA = Activity::factory()->create();
+        $activityB = Activity::factory()->create();
+        $teacher = $this->teacher();
+        foreach ([$activityA, $activityB] as $activity) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activityA->id)
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id]);
+
+        $component->set('activity_id', $activityB->id)
+            ->assertSet('recipient_ids', [$teacher->id]);
+    }
+
+    /**
+     * Mismo punto 10, el otro lado del mismo bug: un docente que SÍ deja
+     * de ser candidato al cambiar de actividad (sin asignación en la
+     * nueva) debe quitarse de recipient_ids — nunca quedar seleccionado
+     * de forma inválida e invisible (su checkbox ya no se renderiza,
+     * filtrado por candidateTeachers()).
+     */
+    public function test_changing_the_activity_drops_a_selected_teacher_who_is_no_longer_a_candidate(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activityA = Activity::factory()->create();
+        $activityB = Activity::factory()->create();
+        $teacher = $this->teacher();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activityA->id,
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activityA->id)
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id]);
+
+        // $teacher no tiene asignación en $activityB.
+        $component->set('activity_id', $activityB->id)
+            ->assertSet('recipient_ids', []);
+    }
+
+    /**
+     * Punto 10, visto al revés de los dos tests anteriores: cambiar de
+     * PERIODO nunca tocaba recipient_ids en absoluto. Un docente sin
+     * TeacherAssignment en el periodo nuevo quedaba seleccionado de forma
+     * inválida e invisible; si el usuario no volvía al paso 5 a notarlo,
+     * save()/saveAsDraft() lo guardaba igual como destinatario de un
+     * ámbito al que nunca perteneció.
+     */
+    public function test_changing_the_period_drops_a_selected_teacher_who_is_no_longer_assigned_there(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $periodA = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $periodB = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Planning]);
+        $activity = Activity::factory()->create();
+        $teacher = $this->teacher();
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $periodA->id,
+            'activity_id' => $activity->id,
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $periodA->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id]);
+
+        // $teacher no tiene asignación en $periodB para esta misma actividad.
+        $component->set('academic_period_id', $periodB->id)
+            ->assertSet('recipient_ids', []);
+    }
+
+    /**
+     * Punto 10, caso simétrico que faltaba en la cobertura: si el docente
+     * SÍ sigue asignado en el periodo nuevo, la selección debe
+     * conservarse — nunca un vaciado incondicional por el simple hecho de
+     * cambiar el periodo.
+     */
+    public function test_changing_the_period_keeps_a_selected_teacher_who_is_still_assigned_there(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $periodA = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $periodB = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Planning]);
+        $activity = Activity::factory()->create();
+        $teacher = $this->teacher();
+        foreach ([$periodA, $periodB] as $period) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        $component = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $periodA->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set('recipient_mode', 'subset')
+            ->set('recipient_ids', [$teacher->id]);
+
+        $component->set('academic_period_id', $periodB->id)
+            ->assertSet('recipient_ids', [$teacher->id]);
+    }
+
+    /**
      * Reabrir un borrador y cambiar la selección (quitar un docente,
      * agregar otro) debe reemplazarla, no sumarse a la anterior —
      * recipients()->sync(), no attach().
@@ -1198,7 +1334,7 @@ class DeliverableTest extends TestCase
             'weight_percentage' => 50,
         ]);
         $templateFile = $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
+            UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
@@ -1246,7 +1382,7 @@ class DeliverableTest extends TestCase
             'reference_url' => 'https://uts.edu.co/referencia.pdf',
         ]);
         $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
+            UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
@@ -1286,7 +1422,7 @@ class DeliverableTest extends TestCase
             'reference_url' => 'https://uts.edu.co/referencia.pdf',
         ]);
         $templateFile = $template->attachReferenceFile(
-            \Illuminate\Http\UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
+            UploadedFile::fake()->create('referencia.pdf', 100, 'application/pdf'),
             $admin
         );
 
