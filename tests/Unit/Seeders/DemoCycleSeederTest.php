@@ -6,6 +6,7 @@ use App\Enums\AcademicPeriodStatus;
 use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
 use App\Livewire\Evidence\EvidenceWorkspace;
+use App\Livewire\Reviews\ReviewInbox;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Component;
@@ -16,6 +17,7 @@ use App\Models\Leadership;
 use App\Models\ProgramUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ComplianceCalculator;
 use Database\Seeders\DemoCycleSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,8 +103,14 @@ class DemoCycleSeederTest extends TestCase
 
         $returned = Evidence::where('user_id', $teacher->id)
             ->whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Devuelto, listo para reenviar'))->first();
-        $this->assertEquals(EvidenceStatus::Draft, $returned->status); // segunda versión, en edición
-        $this->assertCount(2, $returned->versions);
+        // Punto 4: a propósito SIN una segunda versión todavía — el
+        // seeder deja current_version_id apuntando a la versión 1 ya
+        // enviada, el punto de partida real para probar manualmente
+        // "reabrir, reemplazar el archivo y reenviar" (ver el docblock
+        // de este bloque en DemoCycleSeeder).
+        $this->assertEquals(EvidenceStatus::NeedsAdjustment, $returned->status);
+        $this->assertCount(1, $returned->versions);
+        $this->assertCount(1, $returned->currentVersion->files);
         $this->assertCount(1, $returned->reviews);
         $this->assertEquals('returned', $returned->reviews->first()->decision->value);
         $this->assertNotEmpty($returned->reviews->first()->observations);
@@ -179,9 +187,11 @@ class DemoCycleSeederTest extends TestCase
         // periodo "[DEMO] Periodo cerrado" (punto 7b, misma actividad).
         $this->assertCount(3, Leadership::where('activity_id', Activity::where('name', '[DEMO] Ciclo de demostración')->first()->id)->get());
 
-        // La versión devuelta no debe duplicar su historial al reintentar.
+        // La versión devuelta no debe duplicar su historial al reintentar
+        // — sigue en 1 sola versión (nunca crea el borrador por su cuenta,
+        // ver el docblock en DemoCycleSeeder).
         $returned = Evidence::whereHas('deliverable', fn ($q) => $q->where('name', '[DEMO] Devuelto, listo para reenviar'))->first();
-        $this->assertCount(2, $returned->versions);
+        $this->assertCount(1, $returned->versions);
         $this->assertCount(1, $returned->reviews);
     }
 
@@ -318,7 +328,7 @@ class DemoCycleSeederTest extends TestCase
         $coordination->roles()->attach(Role::where('name', RoleName::Coordination->value)->first());
 
         $pendingNames = Livewire::actingAs($coordination)
-            ->test(\App\Livewire\Reviews\ReviewInbox::class)
+            ->test(ReviewInbox::class)
             ->viewData('pending')
             ->map(fn (Evidence $e) => $e->deliverable->name);
 
@@ -479,7 +489,7 @@ class DemoCycleSeederTest extends TestCase
         $this->assertEquals(EvidenceStatus::Approved, Evidence::where('deliverable_id', $unweighted->id)->first()->status);
 
         $deliverablesInScope = Deliverable::where('activity_id', $activity->id)->get();
-        $result = \App\Services\ComplianceCalculator::forUser($teacher, $deliverablesInScope);
+        $result = ComplianceCalculator::forUser($teacher, $deliverablesInScope);
         $this->assertEquals(66.7, $result['percentage']);
         $this->assertEquals(2, $result['approved']);
         $this->assertEquals(3, $result['total']);

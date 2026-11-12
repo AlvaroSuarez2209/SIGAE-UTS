@@ -133,13 +133,24 @@ class DemoCycleSeeder extends Seeder
         }
 
         // c) devuelto por el líder, con observación ligada a esa versión,
-        // listo para reenviar (segunda versión en edición, sin enviar).
-        // closes_at ya pasó a propósito (hace 7 días) — demuestra que una
-        // devolución se puede corregir y reenviar fuera de plazo (ver
-        // EvidenceWorkspace::submit(), excepción explícita para
-        // reenvíos tras Review::Returned). due_at también en el pasado,
-        // antes del cierre, para que las dos fechas queden coherentes
-        // entre sí (closes_at nunca antes de due_at).
+        // y DEJADA SIN ABRIR EL NUEVO BORRADOR a propósito (punto 4 del
+        // cuadro de seguimiento) — el caso real que hay que poder
+        // reproducir es "recién devuelta, current_version_id todavía
+        // apunta a la versión 1 ya enviada" (nadie llamó
+        // startOrGetDraftVersion() todavía); si este seeder lo adelantara
+        // (como hacía antes, con una llamada extra al final), la
+        // evidencia quedaría en Draft con la versión 2 ya creada y nunca
+        // se podría probar manualmente el punto de partida real: abrir
+        // esta evidencia como el docente, adjuntar el reemplazo y
+        // reenviar. closes_at ya pasó a propósito (hace 7 días) —
+        // demuestra que una devolución se puede corregir y reenviar fuera
+        // de plazo (ver EvidenceWorkspace::submit(), excepción explícita
+        // para reenvíos tras Review::Returned). due_at también en el
+        // pasado, antes del cierre, para que las dos fechas queden
+        // coherentes entre sí (closes_at nunca antes de due_at). Guarda
+        // de idempotencia por status (igual que el resto del archivo),
+        // no por conteo de versiones: tras este bloque la evidencia
+        // pasa de Pendiente a Devuelta sin crear una segunda versión.
         $returnedDeliverable = $this->demoDeliverable($period, $activity, 'Devuelto, listo para reenviar', [
             'is_mandatory' => true,
             'weight_percentage' => 25,
@@ -148,12 +159,11 @@ class DemoCycleSeeder extends Seeder
             'closes_at' => now()->subDays(7),
         ]);
         $returnedEvidence = $this->ensureEvidence($returnedDeliverable, $teacher);
-        if ($returnedEvidence->versions()->count() < 2) {
+        if ($returnedEvidence->status === EvidenceStatus::Pending) {
             $v1 = $returnedEvidence->startOrGetDraftVersion($teacher);
             $this->attachDemoFile($v1, 'version-1-ejemplo.pdf');
             $returnedEvidence->submitCurrentVersion();
             $returnedEvidence->returnCurrentReviewForAdjustment($leader, '[DEMO] Ajusta el documento y vuelve a enviarlo.');
-            $returnedEvidence->startOrGetDraftVersion($teacher);
         }
 
         // d) vencido: due_at y closes_at en el pasado, pero la evidencia
