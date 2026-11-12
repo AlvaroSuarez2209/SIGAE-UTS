@@ -62,15 +62,25 @@
 
         @if (in_array('file', $allowed))
             @php
-                $currentFiles = $evidence->currentVersion?->files ?? collect();
-                // Cuenta contra la versión EN EDICIÓN (draftVersionOrNull()),
-                // no contra currentVersion directamente: tras una
+                // draftVersionOrNull(), no currentVersion a secas: tras una
                 // reapertura, currentVersion sigue siendo la versión YA
-                // aprobada hasta la primera edición real, así que sus
-                // archivos no deben bloquear la caja de carga de un
-                // reemplazo (ver Evidence::draftVersionOrNull() y el mismo
-                // criterio en EvidenceWorkspace::saveDraft()).
-                $draftFileCount = $evidence->draftVersionOrNull()?->files->count() ?? 0;
+                // enviada/revisada hasta la primera edición real. Mostrar
+                // esos archivos aquí con "Quitar" habilitado (como pasaba
+                // antes, basado solo en el estado) permitía borrar una fila
+                // — y, si nadie más comparte su disk_path, el archivo
+                // físico — de una versión histórica ya aprobada/devuelta,
+                // rompiendo "Historial de versiones" (punto 4 del cuadro de
+                // seguimiento). $currentFiles ahora son SIEMPRE los del
+                // borrador en edición, nunca los de una versión ya enviada
+                // — antes de la primera edición real, esta sección arranca
+                // vacía (el archivo anterior sigue visible, solo de lectura,
+                // en "Historial de versiones" más abajo) y el cupo
+                // ($draftFileCount) nunca lo cuenta un archivo ajeno al
+                // borrador — ver Evidence::draftVersionOrNull() y el mismo
+                // criterio en EvidenceWorkspace::saveDraft()/removeFile().
+                $draftVersion = $evidence->draftVersionOrNull();
+                $currentFiles = $draftVersion?->files ?? collect();
+                $draftFileCount = $currentFiles->count();
             @endphp
             <div>
                 <label class="field-label">
@@ -323,7 +333,20 @@
         </div>
     @endif
 
-    @if ($evidence->versions->count() > 1)
+    {{--
+        Punto 4 del cuadro de seguimiento: antes exigía más de una
+        versión para aparecer — pero justo tras una devolución/reapertura
+        (antes de la primera edición real) solo existe UNA versión, la ya
+        enviada y revisada, y la sección de "Archivos" de arriba ya no la
+        muestra (ver $currentFiles, ahora solo el borrador en edición).
+        Sin este cambio, esa única versión enviada quedaba sin ningún
+        lugar visible en la pantalla — rompiendo "conservando
+        antecedentes". El criterio real es "¿hay alguna versión YA
+        enviada?" (submitted_at no nulo), no "¿hay más de una?": con un
+        solo borrador nunca enviado (primera carga, nunca tocada) sigue
+        sin mostrarse nada aquí, para no duplicar lo que ya se ve arriba.
+    --}}
+    @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
         <div class="mt-6">
             <h2 class="form-section-title mb-2">Historial de versiones</h2>
             <ul class="space-y-2 text-base text-text-secondary">

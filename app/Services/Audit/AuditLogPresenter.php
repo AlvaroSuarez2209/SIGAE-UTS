@@ -52,6 +52,7 @@ class AuditLogPresenter
         'evidence_exemption_removed' => 'Exención removida',
         'deliverable_reference_file_attached' => 'Archivo de referencia adjuntado',
         'deliverable_reference_file_removed' => 'Archivo de referencia quitado',
+        'evidence_file_removed' => 'Archivo de evidencia quitado',
         'teachers_bulk_imported' => 'Importación masiva de docentes',
         'admins_bulk_imported' => 'Importación masiva de administradores/coordinadores',
         'catalog_item_deleted' => 'Eliminación',
@@ -272,7 +273,7 @@ class AuditLogPresenter
             return self::describeExemption($log);
         }
 
-        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed'], true)) {
+        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed', 'evidence_file_removed'], true)) {
             return self::describeReferenceFileAction($log);
         }
 
@@ -437,7 +438,7 @@ class AuditLogPresenter
             return $justification ? [['label' => 'Motivo', 'after' => $justification, 'before' => null]] : [];
         }
 
-        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed'], true)) {
+        if (in_array($log->action, ['deliverable_reference_file_attached', 'deliverable_reference_file_removed', 'evidence_file_removed'], true)) {
             $fileName = $log->metadata['file_name'] ?? null;
 
             return $fileName ? [['label' => 'Archivo', 'after' => $fileName, 'before' => null]] : [];

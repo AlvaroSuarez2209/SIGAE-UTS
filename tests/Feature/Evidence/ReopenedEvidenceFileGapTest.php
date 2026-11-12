@@ -30,11 +30,11 @@ use Tests\TestCase;
  * ajustes. Como Administrador vio el archivo como "no disponible",
  * ocupando el máximo permitido, sin ninguna forma de retirarlo.
  *
- * Causa exacta, ya corregida:
+ * Causa exacta:
  * - ReviewShow::reopen() solo cambia el status a NeedsAdjustment; NUNCA
  *   toca current_version_id. La versión aprobada (con su archivo)
  *   sigue siendo la "actual" hasta que el docente haga su primera
- *   edición real — esto NO cambió (es información correcta, no el
+ *   edición real — esto nunca cambió (es información correcta, no el
  *   bug) y sigue probado en el primer test de esta clase.
  * - CORREGIDO: EvidenceWorkspace::saveDraft() contaba los archivos
  *   existentes contra currentVersion directamente, que tras una
@@ -42,10 +42,21 @@ use Tests\TestCase;
  *   contra Evidence::draftVersionOrNull() (null si currentVersion ya
  *   se envió) — así el límite aplica contra la versión en edición que
  *   startOrGetDraftVersion() crearía, no contra la vieja.
- * - CORREGIDO: evidence-workspace.blade.php ahora renderiza "Quitar"
- *   también cuando el archivo está "no disponible" (prop `available`
- *   de <x-evidence-file-row>) — retirar la fila libera el cupo aunque
- *   no haya nada que borrar en disco.
+ * - Punto 4 del cuadro de seguimiento (vuelta a revisar este mismo
+ *   diagnóstico): la solución anterior había ido demasiado lejos —
+ *   mostraba "Quitar" en el archivo "no disponible" de la versión YA
+ *   APROBADA y dejaba que removeFile() lo borrara de ahí mismo,
+ *   corrompiendo el historial ("Historial de versiones" perdía ese
+ *   archivo para siempre). CORREGIDO otra vez, de la forma correcta:
+ *   $currentFiles en la vista y removeFile() ahora solo reconocen
+ *   archivos de Evidence::draftVersionOrNull() — nunca de una versión
+ *   ya enviada. El archivo de la versión aprobada sigue totalmente
+ *   visible (de solo lectura) en "Historial de versiones", que ahora
+ *   aparece con solo una versión si esa versión ya se envió (antes
+ *   exigía más de una). El cupo nunca necesitó "liberarse" quitando el
+ *   archivo viejo: el nuevo borrador siempre arranca vacío, así que un
+ *   solo archivo de reemplazo ya cabe en max_files=1 sin tocar nada de
+ *   la versión anterior.
  */
 class ReopenedEvidenceFileGapTest extends TestCase
 {
@@ -173,12 +184,16 @@ class ReopenedEvidenceFileGapTest extends TestCase
     }
 
     /**
-     * (c) CORREGIDO: <x-evidence-file-row> ahora muestra "Quitar" también
-     * cuando el archivo está "no disponible" (prop `available`), y
-     * removeFile() lo acepta — no hay nada que borrar en disco
-     * (existsOnDisk() ya es false), así que solo se borra la fila.
+     * Punto 4 del cuadro de seguimiento: el archivo "no disponible" de
+     * la versión YA APROBADA se ve (de solo lectura, en "Historial de
+     * versiones") pero nunca lleva "Quitar" — ni la vista lo ofrece ni
+     * removeFile() lo acepta si se llama directo con su id (defensa en
+     * profundidad, nunca confiar solo en que la vista no muestre el
+     * botón). Nada de esto le hace falta al docente de todas formas: el
+     * siguiente test confirma que puede adjuntar el reemplazo
+     * directamente, sin tener que "liberar" primero el archivo viejo.
      */
-    public function test_remove_control_is_now_rendered_and_works_for_a_file_marked_as_unavailable(): void
+    public function test_the_old_approved_file_is_visible_read_only_in_history_and_remove_file_refuses_to_touch_it(): void
     {
         [$evidence, $teacher, $admin, , $originalFile] = $this->approvedEvidenceWithOneFile();
 
@@ -191,14 +206,19 @@ class ReopenedEvidenceFileGapTest extends TestCase
 
         $workspace = Livewire::actingAs($teacher)->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()]);
 
-        $workspace->assertSee('Archivo no disponible')->assertSee('Quitar');
+        $workspace->assertSee('Historial de versiones')
+            ->assertSee('Archivo no disponible')
+            ->assertDontSee('Quitar');
 
         $workspace->call('removeFile', $originalFile->id);
 
-        $this->assertDatabaseMissing('evidence_files', ['id' => $originalFile->id]);
+        // No era del borrador (no existe ninguno todavía) — removeFile()
+        // no hizo nada: la fila de la versión aprobada sigue intacta.
+        $this->assertDatabaseHas('evidence_files', ['id' => $originalFile->id]);
+        $this->assertDatabaseHas('evidence_versions', ['id' => $originalFile->evidence_version_id]);
 
-        // Administrador sigue sin poder hacerlo — removeFile() exige la
-        // policy 'update', exclusiva del propio docente.
+        // Administrador sigue sin poder intentarlo siquiera — removeFile()
+        // exige la policy 'update', exclusiva del propio docente.
         $this->assertFalse($admin->can('update', $evidence));
         $this->assertTrue($teacher->can('update', $evidence));
     }

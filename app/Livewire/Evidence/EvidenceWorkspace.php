@@ -5,6 +5,7 @@ namespace App\Livewire\Evidence;
 use App\Enums\EvidenceType;
 use App\Enums\ReviewDecision;
 use App\Enums\RoleName;
+use App\Models\AuditLog;
 use App\Models\Evidence;
 use App\Models\EvidenceFile;
 use Illuminate\Support\Facades\Gate;
@@ -259,11 +260,26 @@ class EvidenceWorkspace extends Component
         $this->evidence->refresh();
     }
 
+    /**
+     * Punto 4 del cuadro de seguimiento: nunca toca un archivo que no
+     * sea del borrador EN EDICIÓN — comprobado contra
+     * draftVersionOrNull(), no contra current_version_id a secas. Tras
+     * una devolución/reapertura, current_version_id sigue apuntando a
+     * la versión YA enviada y revisada hasta la primera edición real
+     * (ver Evidence::draftVersionOrNull()); sin este chequeo extra,
+     * "Quitar" podía borrar una fila (y, si nadie más comparte su
+     * disk_path, el archivo físico) de una versión histórica ya
+     * aprobada/devuelta, rompiendo "Historial de versiones" — el bug
+     * real detrás de este punto, no el límite de archivos por versión
+     * (ese ya contaba correctamente contra el borrador desde antes).
+     */
     public function removeFile(EvidenceFile $file): void
     {
         Gate::authorize('update', $this->evidence);
 
-        if (! $this->evidence->status->isEditable() || $file->evidence_version_id !== $this->evidence->current_version_id) {
+        $draft = $this->evidence->draftVersionOrNull();
+
+        if (! $this->evidence->status->isEditable() || ! $draft || $file->evidence_version_id !== $draft->id) {
             return;
         }
 
@@ -276,7 +292,16 @@ class EvidenceWorkspace extends Component
             $file->disk()->delete($file->disk_path);
         }
 
+        $fileName = $file->original_name;
+        $versionId = $file->evidence_version_id;
+
         $file->delete();
+
+        AuditLog::record('evidence_file_removed', $this->evidence, [
+            'version_id' => $versionId,
+            'file_name' => $fileName,
+        ]);
+
         $this->evidence->refresh();
     }
 
