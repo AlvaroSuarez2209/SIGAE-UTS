@@ -541,6 +541,63 @@ class EvidenceWorkspaceTest extends TestCase
         Storage::disk('local')->assertExists($evidenceFile->disk_path);
     }
 
+    public function test_removing_a_link_deletes_it(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Link->value]]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com/a')
+            ->call('addLink');
+
+        $link = $evidence->fresh()->currentVersion->links->first();
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->call('removeLink', $link->id);
+
+        $this->assertDatabaseMissing('evidence_links', ['id' => $link->id]);
+    }
+
+    /**
+     * Mismo bug que removeFile() (punto 4): tras una devolución,
+     * current_version_id sigue apuntando a la versión 1 — YA enviada y
+     * con su enlace ya revisado — hasta la primera edición real. Antes de
+     * este fix, removeLink() buscaba el enlace en currentVersion
+     * directamente y lo borraba aunque la evidencia estuviera "reabierta"
+     * sin ninguna edición todavía, dañando el historial de versiones.
+     */
+    public function test_removing_a_link_right_after_a_return_never_touches_the_already_submitted_versions_link(): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Link->value]]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com/v1')
+            ->call('addLink')
+            ->call('submit');
+
+        $evidence->refresh();
+        $firstVersion = $evidence->versions()->where('version_number', 1)->first();
+        $firstLink = $firstVersion->links->first();
+
+        // El líder devuelve la evidencia (lo hará el módulo 7; aquí solo se
+        // simula el efecto sobre el estado) — current_version_id sigue
+        // apuntando a la versión 1 porque el docente todavía no hizo
+        // ninguna edición real tras la reapertura.
+        $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+        $this->assertEquals($firstVersion->id, $evidence->fresh()->current_version_id);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->call('removeLink', $firstLink->id);
+
+        // El enlace de la versión 1 sigue intacto: el historial de
+        // versiones no se corrompió.
+        $this->assertDatabaseHas('evidence_links', ['id' => $firstLink->id]);
+        $this->assertEquals('https://example.com/v1', $firstVersion->fresh()->links->first()->url);
+    }
+
     public function test_owner_can_view_their_own_evidence(): void
     {
         $evidence = $this->evidenceFor();

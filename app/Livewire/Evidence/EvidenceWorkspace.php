@@ -333,11 +333,20 @@ class EvidenceWorkspace extends Component
         return EvidenceFile::formatReadableSize($bytes);
     }
 
+    /**
+     * Mismo bug que removeFile() (punto 4): buscaba el enlace en
+     * currentVersion directamente, que tras una devolución/reapertura
+     * sigue siendo la versión YA enviada y revisada hasta la primera
+     * edición real. Sin este chequeo contra draftVersionOrNull(), se
+     * podía borrar un enlace de una versión histórica ya aprobada o
+     * devuelta, rompiendo "Historial de versiones".
+     */
     public function removeLink(int $linkId): void
     {
         Gate::authorize('update', $this->evidence);
 
-        $link = $this->evidence->currentVersion?->links()->find($linkId);
+        $draft = $this->evidence->draftVersionOrNull();
+        $link = $draft?->links()->find($linkId);
 
         if (! $link || ! $this->evidence->status->isEditable()) {
             return;
