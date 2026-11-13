@@ -54,9 +54,9 @@
     <div class="card space-y-5 p-6">
         @if (in_array('text', $allowed))
             <div>
-                <label class="field-label">Texto de la evidencia</label>
-                <textarea wire:model="description" rows="5" @disabled(! $evidence->status->isEditable()) class="field-input"></textarea>
-                @error('description') <p class="field-error">{{ $message }}</p> @enderror
+                <label for="description" class="field-label">Texto de la evidencia</label>
+                <textarea id="description" wire:model="description" rows="5" @disabled(! $evidence->status->isEditable()) class="field-input" aria-invalid="{{ $errors->has('description') ? 'true' : 'false' }}" aria-describedby="description-error"></textarea>
+                <x-field-error field="description" />
             </div>
         @endif
 
@@ -132,8 +132,8 @@
                             Ya alcanzaste el máximo de {{ $deliverable->max_files }} archivo(s) permitido(s). Quita el actual para poder subir uno nuevo.
                         </p>
                     @endif
-                    @error('newFiles') <p class="field-error">{{ $message }}</p> @enderror
-                    @error('newFiles.*') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="newFiles" />
+                    <x-field-error field="newFiles.*" />
                 @endif
             </div>
         @endif
@@ -152,8 +152,10 @@
 
                 @if ($evidence->status->isEditable())
                     <div class="mt-2 flex gap-2">
-                        <input type="url" wire:model="newLinkUrl" placeholder="https://..." class="field-input mt-0">
-                        <input type="text" wire:model="newLinkLabel" placeholder="Etiqueta (opcional)" class="field-input mt-0 w-48">
+                        <label for="newLinkUrl" class="sr-only">URL del enlace</label>
+                        <input type="url" id="newLinkUrl" wire:model="newLinkUrl" placeholder="https://..." class="field-input mt-0" aria-invalid="{{ $errors->has('newLinkUrl') ? 'true' : 'false' }}" aria-describedby="newLinkUrl-error">
+                        <label for="newLinkLabel" class="sr-only">Etiqueta del enlace (opcional)</label>
+                        <input type="text" id="newLinkLabel" wire:model="newLinkLabel" placeholder="Etiqueta (opcional)" class="field-input mt-0 w-48" aria-invalid="{{ $errors->has('newLinkLabel') ? 'true' : 'false' }}" aria-describedby="newLinkLabel-error">
                         <button
                             type="button"
                             wire:click="addLink"
@@ -165,8 +167,8 @@
                             <span wire:loading wire:target="addLink">Agregando...</span>
                         </button>
                     </div>
-                    @error('newLinkUrl') <p class="field-error">{{ $message }}</p> @enderror
-                    @error('newLinkLabel') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="newLinkUrl" />
+                    <x-field-error field="newLinkLabel" />
                 @endif
             </div>
         @endif
@@ -180,11 +182,11 @@
 
         @if ($evidence->status->isEditable())
             <div>
-                <label class="field-label">
+                <label for="submissionComment" class="field-label">
                     Comentario <span class="font-normal text-text-secondary">(opcional, máx. 2000 caracteres)</span>
                 </label>
-                <textarea wire:model="submissionComment" rows="3" maxlength="2000" class="field-input"></textarea>
-                @error('submissionComment') <p class="field-error">{{ $message }}</p> @enderror
+                <textarea id="submissionComment" wire:model="submissionComment" rows="3" maxlength="2000" class="field-input" aria-invalid="{{ $errors->has('submissionComment') ? 'true' : 'false' }}" aria-describedby="submissionComment-error"></textarea>
+                <x-field-error field="submissionComment" />
             </div>
 
             <div class="flex items-center gap-3 pt-2">
@@ -271,11 +273,11 @@
                 @endif
             </p>
             <div>
-                <label class="field-label">
+                <label for="exemptionJustification" class="field-label">
                     Justificación <span class="font-normal text-text-secondary">(obligatoria)</span>
                 </label>
-                <textarea wire:model="exemptionJustification" rows="3" class="field-input" placeholder="{{ $isSelfExemption ? 'Explica por qué no puedes realizar esta entrega.' : 'Explica por qué el docente no puede realizar esta entrega.' }}"></textarea>
-                @error('exemptionJustification') <p class="field-error">{{ $message }}</p> @enderror
+                <textarea id="exemptionJustification" wire:model="exemptionJustification" rows="3" class="field-input" placeholder="{{ $isSelfExemption ? 'Explica por qué no puedes realizar esta entrega.' : 'Explica por qué el docente no puede realizar esta entrega.' }}" aria-invalid="{{ $errors->has('exemptionJustification') ? 'true' : 'false' }}" aria-describedby="exemptionJustification-error"></textarea>
+                <x-field-error field="exemptionJustification" />
             </div>
             <button
                 type="button"

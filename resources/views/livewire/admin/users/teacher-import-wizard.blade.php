@@ -42,11 +42,12 @@
                 <div>
                     <label class="field-label">Archivo (.xlsx o .csv)</label>
                     <x-file-dropzone wire-model="file" accept=".xlsx,.csv,.txt" class="mt-2" />
-                    @error('file')
-                        <p class="field-error">{{ $message }}</p>
-                    @enderror
+                    <x-field-error field="file" />
                     @if ($fileError)
-                        <p class="field-error">{{ $fileError }}</p>
+                        <p class="field-error flex items-center gap-1" role="alert">
+                            <x-icon name="alert-circle" class="h-3.5 w-3.5 shrink-0" />
+                            {{ $fileError }}
+                        </p>
                     @endif
                     @if ($file)
                         <p class="field-help flex items-center gap-1.5">

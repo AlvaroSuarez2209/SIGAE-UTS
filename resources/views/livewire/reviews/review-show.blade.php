@@ -131,11 +131,11 @@
     @if ($evidence->status->value === 'submitted')
         <div class="card space-y-4 p-6">
             <div>
-                <label class="field-label">
+                <label for="observation" class="field-label">
                     Observación <span class="font-normal text-text-secondary">(obligatoria si devuelves)</span>
                 </label>
-                <textarea wire:model="observation" rows="3" class="field-input"></textarea>
-                @error('observation') <p class="field-error">{{ $message }}</p> @enderror
+                <textarea id="observation" wire:model="observation" rows="3" class="field-input" aria-invalid="{{ $errors->has('observation') ? 'true' : 'false' }}" aria-describedby="observation-error"></textarea>
+                <x-field-error field="observation" />
             </div>
 
             <div class="flex flex-wrap items-center gap-3">

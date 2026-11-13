@@ -73,7 +73,11 @@
                 @empty
                     <tr>
                         <td colspan="3">
-                            <x-empty-state icon="document" title="No hay compromisos transversales registrados" description='Usa el botón "Nuevo" para crear el primero.' />
+                            @if (filled($search))
+                                <x-empty-state icon="document" title="Sin resultados para esta búsqueda" description="Prueba con otro término o revisa el filtro de estado." />
+                            @else
+                                <x-empty-state icon="document" title="No hay compromisos transversales registrados" description='Usa el botón "Nuevo" para crear el primero.' />
+                            @endif
                         </td>
                     </tr>
                 @endforelse

@@ -1252,6 +1252,37 @@ class DeliverableTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 23: ningún campo del formulario tenía
+     * <label for> ni aria-describedby/aria-invalid — un lector de pantalla
+     * no podía asociar la etiqueta con el campo, ni el mensaje de error
+     * con el campo al que corresponde. Confirma el cableado mínimo sobre
+     * un campo de muestra (el resto del paso 2 sigue el mismo patrón).
+     */
+    public function test_the_name_field_has_an_accessible_label_and_error_wiring(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+
+        $html = Livewire::actingAs($admin)
+            ->test(DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->call('nextStep')
+            ->assertSet('step', 2)
+            ->set('name', '')
+            ->call('nextStep')
+            ->assertHasErrors('name')
+            ->html();
+
+        $this->assertStringContainsString('for="name"', $html);
+        $this->assertStringContainsString('id="name"', $html);
+        $this->assertStringContainsString('aria-describedby="name-error"', $html);
+        $this->assertStringContainsString('role="alert"', $html);
+    }
+
+    /**
      * Bloque de ajustes de interfaz, punto 4: publicar por primera vez es
      * irreversible en el sentido de que congela la edición libre, así que
      * el botón ya no llama a save() directo — pasa primero por el

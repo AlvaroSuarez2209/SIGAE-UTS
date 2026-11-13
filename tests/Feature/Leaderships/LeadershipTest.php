@@ -64,6 +64,27 @@ class LeadershipTest extends TestCase
             ->assertSee('Guardando...');
     }
 
+    /**
+     * Cuadro de seguimiento, punto 23: ningún campo tenía <label for> ni
+     * aria-describedby/aria-invalid. Confirma el cableado mínimo sobre un
+     * campo de muestra (el resto del formulario sigue el mismo patrón).
+     */
+    public function test_the_leader_field_has_an_accessible_label_and_error_wiring(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)
+            ->test(LeadershipForm::class)
+            ->call('save')
+            ->assertHasErrors('user_id')
+            ->html();
+
+        $this->assertStringContainsString('for="user_id"', $html);
+        $this->assertStringContainsString('id="user_id"', $html);
+        $this->assertStringContainsString('aria-describedby="user_id-error"', $html);
+        $this->assertStringContainsString('role="alert"', $html);
+    }
+
     public function test_administrator_can_assign_a_leadership_over_a_whole_program_unit(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);

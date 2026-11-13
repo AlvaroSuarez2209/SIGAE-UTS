@@ -129,10 +129,10 @@
 
                 @if (! $deliverable && $templates->isNotEmpty())
                     <div>
-                        <label class="field-label">
+                        <label for="template_id" class="field-label">
                             Cargar desde plantilla <span class="font-normal text-text-secondary">(opcional)</span>
                         </label>
-                        <select wire:model.live="template_id" class="field-input">
+                        <select id="template_id" wire:model.live="template_id" class="field-input">
                             <option value="">Sin plantilla — llenar manualmente</option>
                             @foreach ($templates as $tpl)
                                 <option value="{{ $tpl->id }}">{{ $tpl->name }}</option>
@@ -153,39 +153,39 @@
                             Compromiso transversal (sin actividad)
                         </label>
                     </div>
-                    @error('scope_type') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="scope_type" />
                 </div>
 
                 <div>
-                    <label class="field-label">Periodo académico</label>
-                    <select wire:model.live="academic_period_id" class="field-input">
+                    <label for="academic_period_id" class="field-label">Periodo académico</label>
+                    <select id="academic_period_id" wire:model.live="academic_period_id" class="field-input" aria-invalid="{{ $errors->has('academic_period_id') ? 'true' : 'false' }}" aria-describedby="academic_period_id-error">
                         <option value="">Selecciona un periodo</option>
                         @foreach ($periods as $period)
                             <option value="{{ $period->id }}">{{ $period->name }} ({{ $period->status->label() }})</option>
                         @endforeach
                     </select>
-                    @error('academic_period_id') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="academic_period_id" />
                 </div>
 
                 @if ($scope_type === 'activity')
                     <div>
-                        <label class="field-label">Actividad</label>
-                        <select wire:model.live="activity_id" class="field-input">
+                        <label for="activity_id" class="field-label">Actividad</label>
+                        <select id="activity_id" wire:model.live="activity_id" class="field-input" aria-invalid="{{ $errors->has('activity_id') ? 'true' : 'false' }}" aria-describedby="activity_id-error">
                             <option value="">Selecciona una actividad</option>
                             <x-activity-select-options :activities="$activities" />
                         </select>
-                        @error('activity_id') <p class="field-error">{{ $message }}</p> @enderror
+                        <x-field-error field="activity_id" />
                     </div>
                 @else
                     <div>
-                        <label class="field-label">Clasificación del compromiso</label>
-                        <select wire:model="cross_cutting_commitment_id" class="field-input">
+                        <label for="cross_cutting_commitment_id" class="field-label">Clasificación del compromiso</label>
+                        <select id="cross_cutting_commitment_id" wire:model="cross_cutting_commitment_id" class="field-input" aria-invalid="{{ $errors->has('cross_cutting_commitment_id') ? 'true' : 'false' }}" aria-describedby="cross_cutting_commitment_id-error">
                             <option value="">Selecciona una clasificación</option>
                             @foreach ($commitments as $commitment)
                                 <option value="{{ $commitment->id }}">{{ $commitment->name }}</option>
                             @endforeach
                         </select>
-                        @error('cross_cutting_commitment_id') <p class="field-error">{{ $message }}</p> @enderror
+                        <x-field-error field="cross_cutting_commitment_id" />
                     </div>
                 @endif
             </div>
@@ -195,34 +195,34 @@
                 <h2 class="form-section-title">Información general</h2>
 
                 <div>
-                    <label class="field-label">Nombre</label>
-                    <input type="text" wire:model="name" class="field-input">
-                    @error('name') <p class="field-error">{{ $message }}</p> @enderror
+                    <label for="name" class="field-label">Nombre</label>
+                    <input type="text" id="name" wire:model="name" class="field-input" aria-invalid="{{ $errors->has('name') ? 'true' : 'false' }}" aria-describedby="name-error">
+                    <x-field-error field="name" />
                 </div>
 
                 <div>
-                    <label class="field-label">Descripción <span class="font-normal text-text-secondary">(opcional)</span></label>
-                    <textarea wire:model="description" rows="2" class="field-input"></textarea>
-                    @error('description') <p class="field-error">{{ $message }}</p> @enderror
+                    <label for="description" class="field-label">Descripción <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <textarea id="description" wire:model="description" rows="2" class="field-input" aria-invalid="{{ $errors->has('description') ? 'true' : 'false' }}" aria-describedby="description-error"></textarea>
+                    <x-field-error field="description" />
                 </div>
 
                 <div>
-                    <label class="field-label">Instrucciones <span class="font-normal text-text-secondary">(opcional)</span></label>
-                    <textarea wire:model="instructions" rows="3" class="field-input"></textarea>
-                    @error('instructions') <p class="field-error">{{ $message }}</p> @enderror
+                    <label for="instructions" class="field-label">Instrucciones <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <textarea id="instructions" wire:model="instructions" rows="3" class="field-input" aria-invalid="{{ $errors->has('instructions') ? 'true' : 'false' }}" aria-describedby="instructions-error"></textarea>
+                    <x-field-error field="instructions" />
                 </div>
 
                 <div>
-                    <label class="field-label">Criterio de cumplimiento <span class="font-normal text-text-secondary">(opcional)</span></label>
-                    <textarea wire:model="completion_criteria" rows="2" class="field-input"></textarea>
-                    @error('completion_criteria') <p class="field-error">{{ $message }}</p> @enderror
+                    <label for="completion_criteria" class="field-label">Criterio de cumplimiento <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <textarea id="completion_criteria" wire:model="completion_criteria" rows="2" class="field-input" aria-invalid="{{ $errors->has('completion_criteria') ? 'true' : 'false' }}" aria-describedby="completion_criteria-error"></textarea>
+                    <x-field-error field="completion_criteria" />
                 </div>
 
                 <div>
-                    <label class="field-label">Enlace de referencia <span class="font-normal text-text-secondary">(opcional)</span></label>
-                    <p class="field-help">Material adicional, opcional, para entender mejor el entregable.</p>
-                    <input type="text" wire:model="reference_url" placeholder="https://..." class="field-input">
-                    @error('reference_url') <p class="field-error">{{ $message }}</p> @enderror
+                    <label for="reference_url" class="field-label">Enlace de referencia <span class="font-normal text-text-secondary">(opcional)</span></label>
+                    <p class="field-help" id="reference_url-help">Material adicional, opcional, para entender mejor el entregable.</p>
+                    <input type="text" id="reference_url" wire:model="reference_url" placeholder="https://..." class="field-input" aria-invalid="{{ $errors->has('reference_url') ? 'true' : 'false' }}" aria-describedby="reference_url-help reference_url-error">
+                    <x-field-error field="reference_url" />
                 </div>
 
                 {{-- RF-038: plantilla/instructivo/material de referencia --}}
@@ -331,8 +331,8 @@
                         </ul>
                     @endif
 
-                    @error('newReferenceFiles') <p class="field-error">{{ $message }}</p> @enderror
-                    @error('newReferenceFiles.*') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="newReferenceFiles" />
+                    <x-field-error field="newReferenceFiles.*" />
                 </div>
             </div>
 
@@ -341,30 +341,30 @@
                 <h2 class="form-section-title">Programación</h2>
 
                 <div>
-                    <label class="field-label">Tipo de periodicidad</label>
-                    <select wire:model="periodicity_type" class="field-input">
+                    <label for="periodicity_type" class="field-label">Tipo de periodicidad</label>
+                    <select id="periodicity_type" wire:model="periodicity_type" class="field-input" aria-invalid="{{ $errors->has('periodicity_type') ? 'true' : 'false' }}" aria-describedby="periodicity_type-error">
                         @foreach ($periodicityOptions as $option)
                             <option value="{{ $option->value }}">{{ $option->label() }}</option>
                         @endforeach
                     </select>
-                    @error('periodicity_type') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="periodicity_type" />
                 </div>
 
                 <div class="space-y-4">
                     <div>
-                        <label class="field-label">Apertura</label>
-                        <input type="datetime-local" wire:model="opens_at" class="field-input">
-                        @error('opens_at') <p class="field-error">{{ $message }}</p> @enderror
+                        <label for="opens_at" class="field-label">Apertura</label>
+                        <input type="datetime-local" id="opens_at" wire:model="opens_at" class="field-input" aria-invalid="{{ $errors->has('opens_at') ? 'true' : 'false' }}" aria-describedby="opens_at-error">
+                        <x-field-error field="opens_at" />
                     </div>
                     <div>
-                        <label class="field-label">Fecha límite</label>
-                        <input type="datetime-local" wire:model="due_at" class="field-input">
-                        @error('due_at') <p class="field-error">{{ $message }}</p> @enderror
+                        <label for="due_at" class="field-label">Fecha límite</label>
+                        <input type="datetime-local" id="due_at" wire:model="due_at" class="field-input" aria-invalid="{{ $errors->has('due_at') ? 'true' : 'false' }}" aria-describedby="due_at-error">
+                        <x-field-error field="due_at" />
                     </div>
                     <div>
-                        <label class="field-label">Cierre <span class="font-normal text-text-secondary">(opc.)</span></label>
-                        <input type="datetime-local" wire:model="closes_at" class="field-input">
-                        @error('closes_at') <p class="field-error">{{ $message }}</p> @enderror
+                        <label for="closes_at" class="field-label">Cierre <span class="font-normal text-text-secondary">(opc.)</span></label>
+                        <input type="datetime-local" id="closes_at" wire:model="closes_at" class="field-input" aria-invalid="{{ $errors->has('closes_at') ? 'true' : 'false' }}" aria-describedby="closes_at-error">
+                        <x-field-error field="closes_at" />
                     </div>
                 </div>
             </div>
@@ -383,7 +383,7 @@
                             </label>
                         @endforeach
                     </div>
-                    @error('allowed_evidence_types') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="allowed_evidence_types" />
                 </div>
 
                 <div>
@@ -396,31 +396,31 @@
                             </label>
                         @endforeach
                     </div>
-                    @error('allowed_file_types') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="allowed_file_types" />
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="field-label">Máximo de archivos</label>
-                        <input type="number" min="1" wire:model="max_files" class="field-input">
-                        @error('max_files') <p class="field-error">{{ $message }}</p> @enderror
+                        <label for="max_files" class="field-label">Máximo de archivos</label>
+                        <input type="number" min="1" id="max_files" wire:model="max_files" class="field-input" aria-invalid="{{ $errors->has('max_files') ? 'true' : 'false' }}" aria-describedby="max_files-error">
+                        <x-field-error field="max_files" />
                     </div>
                     <div>
-                        <label class="field-label">Tamaño máximo (MB)</label>
-                        <input type="number" min="1" wire:model="max_file_size_mb" class="field-input">
-                        @error('max_file_size_mb') <p class="field-error">{{ $message }}</p> @enderror
+                        <label for="max_file_size_mb" class="field-label">Tamaño máximo (MB)</label>
+                        <input type="number" min="1" id="max_file_size_mb" wire:model="max_file_size_mb" class="field-input" aria-invalid="{{ $errors->has('max_file_size_mb') ? 'true' : 'false' }}" aria-describedby="max_file_size_mb-error">
+                        <x-field-error field="max_file_size_mb" />
                     </div>
                 </div>
 
                 <div>
-                    <label class="field-label">
+                    <label for="weight_percentage" class="field-label">
                         Peso porcentual <span class="font-normal text-text-secondary">(opcional; si se deja en blanco, pesa igual que los demás obligatorios)</span>
                     </label>
                     <div class="relative mt-1">
-                        <input type="number" min="1" max="100" wire:model="weight_percentage" class="field-input mt-0 pr-8">
+                        <input type="number" min="1" max="100" id="weight_percentage" wire:model="weight_percentage" class="field-input mt-0 pr-8" aria-invalid="{{ $errors->has('weight_percentage') ? 'true' : 'false' }}" aria-describedby="weight_percentage-error">
                         <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-text-secondary">%</span>
                     </div>
-                    @error('weight_percentage') <p class="field-error">{{ $message }}</p> @enderror
+                    <x-field-error field="weight_percentage" />
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -462,7 +462,7 @@
                                 </p>
                             @endforelse
                         </div>
-                        @error('recipient_ids') <p class="field-error">{{ $message }}</p> @enderror
+                        <x-field-error field="recipient_ids" />
                     @else
                         @if ($errors->has('recipient_ids'))
                             <p class="field-error">{{ $errors->first('recipient_ids') }}</p>

@@ -207,6 +207,27 @@ class EvidenceWorkspaceTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 23: el campo de comentario no tenía
+     * <label for> ni aria-describedby/aria-invalid.
+     */
+    public function test_the_comment_field_has_an_accessible_label_and_error_wiring(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('submissionComment', str_repeat('a', 2001))
+            ->call('saveDraft')
+            ->assertHasErrors('submissionComment')
+            ->html();
+
+        $this->assertStringContainsString('for="submissionComment"', $html);
+        $this->assertStringContainsString('id="submissionComment"', $html);
+        $this->assertStringContainsString('aria-describedby="submissionComment-error"', $html);
+        $this->assertStringContainsString('role="alert"', $html);
+    }
+
+    /**
      * Seguimiento al punto 9: el docente también debe ver su propio
      * comentario en un bloque de solo lectura dentro de su workspace —
      * antes solo quedaba visible para el líder en review-show.blade.php.

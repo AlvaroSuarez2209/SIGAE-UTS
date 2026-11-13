@@ -77,7 +77,11 @@
                 @empty
                     <tr>
                         <td colspan="6">
-                            <x-empty-state icon="document" title="No hay actividades registradas" description='Usa el botón "Nueva" para crear la primera.' />
+                            @if (filled($search))
+                                <x-empty-state icon="document" title="Sin resultados para esta búsqueda" description="Prueba con otro término o revisa los filtros." />
+                            @else
+                                <x-empty-state icon="document" title="No hay actividades registradas" description='Usa el botón "Nueva" para crear la primera.' />
+                            @endif
                         </td>
                     </tr>
                 @endforelse

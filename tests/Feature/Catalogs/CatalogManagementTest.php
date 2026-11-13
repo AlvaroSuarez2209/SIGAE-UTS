@@ -832,4 +832,22 @@ class CatalogManagementTest extends TestCase
             ->assertSee('wire:target="save"', false)
             ->assertSee('Guardando...');
     }
+
+    /**
+     * Cuadro de seguimiento, punto 23: una búsqueda sin coincidencias
+     * mostraba el mismo texto que "no hay nada registrado en absoluto"
+     * ("No hay programas registrados", etc.) — confuso cuando sí hay
+     * filas, solo que ninguna coincide con la búsqueda. Los 5 catálogos
+     * ahora distinguen el caso según filled($search).
+     */
+    #[DataProvider('catalogComponents')]
+    public function test_a_search_with_no_matches_shows_a_search_specific_empty_message(string $component): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test($component)
+            ->set('search', 'ninguna-coincidencia-posible-xyz')
+            ->assertSee('Sin resultados para esta búsqueda');
+    }
 }
