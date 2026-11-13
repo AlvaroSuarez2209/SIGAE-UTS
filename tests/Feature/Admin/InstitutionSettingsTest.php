@@ -243,6 +243,11 @@ class InstitutionSettingsTest extends TestCase
     {
         $settings = $this->configureCustomInstitution();
 
+        // La plantilla también muestra quién generó el documento (cuadro
+        // de seguimiento, punto 20) — necesita un usuario autenticado,
+        // igual que en producción.
+        $this->actingAs($this->userWithRole(RoleName::Administrator));
+
         // Misma vista que usa ReportExportController::pdf() antes de pasar
         // por dompdf — se verifica el HTML real que recibe el PDF, sin
         // tener que parsear el binario del PDF generado.

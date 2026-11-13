@@ -52,12 +52,17 @@ class ReportBuilder
             ->with(['activity.component', 'programUnit'])
             ->get();
 
-        $assignmentRows = $assignments->map(fn (TeacherAssignment $a) => [
-            $a->activity->component->name,
-            $a->activity->name,
-            $a->programUnit->name,
-            self::formatHours($a->assigned_hours),
-        ])->all();
+        // Cuadro de seguimiento, punto 20: filas en orden alfabético
+        // insensible a tildes, igual que el resto de listados del
+        // proyecto (ver Collection::sortByAccentInsensitive()).
+        $assignmentRows = $assignments->sortByAccentInsensitive(fn (TeacherAssignment $a) => $a->activity->name)
+            ->values()
+            ->map(fn (TeacherAssignment $a) => [
+                $a->activity->component->name,
+                $a->activity->name,
+                $a->programUnit->name,
+                self::formatHours($a->assigned_hours),
+            ])->all();
 
         // Sin filtrar por estado: es la base real de "cuántos entregables
         // obligatorios tiene este docente" — el % de avance (más abajo)
@@ -71,15 +76,17 @@ class ReportBuilder
         // nunca lo que entra a ComplianceCalculator (ver comentario arriba).
         $displayEvidences = $statusFilter ? $evidences->where('status', $statusFilter) : $evidences;
 
-        $evidenceRows = $displayEvidences->map(fn (Evidence $e) => [
-            $e->deliverable->name,
-            self::scopeLabel($e->deliverable),
-            $e->deliverable->is_mandatory ? 'Sí' : 'No',
-            $e->deliverable->due_at->toReadable(),
-            $e->status->label(),
-            $e->currentVersion?->submitted_at?->toReadable() ?? '—',
-            self::exemptionReasonColumn($e),
-        ])->all();
+        $evidenceRows = $displayEvidences->sortByAccentInsensitive(fn (Evidence $e) => $e->deliverable->name)
+            ->values()
+            ->map(fn (Evidence $e) => [
+                $e->deliverable->name,
+                self::scopeLabel($e->deliverable),
+                $e->deliverable->is_mandatory ? 'Sí' : 'No',
+                $e->deliverable->due_at->toReadable(),
+                $e->status->label(),
+                $e->currentVersion?->submitted_at?->toReadable() ?? '—',
+                self::exemptionReasonColumn($e),
+            ])->all();
 
         $compliance = ComplianceCalculator::forUser($teacher, $evidences->pluck('deliverable')->unique('id'), $evidences);
 
@@ -117,17 +124,25 @@ class ReportBuilder
      */
     public static function activity(Activity $activity, AcademicPeriod $period, ?EvidenceStatus $statusFilter = null): array
     {
+        // Cuadro de seguimiento, punto 20: orden alfabético insensible a
+        // tildes por docente — ambas secciones que recorren $assignments
+        // (docentes asignados y cumplimiento por docente) heredan el mismo
+        // orden, así quedan consistentes entre sí.
         $assignments = TeacherAssignment::where('activity_id', $activity->id)
             ->where('academic_period_id', $period->id)
             ->with(['user', 'programUnit'])
             ->get()
-            ->unique('user_id');
+            ->unique('user_id')
+            ->sortByAccentInsensitive(fn (TeacherAssignment $a) => $a->user->name)
+            ->values();
 
         $deliverables = Deliverable::where('activity_id', $activity->id)
             ->where('academic_period_id', $period->id)
             ->where('status', DeliverableStatus::Published)
             ->with('recipients')
-            ->get();
+            ->get()
+            ->sortByAccentInsensitive(fn (Deliverable $d) => $d->name)
+            ->values();
 
         $assignmentRows = $assignments->map(fn (TeacherAssignment $a) => [
             $a->user->name,
@@ -214,7 +229,11 @@ class ReportBuilder
             ->where('status', DeliverableStatus::Published)
             ->when($commitment, fn ($q) => $q->where('cross_cutting_commitment_id', $commitment->id))
             ->with('crossCuttingCommitment')
-            ->get();
+            ->get()
+            // Cuadro de seguimiento, punto 20: agrupado por compromiso y,
+            // dentro de cada uno, alfabético por entregable.
+            ->sortByAccentInsensitive(fn (Deliverable $d) => $d->crossCuttingCommitment->name.' '.$d->name)
+            ->values();
 
         // 1 sola consulta para todos los entregables transversales (antes
         // eran 2: una por entregable dentro del map() de abajo, más esta
@@ -240,6 +259,8 @@ class ReportBuilder
         })->all();
 
         $detailRows = $displayEvidences
+            ->sortByAccentInsensitive(fn (Evidence $e) => $e->user->name)
+            ->values()
             ->map(fn (Evidence $e) => [
                 $e->deliverable->crossCuttingCommitment->name,
                 $e->deliverable->name,
@@ -295,7 +316,9 @@ class ReportBuilder
 
         $displayEvidences = $statusFilter ? $evidences->where('status', $statusFilter) : $evidences;
 
-        $consolidatedRows = $displayEvidences->map(function (Evidence $e) use ($period) {
+        // Cuadro de seguimiento, punto 20: orden alfabético insensible a
+        // tildes por docente, la primera columna de esta sección.
+        $consolidatedRows = $displayEvidences->sortByAccentInsensitive(fn (Evidence $e) => $e->user->name)->values()->map(function (Evidence $e) use ($period) {
             $deliverable = $e->deliverable;
 
             if ($deliverable->isCrossCutting()) {
@@ -330,7 +353,10 @@ class ReportBuilder
         // esté mirando en las otras 2 secciones.
         $evidencesByUser = $evidences->groupBy('user_id');
 
-        $teacherRows = $evidences->pluck('user')->unique('id')->map(function (User $teacher) use ($period, $evidencesByUser) {
+        $teacherRows = $evidences->pluck('user')->unique('id')
+            ->sortByAccentInsensitive(fn (User $teacher) => $teacher->name)
+            ->values()
+            ->map(function (User $teacher) use ($period, $evidencesByUser) {
             $deliverables = Deliverable::where('academic_period_id', $period->id)
                 ->where('status', DeliverableStatus::Published)
                 ->whereHas('recipients', fn ($q) => $q->where('user_id', $teacher->id))

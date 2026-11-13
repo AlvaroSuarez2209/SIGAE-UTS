@@ -2,12 +2,17 @@
 
 namespace Tests\Feature\Reports;
 
+use App\Enums\EvidenceStatus;
 use App\Enums\RoleName;
 use App\Models\AcademicPeriod;
 use App\Models\Activity;
+use App\Models\Deliverable;
+use App\Models\Evidence;
 use App\Models\InstitutionSettings;
 use App\Models\Role;
+use App\Models\TeacherAssignment;
 use App\Models\User;
+use App\Services\Reports\ReportBuilder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -335,6 +340,12 @@ class ReportAccessTest extends TestCase
      */
     public function test_pdf_template_shows_filters_summary_only_when_more_than_one_filter_is_active(): void
     {
+        // La plantilla ahora también muestra quién generó el documento
+        // (cuadro de seguimiento, punto 20) — necesita un usuario
+        // autenticado, igual que en producción (la ruta real siempre pasa
+        // por el middleware de rol).
+        $this->actingAs($this->userWithRole(RoleName::Administrator));
+
         $report = ['title' => 'Informe de prueba', 'sections' => [], 'summary' => null];
 
         $htmlWithFilters = view('reports.pdf.report', $report + [
@@ -451,5 +462,138 @@ class ReportAccessTest extends TestCase
         $this->actingAs($admin)
             ->get('/reports/consolidated/excel?period=999999')
             ->assertNotFound();
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 20: ni el PDF ni el Excel dejaban
+     * constancia de quién generó el archivo, solo de cuándo. Verifica el
+     * contenido real de la celda, igual que las pruebas de identidad/fecha
+     * de arriba.
+     */
+    public function test_excel_export_includes_who_generated_it(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $admin->update(['name' => 'Coordinadora De Prueba']);
+        $period = AcademicPeriod::factory()->create();
+
+        $response = $this->actingAs($admin)->get("/reports/consolidated/excel?period={$period->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+        $this->assertStringContainsString('por Coordinadora De Prueba', (string) $sheet->getCell('A3')->getValue());
+
+        unlink($tempPath);
+    }
+
+    public function test_pdf_template_includes_who_generated_it(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $admin->update(['name' => 'Coordinadora De Prueba']);
+        $this->actingAs($admin);
+
+        $html = view('reports.pdf.report', [
+            'title' => 'Informe de prueba',
+            'sections' => [],
+            'summary' => null,
+        ])->render();
+
+        $this->assertStringContainsString('por Coordinadora De Prueba', $html);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 20: cuando una sección no tiene filas,
+     * el PDF ya mostraba "Sin datos." (ver report.blade.php) pero el Excel
+     * dejaba la tabla con solo encabezados, sin ninguna indicación
+     * explícita — un periodo sin ninguna asignación ni evidencia expone
+     * el caso en las 3 secciones del informe consolidado.
+     */
+    public function test_excel_export_shows_an_explicit_message_when_a_section_has_no_rows(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create();
+
+        $response = $this->actingAs($admin)->get("/reports/consolidated/excel?period={$period->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $spreadsheet = IOFactory::load($tempPath);
+        $this->assertSame(3, $spreadsheet->getSheetCount());
+
+        // Solo "Consolidado por docente..." (hoja 0, sin ninguna evidencia)
+        // y "Resumen por docente" (sin ningún docente con evidencias) están
+        // realmente vacías. "Resumen por estado" SIEMPRE tiene una fila por
+        // cada EvidenceStatus, aunque su conteo sea 0 — eso no es "sin
+        // datos", es la cuenta real (cero) de cada estado.
+        foreach ([$spreadsheet->getSheet(0), $spreadsheet->getSheetByName('Resumen por docente')] as $sheet) {
+            $cells = collect($sheet->toArray())->flatten()->filter()->all();
+            $this->assertContains('Sin datos.', $cells, "La hoja '{$sheet->getTitle()}' no muestra 'Sin datos.' estando vacía.");
+        }
+
+        unlink($tempPath);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 20: el archivo exportado debe traer
+     * exactamente los mismos datos que arma ReportBuilder (la misma fuente
+     * que alimenta la pantalla) para el mismo conjunto de filtros, y en el
+     * mismo orden alfabético. 'Zoe'/'Ana' se crean fuera de orden a
+     * propósito para que la comparación no pase por casualidad.
+     */
+    public function test_consolidated_excel_summary_matches_report_builder_for_the_same_filters_and_is_sorted(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $zoe = $this->userWithRole(RoleName::Teacher);
+        $zoe->update(['name' => 'Zoe Ramírez']);
+        $ana = $this->userWithRole(RoleName::Teacher);
+        $ana->update(['name' => 'Ana Torres']);
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+        ]);
+        $deliverable->recipients()->attach([$zoe->id, $ana->id]);
+
+        foreach ([$zoe, $ana] as $teacher) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+            Evidence::factory()->create([
+                'user_id' => $teacher->id,
+                'deliverable_id' => $deliverable->id,
+                'status' => $teacher->is($zoe) ? EvidenceStatus::Approved : EvidenceStatus::Pending,
+            ]);
+        }
+
+        $expectedRows = collect(ReportBuilder::consolidated($period)['sections'])
+            ->firstWhere('title', 'Resumen por docente')['rows'];
+
+        $response = $this->actingAs($admin)->get("/reports/consolidated/excel?period={$period->id}");
+        $response->assertOk();
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'sigae-excel-test').'.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        $sheet = IOFactory::load($tempPath)->getSheetByName('Resumen por docente');
+        $actualRows = array_values(array_filter(
+            $sheet->toArray(),
+            fn ($row) => in_array($row[0] ?? null, ['Ana Torres', 'Zoe Ramírez'], true)
+        ));
+
+        unlink($tempPath);
+
+        $this->assertEquals(['Ana Torres', 'Zoe Ramírez'], array_column($actualRows, 0));
+        $this->assertEquals($expectedRows[0], array_slice($actualRows[0], 0, 4));
+        $this->assertEquals($expectedRows[1], array_slice($actualRows[1], 0, 4));
     }
 }

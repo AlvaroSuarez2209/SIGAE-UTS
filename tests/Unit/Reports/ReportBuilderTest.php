@@ -328,4 +328,103 @@ class ReportBuilderTest extends TestCase
         $this->assertEquals('Reasignación administrativa.', $row[7]);
         $this->assertEquals('Motivo (si Exento)', $report['sections'][0]['headings'][7]);
     }
+
+    /**
+     * Cuadro de seguimiento, punto 20: las filas deben ir en orden
+     * alfabético insensible a tildes, igual que el resto de listados del
+     * proyecto. 'Zeta' se crea antes que 'Álvaro'/'Ábaco' a propósito,
+     * para que una prueba que solo confirmara "el orden de creación" no
+     * pase por casualidad.
+     */
+    public function test_teacher_report_rows_are_sorted_alphabetically_insensitive_to_accents(): void
+    {
+        $teacher = User::factory()->create();
+        $period = AcademicPeriod::factory()->create();
+
+        $zeta = Activity::factory()->create(['name' => 'Zeta actividad']);
+        $alvaro = Activity::factory()->create(['name' => 'Álvaro actividad']);
+
+        foreach ([$zeta, $alvaro] as $activity) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        $zDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $zeta->id, 'name' => 'Zeta entregable']);
+        $aDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $alvaro->id, 'name' => 'Ábaco entregable']);
+
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $zDeliverable->id]);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $aDeliverable->id]);
+
+        $report = ReportBuilder::teacher($teacher, $period);
+
+        $this->assertEquals(['Álvaro actividad', 'Zeta actividad'], collect($report['sections'][0]['rows'])->pluck(1)->all());
+        $this->assertEquals(['Ábaco entregable', 'Zeta entregable'], collect($report['sections'][1]['rows'])->pluck(0)->all());
+    }
+
+    public function test_activity_report_rows_are_sorted_alphabetically_by_teacher_and_by_deliverable(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $zoe = User::factory()->create(['name' => 'Zoe Ramírez']);
+        $ana = User::factory()->create(['name' => 'Ana Torres']);
+
+        foreach ([$zoe, $ana] as $teacher) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id, 'name' => 'Zeta entregable']);
+        Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id, 'name' => 'Ábaco entregable']);
+
+        $report = ReportBuilder::activity($activity->load('component'), $period);
+
+        $this->assertEquals(['Ana Torres', 'Zoe Ramírez'], collect($report['sections'][0]['rows'])->pluck(0)->all());
+        $this->assertEquals(['Ana Torres', 'Zoe Ramírez'], collect($report['sections'][1]['rows'])->pluck(0)->all());
+        $this->assertEquals(['Ábaco entregable', 'Zeta entregable'], collect($report['sections'][2]['rows'])->pluck(0)->all());
+    }
+
+    public function test_cross_cutting_report_rows_are_grouped_by_commitment_and_sorted_alphabetically(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $zetaCommitment = CrossCuttingCommitment::factory()->create(['name' => 'Zeta compromiso']);
+        $alvaroCommitment = CrossCuttingCommitment::factory()->create(['name' => 'Álvaro compromiso']);
+
+        $teacher = User::factory()->create();
+
+        $zDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => null, 'cross_cutting_commitment_id' => $zetaCommitment->id, 'name' => 'Zeta entregable']);
+        $aDeliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => null, 'cross_cutting_commitment_id' => $alvaroCommitment->id, 'name' => 'Ábaco entregable']);
+
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $zDeliverable->id]);
+        Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $aDeliverable->id]);
+
+        $report = ReportBuilder::crossCutting($period);
+
+        $this->assertEquals(['Álvaro compromiso', 'Zeta compromiso'], collect($report['sections'][0]['rows'])->pluck(0)->all());
+    }
+
+    public function test_consolidated_report_rows_are_sorted_alphabetically_by_teacher(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create();
+
+        $zoe = User::factory()->create(['name' => 'Zoe Ramírez']);
+        $ana = User::factory()->create(['name' => 'Ana Torres']);
+
+        foreach ([$zoe, $ana] as $teacher) {
+            $deliverable = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+            Evidence::factory()->create(['user_id' => $teacher->id, 'deliverable_id' => $deliverable->id]);
+        }
+
+        $report = ReportBuilder::consolidated($period);
+
+        $this->assertEquals(['Ana Torres', 'Zoe Ramírez'], collect($report['sections'][0]['rows'])->pluck(0)->all());
+        $this->assertEquals(['Ana Torres', 'Zoe Ramírez'], collect($report['sections'][2]['rows'])->pluck(0)->all());
+    }
 }

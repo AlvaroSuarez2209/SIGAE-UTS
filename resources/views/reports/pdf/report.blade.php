@@ -248,7 +248,7 @@
     </footer>
 
     <h1>{{ $title }}</h1>
-    <p class="report-meta">Generado el {{ now()->toReadable() }}</p>
+    <p class="report-meta">Generado el {{ now()->toReadable() }} por {{ auth()->user()->name }}</p>
 
     @if ($filtersSummary ?? null)
         <p class="report-meta">

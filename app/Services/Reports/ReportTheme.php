@@ -229,10 +229,11 @@ class ReportTheme
             'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'indent' => 1],
         ]);
 
-        // Mismo formato ("Generado el ...") que ya usa el PDF
-        // (resources/views/reports/pdf/report.blade.php) — antes, el Excel
-        // no dejaba ningún rastro de cuándo se generó.
-        $sheet->setCellValue('A3', 'Generado el '.now()->toReadable());
+        // Mismo formato ("Generado el ... por ...") que ya usa el PDF
+        // (resources/views/reports/pdf/report.blade.php) — antes, ninguno
+        // de los dos canales dejaba constancia de quién generó el archivo
+        // (cuadro de seguimiento, punto 20).
+        $sheet->setCellValue('A3', 'Generado el '.now()->toReadable().' por '.auth()->user()->name);
         $sheet->mergeCells("A3:{$lastColumn}3");
         $sheet->getStyle('A3')->applyFromArray([
             'font' => ['italic' => true, 'size' => 9, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
@@ -299,6 +300,20 @@ class ReportTheme
         }
 
         $sheet->freezePane('A'.$firstDataRow);
+
+        // Cuadro de seguimiento, punto 20: mismo texto ("Sin datos.") que
+        // ya muestra el PDF (resources/views/reports/pdf/report.blade.php)
+        // cuando la sección no tiene filas — antes, el Excel dejaba la
+        // tabla con solo encabezados, sin ninguna indicación explícita.
+        if (empty($rows)) {
+            $sheet->setCellValue("A{$firstDataRow}", 'Sin datos.');
+            $sheet->mergeCells("A{$firstDataRow}:{$lastColumn}{$firstDataRow}");
+            $sheet->getStyle("A{$firstDataRow}")->applyFromArray([
+                'font' => ['italic' => true, 'color' => ['rgb' => self::rgb(self::TEXT_SECONDARY)]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            ]);
+            $lastDataRow = $firstDataRow;
+        }
 
         $tableRange = "A{$headerRow}:{$lastColumn}".max($lastDataRow, $headerRow);
         $sheet->getStyle($tableRange)->applyFromArray([
