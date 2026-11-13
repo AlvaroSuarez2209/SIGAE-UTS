@@ -185,6 +185,8 @@ class DashboardTest extends TestCase
 
         $deliverableA = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activityA->id, 'is_mandatory' => true]);
         $deliverableB = Deliverable::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activityB->id, 'is_mandatory' => true]);
+        $deliverableA->recipients()->attach($teacherA->id);
+        $deliverableB->recipients()->attach($teacherB->id);
 
         Evidence::factory()->create(['user_id' => $teacherA->id, 'deliverable_id' => $deliverableA->id, 'status' => EvidenceStatus::Approved]);
         Evidence::factory()->create(['user_id' => $teacherB->id, 'deliverable_id' => $deliverableB->id, 'status' => EvidenceStatus::Pending]);
@@ -196,6 +198,67 @@ class DashboardTest extends TestCase
                 return $panel['teacherCount'] === 2
                     && $panel['averageCompliance'] === 50.0
                     && $percentages === [0.0, 100.0];
+            });
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 11: hallazgo de la investigación — el
+     * panel del Líder pasaba a ComplianceCalculator TODOS los entregables
+     * publicados de la actividad, sin filtrar por recipients(), al
+     * contrario de coordinationPanel()/ReportBuilder::consolidated() (que
+     * ya lo hacían). Para un entregable en modo "específicos" del que un
+     * docente asignado a la actividad NO es destinatario, esto le contaba
+     * un entregable ajeno en el denominador — un % distinto al que ese
+     * mismo docente vería en su propio panel o en Consolidado para el
+     * mismo ámbito.
+     */
+    public function test_leader_panel_compliance_never_counts_a_specific_mode_deliverable_against_a_non_recipient(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+        $activity = Activity::factory()->create();
+        $recipientTeacher = $this->userWithRole(RoleName::Teacher);
+        $nonRecipientTeacher = $this->userWithRole(RoleName::Teacher);
+
+        Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'academic_period_id' => $period->id,
+            'program_unit_id' => $programUnit->id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+        foreach ([$recipientTeacher, $nonRecipientTeacher] as $teacher) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+                'program_unit_id' => $programUnit->id,
+            ]);
+        }
+
+        // Entregable en modo "específicos": solo $recipientTeacher es
+        // destinatario real, aunque ambos docentes estén asignados a la
+        // misma actividad.
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+            'recipient_mode' => 'specific',
+        ]);
+        $deliverable->recipients()->attach($recipientTeacher->id);
+        Evidence::factory()->create(['user_id' => $recipientTeacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Approved]);
+
+        Livewire::actingAs($leader)->test(Dashboard::class)
+            ->assertViewHas('leaderPanel', function ($panel) use ($recipientTeacher, $nonRecipientTeacher) {
+                $rows = $panel['rows']->keyBy(fn (array $row) => $row['teacher']->id);
+
+                // $recipientTeacher: 1 de 1 obligatorio, aprobado -> 100%.
+                // $nonRecipientTeacher: nunca fue destinatario de nada en
+                // esta actividad -> sin entregables obligatorios propios.
+                return $rows[$recipientTeacher->id]['compliance']['percentage'] === 100.0
+                    && $rows[$nonRecipientTeacher->id]['compliance']['percentage'] === null;
             });
     }
 

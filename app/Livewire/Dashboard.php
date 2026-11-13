@@ -176,6 +176,7 @@ class Dashboard extends Component
         $deliverablesByActivity = Deliverable::where('academic_period_id', $this->periodFilter)
             ->where('status', DeliverableStatus::Published)
             ->whereIn('activity_id', $assignments->pluck('activity_id')->unique())
+            ->with('recipients')
             ->get()
             ->groupBy('activity_id');
 
@@ -185,15 +186,29 @@ class Dashboard extends Component
             ->groupBy('user_id');
 
         $rows = $assignments->map(function (TeacherAssignment $assignment) use ($deliverablesByActivity, $evidencesByUser) {
-            $activityDeliverableIds = $deliverablesByActivity->get($assignment->activity_id, collect())->pluck('id');
+            $activityDeliverables = $deliverablesByActivity->get($assignment->activity_id, collect());
+            $activityDeliverableIds = $activityDeliverables->pluck('id');
             $teacherEvidences = $evidencesByUser->get($assignment->user_id, collect());
+
+            // Cuadro de seguimiento, punto 11: $activityDeliverables trae
+            // TODOS los publicados de la actividad, sin importar su
+            // recipient_mode — un entregable en modo 'specific' del que
+            // este docente NO es destinatario no debe contar en su
+            // denominador, aunque esté asignado a la misma actividad
+            // (mismo criterio que coordinationPanel()/ReportBuilder::
+            // consolidated(), que ya filtran por recipients()). Antes se
+            // le pasaban todos sin filtrar, dando un % distinto al de
+            // esos otros paneles/informes para el mismo ámbito.
+            $recipientDeliverables = $activityDeliverables->filter(
+                fn (Deliverable $d) => $d->recipients->contains('id', $assignment->user_id)
+            );
 
             return [
                 'teacher' => $assignment->user,
                 'activity' => $assignment->activity,
                 'compliance' => ComplianceCalculator::forUser(
                     $assignment->user,
-                    $deliverablesByActivity->get($assignment->activity_id, collect()),
+                    $recipientDeliverables,
                     $teacherEvidences
                 ),
                 // Revisión del estado Exento: cuenta por fila (docente +

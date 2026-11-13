@@ -84,6 +84,7 @@ class ReportBuilderTest extends TestCase
             'activity_id' => $activity->id,
             'is_mandatory' => true,
         ]);
+        $deliverable->recipients()->attach([$teacherA->id, $teacherB->id]);
 
         Evidence::factory()->create(['user_id' => $teacherA->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Approved]);
         Evidence::factory()->create(['user_id' => $teacherB->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Pending]);
@@ -94,6 +95,49 @@ class ReportBuilderTest extends TestCase
 
         $this->assertEquals('100%', $complianceRows['Teacher A'][3]);
         $this->assertEquals('0%', $complianceRows['Teacher B'][3]);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 11: mismo hallazgo que
+     * DashboardTest::test_leader_panel_compliance_never_counts_a_specific_mode_deliverable_against_a_non_recipient() —
+     * este informe le pasaba a ComplianceCalculator TODOS los entregables
+     * publicados de la actividad, sin filtrar por recipients(). Un
+     * entregable en modo "específicos" del que un docente asignado a la
+     * actividad NO es destinatario no debe contar en su denominador.
+     */
+    public function test_activity_report_never_counts_a_specific_mode_deliverable_against_a_non_recipient(): void
+    {
+        $period = AcademicPeriod::factory()->create();
+        $activity = Activity::factory()->create();
+        $recipientTeacher = User::factory()->create(['name' => 'Teacher A']);
+        $nonRecipientTeacher = User::factory()->create(['name' => 'Teacher B']);
+
+        foreach ([$recipientTeacher, $nonRecipientTeacher] as $teacher) {
+            TeacherAssignment::factory()->create([
+                'user_id' => $teacher->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ]);
+        }
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'is_mandatory' => true,
+            'recipient_mode' => 'specific',
+        ]);
+        $deliverable->recipients()->attach($recipientTeacher->id);
+        Evidence::factory()->create(['user_id' => $recipientTeacher->id, 'deliverable_id' => $deliverable->id, 'status' => EvidenceStatus::Approved]);
+
+        $report = ReportBuilder::activity($activity->load('component'), $period);
+
+        $complianceRows = collect($report['sections'][1]['rows'])->keyBy(0);
+
+        $this->assertEquals('100%', $complianceRows['Teacher A'][3]);
+        // Sin entregables obligatorios propios en esta actividad -> "Sin
+        // entregables obligatorios", nunca "0%" (percentage = null, no 0).
+        $this->assertEquals(0, $complianceRows['Teacher B'][1]);
+        $this->assertEquals('Sin entregables obligatorios', $complianceRows['Teacher B'][3]);
     }
 
     public function test_cross_cutting_report_only_includes_deliverables_without_an_activity(): void

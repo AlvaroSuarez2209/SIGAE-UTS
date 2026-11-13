@@ -126,6 +126,7 @@ class ReportBuilder
         $deliverables = Deliverable::where('activity_id', $activity->id)
             ->where('academic_period_id', $period->id)
             ->where('status', DeliverableStatus::Published)
+            ->with('recipients')
             ->get();
 
         $assignmentRows = $assignments->map(fn (TeacherAssignment $a) => [
@@ -146,8 +147,18 @@ class ReportBuilder
         $displayEvidencesByDeliverable = ($statusFilter ? $allEvidences->where('status', $statusFilter) : $allEvidences)
             ->groupBy('deliverable_id');
 
+        // Cuadro de seguimiento, punto 11: $deliverables trae TODOS los
+        // publicados de la actividad, sin importar su recipient_mode — un
+        // entregable en modo 'specific' del que este docente NO es
+        // destinatario no debe contar en su denominador, aunque esté
+        // asignado a la misma actividad (mismo criterio que
+        // Dashboard::coordinationPanel()/ReportBuilder::consolidated(),
+        // que ya filtran por recipients()). Antes se le pasaban todos sin
+        // filtrar, dando un % distinto al de esos otros informes para el
+        // mismo ámbito.
         $complianceRows = $assignments->map(function (TeacherAssignment $a) use ($deliverables, $evidencesByUser) {
-            $compliance = ComplianceCalculator::forUser($a->user, $deliverables, $evidencesByUser->get($a->user_id, collect()));
+            $recipientDeliverables = $deliverables->filter(fn (Deliverable $d) => $d->recipients->contains('id', $a->user_id));
+            $compliance = ComplianceCalculator::forUser($a->user, $recipientDeliverables, $evidencesByUser->get($a->user_id, collect()));
 
             return [
                 $a->user->name,
