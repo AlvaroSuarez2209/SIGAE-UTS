@@ -89,6 +89,10 @@ class ReviewShow extends Component
     {
         Gate::authorize('review', $this->evidence);
 
+        // Chequeo rápido contra la copia en memoria: solo evita gastar una
+        // validación en una página obviamente obsoleta. El chequeo real
+        // contra condiciones de carrera (dos líderes decidiendo a la vez)
+        // ocurre dentro de approveCurrentReview(), bajo bloqueo de fila.
         if (! $this->isStillPendingReview()) {
             return;
         }
@@ -97,7 +101,11 @@ class ReviewShow extends Component
             'observation' => ['nullable', 'string', 'max:5000'],
         ]);
 
-        $this->evidence->approveCurrentReview(auth()->user(), $this->observation ?: null);
+        if (! $this->evidence->approveCurrentReview(auth()->user(), $this->observation ?: null)) {
+            $this->addError('observation', $this->alreadyResolvedMessage());
+
+            return;
+        }
 
         session()->flash('status', 'Evidencia aprobada.');
         $this->redirect($this->reviewsIndexUrl(), navigate: false);
@@ -117,7 +125,11 @@ class ReviewShow extends Component
             'observation.required' => 'La devolución exige una observación explicando qué debe ajustar el docente.',
         ]);
 
-        $this->evidence->returnCurrentReviewForAdjustment(auth()->user(), $this->observation);
+        if (! $this->evidence->returnCurrentReviewForAdjustment(auth()->user(), $this->observation)) {
+            $this->addError('observation', $this->alreadyResolvedMessage());
+
+            return;
+        }
 
         session()->flash('status', 'Evidencia devuelta al docente para ajustes.');
         $this->redirect($this->reviewsIndexUrl(), navigate: false);
@@ -126,12 +138,23 @@ class ReviewShow extends Component
     private function isStillPendingReview(): bool
     {
         if ($this->evidence->status !== EvidenceStatus::Submitted) {
-            $this->addError('observation', 'Esta evidencia ya no está pendiente de revisión.');
+            $this->addError('observation', $this->alreadyResolvedMessage());
 
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 17: mismo mensaje tanto si el chequeo
+     * rápido en memoria detecta el cambio como si lo detecta el chequeo
+     * atómico con bloqueo de fila — para quien revisa, ambos casos son
+     * "alguien más ya resolvió esto".
+     */
+    private function alreadyResolvedMessage(): string
+    {
+        return 'Esta evidencia ya no está pendiente de revisión.';
     }
 
     public function reopen(): void

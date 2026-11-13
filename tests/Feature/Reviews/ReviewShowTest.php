@@ -178,6 +178,80 @@ class ReviewShowTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 17: la suplencia temporal se modela a
+     * propósito con vigencias que se solapan (Leadership no tiene ninguna
+     * restricción de unicidad por ámbito). Mientras ambas vigencias están
+     * abiertas, los dos líderes deben poder entrar a revisar la misma
+     * evidencia Enviada — quién decide primero ya lo cubre
+     * test_second_leader_over_the_same_scope_cannot_act_after_the_first_one_decided().
+     */
+    public function test_both_leaders_with_overlapping_validity_can_open_the_same_pending_review(): void
+    {
+        [$evidence, $leaderA] = $this->submittedEvidenceWithLeader();
+        $leaderB = $this->userWithRole(RoleName::Leader);
+
+        $assignment = $evidence->matchingTeacherAssignment();
+        Leadership::factory()->create([
+            'user_id' => $leaderB->id,
+            'academic_period_id' => $assignment->academic_period_id,
+            'program_unit_id' => $assignment->program_unit_id,
+            'activity_id' => null,
+            'starts_at' => now()->subWeek(),
+            'ends_at' => null,
+        ]);
+
+        $this->actingAs($leaderA)->get('/reviews/'.$evidence->id)->assertOk();
+        $this->actingAs($leaderB)->get('/reviews/'.$evidence->id)->assertOk();
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 17: un liderazgo con vigencia futura no
+     * autoriza nada todavía. User::canLeadAssignment() y
+     * Evidence::scopeReviewableBy() comparan 'starts_at' contra now() de
+     * forma consistente en los dos caminos (bandeja y pantalla de
+     * revisión) — este test confirma el segundo.
+     */
+    public function test_a_leadership_with_a_future_start_date_does_not_authorize_review_yet(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $futureLeader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+
+        Leadership::factory()->create([
+            'user_id' => $futureLeader->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => null,
+            'program_unit_id' => $programUnit->id,
+            'starts_at' => now()->addWeek(),
+            'ends_at' => null,
+        ]);
+
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => Deliverable::factory()->create([
+                'academic_period_id' => $period->id,
+                'activity_id' => $activity->id,
+            ])->id,
+        ]);
+
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $version->update(['description' => 'Contenido de prueba']);
+        $evidence->submitCurrentVersion();
+
+        $this->actingAs($futureLeader)->get('/reviews/'.$evidence->id)->assertForbidden();
+    }
+
+    /**
      * Punto 9 de la revisión de la directora: el comentario del docente es
      * visible para el líder en la versión actual y en el historial.
      */
@@ -577,6 +651,50 @@ class ReviewShowTest extends TestCase
 
         $this->assertEquals(EvidenceStatus::Approved, $evidence->fresh()->status);
         $this->assertEquals(1, $evidence->fresh()->currentVersion->reviews()->count());
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 17: el test de arriba cubre el caso
+     * SECUENCIAL (la decisión de A ya está en la base cuando B vuelve a
+     * cargar la página — isStillPendingReview() lo detecta sin problema).
+     * Este reproduce la condición de carrera real: dos instancias del
+     * modelo cargadas ANTES de que cualquiera decida (como si fueran dos
+     * pestañas/procesos abiertos a la vez), ambas con 'status' =>
+     * Submitted todavía en memoria. Sin el bloqueo de fila dentro de la
+     * transacción (Evidence::resolveReviewAtomically()), la segunda
+     * decisión también se aplicaría, dejando dos filas en `reviews` con
+     * decisiones contradictorias.
+     */
+    public function test_two_leaders_deciding_from_stale_in_memory_copies_only_applies_the_first_decision(): void
+    {
+        [$evidence, $leaderA] = $this->submittedEvidenceWithLeader();
+        $leaderB = $this->userWithRole(RoleName::Leader);
+
+        $assignment = $evidence->matchingTeacherAssignment();
+        Leadership::factory()->create([
+            'user_id' => $leaderB->id,
+            'academic_period_id' => $assignment->academic_period_id,
+            'program_unit_id' => $assignment->program_unit_id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        // Dos copias independientes, ambas cargadas mientras la evidencia
+        // todavía está Enviada — como dos pestañas abiertas a la vez.
+        $instanceForLeaderA = Evidence::find($evidence->id);
+        $instanceForLeaderB = Evidence::find($evidence->id);
+
+        $resultA = $instanceForLeaderA->approveCurrentReview($leaderA, 'Aprobado por A.');
+        $resultB = $instanceForLeaderB->returnCurrentReviewForAdjustment($leaderB, 'Devuelto por B.');
+
+        $this->assertTrue($resultA);
+        $this->assertFalse($resultB);
+
+        $evidence->refresh();
+        $this->assertEquals(EvidenceStatus::Approved, $evidence->status);
+        $this->assertEquals(1, $evidence->currentVersion->reviews()->count());
+        $this->assertEquals(ReviewDecision::Approved, $evidence->currentVersion->reviews()->first()->decision);
     }
 
     public function test_shows_the_late_submission_indicator_when_submitted_after_the_due_date(): void

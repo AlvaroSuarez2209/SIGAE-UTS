@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class Evidence extends Model
@@ -148,27 +149,68 @@ class Evidence extends Model
      * 5 transiciones de estado (enviar, aprobar, devolver, eximir, quitar
      * exención) vivan todas en el modelo, en vez de que dos de ellas
      * queden como excepción sin justificación aparente.
+     *
+     * Cuadro de seguimiento, punto 17: cuando un ámbito tiene dos líderes
+     * vigentes (sustitución/suplencia con vigencias solapadas, permitido
+     * a propósito — ver Leadership), ambos pueden abrir la misma
+     * evidencia Enviada a la vez. ReviewShow ya revalidaba el estado,
+     * pero solo contra la copia en memoria cargada al abrir la página —
+     * una condición de carrera real (TOCTOU): los dos podían leer
+     * "Enviada" antes de que cualquiera confirmara su escritura y
+     * terminar los dos creando una fila en `reviews`. Devuelve false (sin
+     * escribir nada) si, bajo un bloqueo de fila dentro de la misma
+     * transacción, la evidencia ya no está Enviada.
      */
-    public function approveCurrentReview(User $reviewer, ?string $observation = null): void
+    public function approveCurrentReview(User $reviewer, ?string $observation = null): bool
     {
-        $this->recordReview($reviewer, ReviewDecision::Approved, $observation);
-        $this->update(['status' => EvidenceStatus::Approved]);
+        if (! $this->resolveReviewAtomically(fn () => $this->recordReview($reviewer, ReviewDecision::Approved, $observation), EvidenceStatus::Approved)) {
+            return false;
+        }
 
         $reviewer->notify(new EvidenceApprovalConfirmedNotification($this));
         $this->user->notify(new EvidenceApprovedNotification($this));
 
         QueueFlusher::deferFlush();
+
+        return true;
     }
 
-    public function returnCurrentReviewForAdjustment(User $reviewer, string $observation): void
+    public function returnCurrentReviewForAdjustment(User $reviewer, string $observation): bool
     {
-        $this->recordReview($reviewer, ReviewDecision::Returned, $observation);
-        $this->update(['status' => EvidenceStatus::NeedsAdjustment]);
+        if (! $this->resolveReviewAtomically(fn () => $this->recordReview($reviewer, ReviewDecision::Returned, $observation), EvidenceStatus::NeedsAdjustment)) {
+            return false;
+        }
 
         $reviewer->notify(new EvidenceReturnConfirmedNotification($this));
         $this->user->notify(new EvidenceNeedsAdjustmentNotification($this));
 
         QueueFlusher::deferFlush();
+
+        return true;
+    }
+
+    /**
+     * Vuelve a comprobar el estado DENTRO de la transacción, sobre la
+     * fila bloqueada con lockForUpdate() — mismo patrón ya usado en
+     * CatalogDeletionService para la misma clase de condición de carrera.
+     * Si para cuando se obtiene el bloqueo la evidencia ya no está
+     * Enviada (porque la otra persona con acceso ya decidió), no escribe
+     * nada y devuelve false.
+     */
+    private function resolveReviewAtomically(callable $recordReview, EvidenceStatus $newStatus): bool
+    {
+        return DB::transaction(function () use ($recordReview, $newStatus) {
+            $locked = self::query()->whereKey($this->id)->lockForUpdate()->first();
+
+            if (! $locked || $locked->status !== EvidenceStatus::Submitted) {
+                return false;
+            }
+
+            $recordReview();
+            $this->update(['status' => $newStatus]);
+
+            return true;
+        });
     }
 
     private function recordReview(User $reviewer, ReviewDecision $decision, ?string $observation): void
