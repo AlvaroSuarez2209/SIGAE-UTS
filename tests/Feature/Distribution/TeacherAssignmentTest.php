@@ -15,6 +15,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class TeacherAssignmentTest extends TestCase
@@ -196,11 +197,25 @@ class TeacherAssignmentTest extends TestCase
         $this->assertDatabaseCount('teacher_assignments', 2);
     }
 
-    public function test_cannot_create_assignment_for_a_closed_period(): void
+    public static function closedOrArchived(): array
+    {
+        return [
+            'cerrado' => [AcademicPeriodStatus::Closed],
+            'archivado' => [AcademicPeriodStatus::Archived],
+        ];
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 18: solo existía esta prueba para
+     * Cerrado — Archivado sigue la misma validación pero nunca se había
+     * probado explícitamente.
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_cannot_create_assignment_for_a_closed_or_archived_period(AcademicPeriodStatus $status): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $teacher = $this->teacher();
-        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed]);
+        $period = AcademicPeriod::factory()->create(['status' => $status]);
         $activity = Activity::factory()->create();
         $programUnit = ProgramUnit::factory()->create();
 
@@ -217,11 +232,16 @@ class TeacherAssignmentTest extends TestCase
         $this->assertDatabaseCount('teacher_assignments', 0);
     }
 
-    public function test_editing_an_assignment_in_a_closed_period_is_locked(): void
+    /**
+     * Cuadro de seguimiento, punto 18: solo existía esta prueba para
+     * Cerrado — Archivado nunca se había probado explícitamente.
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_editing_an_assignment_in_a_closed_or_archived_period_is_locked(AcademicPeriodStatus $status): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $assignment = TeacherAssignment::factory()->create([
-            'academic_period_id' => AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed])->id,
+            'academic_period_id' => AcademicPeriod::factory()->create(['status' => $status])->id,
         ]);
 
         Livewire::actingAs($admin)

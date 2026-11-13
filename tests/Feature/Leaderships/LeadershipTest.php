@@ -19,6 +19,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class LeadershipTest extends TestCase
@@ -158,11 +159,25 @@ class LeadershipTest extends TestCase
         $this->assertTrue(is_subclass_of(LeadershipAssignedNotification::class, ShouldQueue::class));
     }
 
-    public function test_cannot_create_leadership_for_a_closed_period(): void
+    public static function closedOrArchived(): array
+    {
+        return [
+            'cerrado' => [AcademicPeriodStatus::Closed],
+            'archivado' => [AcademicPeriodStatus::Archived],
+        ];
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 18: solo existía esta prueba para
+     * Cerrado — Archivado sigue la misma validación pero nunca se había
+     * probado explícitamente.
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_cannot_create_leadership_for_a_closed_or_archived_period(AcademicPeriodStatus $status): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $leader = $this->userWithRole(RoleName::Leader);
-        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed]);
+        $period = AcademicPeriod::factory()->create(['status' => $status]);
         $programUnit = ProgramUnit::factory()->create();
 
         Livewire::actingAs($admin)
@@ -175,6 +190,30 @@ class LeadershipTest extends TestCase
             ->assertHasErrors('academic_period_id');
 
         $this->assertDatabaseCount('leaderships', 0);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 18: ninguna prueba cubría editar un
+     * liderazgo ya existente de un periodo Cerrado/Archivado — $periodLocked
+     * ya lo bloquea (LeadershipForm::mount()/save()), sin cobertura.
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_editing_a_leadership_in_a_closed_or_archived_period_is_locked(AcademicPeriodStatus $status): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leadership = Leadership::factory()->create([
+            'academic_period_id' => AcademicPeriod::factory()->create(['status' => $status])->id,
+            'ends_at' => null,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(LeadershipForm::class, ['leadership' => $leadership])
+            ->assertSet('periodLocked', true)
+            ->set('ends_at', now()->toDateString())
+            ->call('save')
+            ->assertHasErrors('academic_period_id');
+
+        $this->assertNull($leadership->fresh()->ends_at);
     }
 
     public function test_ending_a_leadership_sets_end_date_without_deleting_it(): void

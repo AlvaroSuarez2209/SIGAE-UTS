@@ -283,6 +283,17 @@ class EvidenceWorkspace extends Component
             return;
         }
 
+        // Cuadro de seguimiento, punto 18: mismo chequeo que ya exige
+        // saveDraft()/addLink() para escribir — quitar un archivo del
+        // borrador es una escritura igual, así que un periodo Cerrado o
+        // Archivado debe bloquearla también, aunque la evidencia siga
+        // "editable" por estado. Antes faltaba aquí, permitiendo borrar
+        // la fila (y, si corresponde, el archivo físico) de un periodo
+        // ya cerrado.
+        if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
+            return;
+        }
+
         // Si el archivo ya no está en disco, no hay nada que borrar ahí
         // (ver evidence-workspace.blade.php, caso "Archivo no disponible").
         // Si está, pero otra fila todavía depende de la misma ruta (ver
@@ -329,6 +340,14 @@ class EvidenceWorkspace extends Component
         $link = $this->evidence->currentVersion?->links()->find($linkId);
 
         if (! $link || ! $this->evidence->status->isEditable()) {
+            return;
+        }
+
+        // Cuadro de seguimiento, punto 18: mismo chequeo que removeFile()
+        // — quitar un enlace es una escritura igual que quitar un
+        // archivo, así que un periodo Cerrado o Archivado debe
+        // bloquearla también.
+        if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
             return;
         }
 

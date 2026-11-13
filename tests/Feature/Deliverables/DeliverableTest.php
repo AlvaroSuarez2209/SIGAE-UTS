@@ -28,6 +28,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class DeliverableTest extends TestCase
@@ -377,10 +378,25 @@ class DeliverableTest extends TestCase
         $this->assertDatabaseCount('deliverables', 0);
     }
 
-    public function test_cannot_create_a_deliverable_for_a_closed_period(): void
+    public static function closedOrArchived(): array
+    {
+        return [
+            'cerrado' => [AcademicPeriodStatus::Closed],
+            'archivado' => [AcademicPeriodStatus::Archived],
+        ];
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 18: solo existía esta prueba para
+     * Cerrado — Archivado sigue exactamente el mismo
+     * Rule::exists(...)->whereIn('status', ['planning', 'active']), pero
+     * nunca se había probado explícitamente.
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_cannot_create_a_deliverable_for_a_closed_or_archived_period(AcademicPeriodStatus $status): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
-        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed]);
+        $period = AcademicPeriod::factory()->create(['status' => $status]);
         $activity = Activity::factory()->create();
 
         Livewire::actingAs($admin)
@@ -435,11 +451,17 @@ class DeliverableTest extends TestCase
             ->assertSet('name', $template->name);
     }
 
-    public function test_editing_a_deliverable_in_a_closed_period_is_locked(): void
+    /**
+     * Cuadro de seguimiento, punto 18: solo existía esta prueba para
+     * Cerrado — Archivado nunca se había probado explícitamente, aunque
+     * $periodLocked ya lo incluye (in_array(..., ['closed', 'archived'])).
+     */
+    #[DataProvider('closedOrArchived')]
+    public function test_editing_a_deliverable_in_a_closed_or_archived_period_is_locked(AcademicPeriodStatus $status): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $deliverable = Deliverable::factory()->create([
-            'academic_period_id' => AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Closed])->id,
+            'academic_period_id' => AcademicPeriod::factory()->create(['status' => $status])->id,
         ]);
 
         Livewire::actingAs($admin)

@@ -1127,6 +1127,64 @@ class EvidenceWorkspaceTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 18: saveDraft()/addLink() ya exigían
+     * acceptsEvidenceSubmissions() (periodo Activo) para escribir, pero
+     * removeFile() nunca lo comprobaba — un docente podía quitar un
+     * archivo ya guardado (y, si nadie más comparte su disk_path, borrar
+     * el archivo físico) de un borrador cuyo periodo ya cerró o se
+     * archivó, aunque adjuntar uno nuevo ya estuviera bloqueado. El
+     * archivo se adjunta mientras el periodo todavía está Activo; el
+     * periodo cierra/se archiva después, y solo entonces se intenta
+     * quitarlo.
+     */
+    #[DataProvider('nonActivePeriodStatuses')]
+    public function test_cannot_remove_a_file_once_the_period_is_no_longer_active(AcademicPeriodStatus $status): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('a.pdf', 50, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+        $evidence->deliverable->academicPeriod->update(['status' => $status]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->call('removeFile', $evidenceFile->id);
+
+        $this->assertDatabaseHas('evidence_files', ['id' => $evidenceFile->id]);
+        Storage::disk('local')->assertExists($evidenceFile->disk_path);
+    }
+
+    /**
+     * Mismo punto 18, mismo bug en removeLink() — un docente podía
+     * borrar un enlace ya guardado de un borrador cuyo periodo ya cerró
+     * o se archivó.
+     */
+    #[DataProvider('nonActivePeriodStatuses')]
+    public function test_cannot_remove_a_link_once_the_period_is_no_longer_active(AcademicPeriodStatus $status): void
+    {
+        $evidence = $this->evidenceFor(['allowed_evidence_types' => [EvidenceType::Link->value]]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com')
+            ->call('addLink');
+
+        $link = $evidence->fresh()->currentVersion->links->first();
+        $evidence->deliverable->academicPeriod->update(['status' => $status]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->call('removeLink', $link->id);
+
+        $this->assertDatabaseHas('evidence_links', ['id' => $link->id]);
+    }
+
+    /**
      * Bloque de ajustes de interfaz, punto 3: `newLinkLabel` ya tenía su
      * regla `max:255`, pero la plantilla solo mostraba el @error() de
      * `newLinkUrl` — un error de etiqueta quedaba invisible. Confirma que
@@ -1253,7 +1311,7 @@ class EvidenceWorkspaceTest extends TestCase
      * $leader, $oldFile] — $oldFile es el archivo de la versión 1 (ya no
      * la actual).
      *
-     * @return array{0: Evidence, 1: User, 2: User, 3: \App\Models\EvidenceFile}
+     * @return array{0: Evidence, 1: User, 2: User, 3: EvidenceFile}
      */
     private function evidenceWithAReturnedPreviousVersion(): array
     {
