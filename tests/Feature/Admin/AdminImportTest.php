@@ -260,6 +260,42 @@ class AdminImportTest extends TestCase
             $sheet->getCell('E2')->getValue()
         );
 
+        // Cuadro de seguimiento, punto 13: la hoja de instrucciones debe
+        // explicar qué hacer con el marcador — mismo texto que ya trae la
+        // plantilla de docentes (TeacherImportTemplateTest).
+        $instructions = $spreadsheet->getSheetByName('Instrucciones');
+        $this->assertNotNull($instructions);
+        $instructionsText = collect(range(1, $instructions->getHighestRow()))
+            ->map(fn ($row) => (string) $instructions->getCell("A{$row}")->getValue())
+            ->implode(' ');
+        $this->assertStringContainsString(AdminImportTemplateDataSheet::EXAMPLE_PROGRAM_PLACEHOLDER, $instructionsText);
+
         unlink($tmpPath);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 13: "qué pasa al importar la plantilla
+     * sin tocar la fila de ejemplo" — mismo comportamiento que ya prueba
+     * TeacherImportTemplateTest::test_the_example_row_is_always_rejected_when_imported_unedited()
+     * para la plantilla de docentes, verificado aquí end-to-end a través
+     * del propio asistente (AdminImportWizard), no solo del servicio.
+     */
+    public function test_the_example_row_is_always_rejected_when_the_admin_template_is_imported_unedited(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        ProgramUnit::factory()->create(['name' => 'Ingeniería de Sistemas']);
+
+        $exampleRow = (new AdminImportTemplateDataSheet)->array()[0];
+        $file = $this->csv([$exampleRow]);
+
+        $rows = Livewire::actingAs($admin)
+            ->test(AdminImportWizard::class)
+            ->set('file', $file)
+            ->call('preview')
+            ->get('rows');
+
+        $this->assertSame('reject', $rows[0]['action']);
+        $this->assertStringContainsString('no existe en los programas académicos registrados', $rows[0]['errors'][0]);
+        $this->assertDatabaseMissing('users', ['email' => $exampleRow[3]]);
     }
 }
