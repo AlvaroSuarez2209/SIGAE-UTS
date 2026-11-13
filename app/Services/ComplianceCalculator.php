@@ -11,21 +11,51 @@ use Illuminate\Support\Collection;
 /**
  * Calcula el % de avance de un docente sobre un conjunto de entregables.
  *
- * Regla de negocio central (no negociable): el avance se calcula SIEMPRE
- * sobre entregables obligatorios (con o sin ponderación) y NUNCA sobre las
- * horas asignadas. Si ninguno de los entregables obligatorios del conjunto
- * tiene peso porcentual, todos pesan igual; si todos lo tienen, se usa un
- * promedio ponderado. Un conjunto mixto (algunos con peso, otros sin) se
- * trata como "sin pesos" para no inventar una regla de prorrateo que el
- * negocio no pidió.
+ * Fórmula exacta (cuadro de seguimiento, punto 11):
  *
- * Un entregable con evidencia Exenta (EvidenceStatus::Exempt) se excluye
- * del cálculo por completo — mismo tratamiento que uno opcional (is_mandatory
- * = false) — nunca suma al numerador (aprobados) ni al denominador (total).
- * Bug real encontrado y corregido en la revisión de Prioridad 6: antes, un
- * entregable exento seguía contando como "no aprobado" en el denominador,
- * bajando el % de avance del docente exactamente igual que uno sin
- * resolver — lo opuesto de lo que una exención debería significar.
+ * Denominador ("total"): los entregables de $deliverables con
+ * is_mandatory = true, MENOS los que tengan una evidencia Exenta (ver
+ * más abajo) — nunca Activity::is_mandatory, solo Deliverable::is_mandatory
+ * (ver test_activity_is_mandatory_flag_is_never_read_by_the_calculator),
+ * y nunca las horas asignadas (TeacherAssignment::assigned_hours es
+ * puramente informativo en los informes, jamás entra aquí).
+ *
+ * Numerador ("approved"): de ese denominador, cuántos tienen una
+ * evidencia con status === EvidenceStatus::Approved.
+ *
+ * Tratamiento por estado de evidencia (EvidenceStatus):
+ * - Pending, Draft, Submitted, NeedsAdjustment, Expired: cuentan en el
+ *   denominador, nunca en el numerador — "todavía no cumplido", sin
+ *   distinción entre ellos para este cálculo. Sin ninguna evidencia
+ *   todavía se trata igual que Pending.
+ * - Approved: la única condición que satisface el numerador.
+ * - Exempt: se excluye del cálculo por completo, igual que un entregable
+ *   opcional — no suma ni al numerador ni al denominador. Bug real
+ *   encontrado y corregido en la revisión de Prioridad 6: antes, un
+ *   entregable exento seguía contando como "no aprobado" en el
+ *   denominador, bajando el % de avance del docente exactamente igual
+ *   que uno sin resolver — lo opuesto de lo que una exención debería
+ *   significar.
+ *
+ * Si el denominador queda en 0 (sin entregables obligatorios, o todos
+ * excluidos por exención) el resultado es percentage = null, NUNCA 0 —
+ * "nada que medir" es distinto de "0% de avance".
+ *
+ * Ponderación (weight_percentage, Deliverable/DeliverableTemplate): SÍ
+ * existe y SÍ se usa. Si TODOS los entregables del denominador tienen un
+ * weight_percentage no nulo, percentage = peso ganado / peso total * 100
+ * (promedio ponderado); si ALGUNO no lo tiene (incluyendo "ninguno lo
+ * tiene"), se ignora el peso de todos y se usa conteo simple
+ * (aprobados / total) — un esquema de pesos a medias nunca se prorratea.
+ *
+ * Todo llamador (Dashboard::teacherPanel()/leaderPanel()/coordinationPanel(),
+ * ReportBuilder::teacher()/activity()/consolidated()) debe pasar aquí
+ * únicamente los entregables de los que el docente es destinatario real
+ * (Deliverable::recipients()) — nunca "todo lo publicado en la
+ * actividad/periodo" sin ese filtro, o el % deja de coincidir entre
+ * paneles/informes para el mismo ámbito (bug real: leaderPanel() y
+ * ReportBuilder::activity() no filtraban por recipients(), corregido en
+ * el cuadro de seguimiento, punto 11 — ver ComplianceCrossCheckTest).
  */
 class ComplianceCalculator
 {

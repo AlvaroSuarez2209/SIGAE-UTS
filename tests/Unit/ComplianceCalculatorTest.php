@@ -56,6 +56,25 @@ class ComplianceCalculatorTest extends TestCase
         $this->assertEquals(4, $result['total']);
     }
 
+    /**
+     * Cuadro de seguimiento, punto 11: Draft (borrador, aún sin enviar)
+     * no tenía una prueba dedicada — mismo tratamiento que
+     * Pendiente/Enviado/Requiere ajustes: cuenta en el denominador, nunca
+     * en el numerador.
+     */
+    public function test_draft_evidence_counts_against_compliance_same_as_pending(): void
+    {
+        $user = User::factory()->create();
+        $deliverable = Deliverable::factory()->create(['is_mandatory' => true, 'weight_percentage' => null]);
+        $this->evidenceFor($user, $deliverable, EvidenceStatus::Draft);
+
+        $result = ComplianceCalculator::forUser($user, new Collection([$deliverable]));
+
+        $this->assertEquals(0.0, $result['percentage']);
+        $this->assertEquals(0, $result['approved']);
+        $this->assertEquals(1, $result['total']);
+    }
+
     public function test_only_submitted_not_yet_approved_does_not_count_toward_compliance(): void
     {
         $user = User::factory()->create();
