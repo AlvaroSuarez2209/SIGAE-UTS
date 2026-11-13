@@ -11,6 +11,8 @@ use App\Models\AcademicPeriod;
 use App\Models\Activity;
 use App\Models\Deliverable;
 use App\Models\Evidence;
+use App\Models\EvidenceFile;
+use App\Models\EvidenceVersion;
 use App\Models\Leadership;
 use App\Models\ProgramUnit;
 use App\Models\Role;
@@ -35,7 +37,7 @@ class ReviewShowTest extends TestCase
         Storage::fake('local');
     }
 
-    private function attachFile(\App\Models\EvidenceVersion $version, string $name): \App\Models\EvidenceFile
+    private function attachFile(EvidenceVersion $version, string $name): EvidenceFile
     {
         $file = UploadedFile::fake()->create($name, 50, 'application/pdf');
         $storedPath = $file->store('evidence/'.$version->id, 'local');
@@ -252,6 +254,48 @@ class ReviewShowTest extends TestCase
         $teacher->roles()->attach(Role::where('name', RoleName::Leader->value)->first());
 
         $this->actingAs($teacher)->get('/reviews/'.$evidence->id)->assertForbidden();
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 7: "verifica... que el bloqueo está en
+     * el servidor y no solo en la interfaz", para las combinaciones
+     * Docente + Coordinación y Docente + Administrador — ninguna prueba
+     * existente cubría estas dos cuentas doble-rol específicas (solo
+     * Docente + Líder, ver test_teacher_cannot_review_their_own_evidence_even_as_leader()).
+     *
+     * mount() (app/Livewire/Reviews/ReviewShow.php:62-65) es la ÚNICA
+     * puerta de entrada al componente — Evidence::isReviewableBy()
+     * (app/Models/Evidence.php:346) rechaza por identidad ANTES de mirar
+     * ningún rol, así que Gate::denies('review') es siempre true para el
+     * propio dueño sin importar su otro rol; reopen() (EvidencePolicy.php:37-40)
+     * tampoco lo rescata porque exige status === Approved, y esta
+     * evidencia está Enviada. Con ambas puertas cerradas, mount() lanza
+     * Gate::authorize('review', ...) — no hay forma de llegar siquiera a
+     * invocar approve()/returnForAdjustment() con esta evidencia, lo que
+     * confirma que el bloqueo es estructural (servidor), no una omisión
+     * de la interfaz: ningún payload Livewire manipulado podría saltarse
+     * mount() para invocar esos métodos directamente.
+     */
+    public function test_teacher_coordination_cannot_open_the_review_screen_for_their_own_evidence(): void
+    {
+        [$evidence, , $teacher] = $this->submittedEvidenceWithLeader();
+        $teacher->roles()->attach(Role::where('name', RoleName::Coordination->value)->first());
+
+        $this->actingAs($teacher)->get('/reviews/'.$evidence->id)->assertForbidden();
+        Livewire::actingAs($teacher)->test(ReviewShow::class, ['evidence' => $evidence])->assertForbidden();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
+    }
+
+    public function test_teacher_administrator_cannot_open_the_review_screen_for_their_own_evidence(): void
+    {
+        [$evidence, , $teacher] = $this->submittedEvidenceWithLeader();
+        $teacher->roles()->attach(Role::where('name', RoleName::Administrator->value)->first());
+
+        $this->actingAs($teacher)->get('/reviews/'.$evidence->id)->assertForbidden();
+        Livewire::actingAs($teacher)->test(ReviewShow::class, ['evidence' => $evidence])->assertForbidden();
+
+        $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
 
     /**
