@@ -45,7 +45,23 @@
         aria-modal="true"
         aria-labelledby="delete-modal-title"
     >
-        <div class="card w-full max-w-md p-6 shadow-lg" x-init="$nextTick(() => $refs.deleteModalInitialFocus?.focus())">
+        {{--
+            x-trap.noreturn.noautofocus (plugin de foco de Alpine, incluido
+            en el bundle de Livewire): solo agrega la contención del Tab
+            dentro del panel (antes se podía escapar hacia el fondo de la
+            página) — .noautofocus y .noreturn dejan el foco inicial y el
+            retorno de foco al disparador exactamente como ya estaban
+            (x-init de abajo y window.__sigaeDeleteTrigger en cada botón),
+            que ya funcionan bien con el remontaje de Livewire al abrir y
+            cerrar este modal (a diferencia de <x-confirm-modal>, que nunca
+            se remonta — solo se oculta/muestra — y por eso ahí x-trap sí
+            puede manejar el foco inicial y el retorno por su cuenta).
+        --}}
+        <div
+            class="card w-full max-w-md p-6 shadow-lg"
+            x-trap.noreturn.noautofocus="true"
+            x-init="$nextTick(() => $refs.deleteModalInitialFocus?.focus())"
+        >
             @if ($isBlocked)
                 <h2 id="delete-modal-title" class="mb-2 text-base font-semibold text-text-primary">No se puede eliminar</h2>
                 <p class="mb-4 text-sm text-text-primary"><strong>{{ $model->name }}</strong></p>

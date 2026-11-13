@@ -33,7 +33,6 @@
             this.variant = detail.variant ?? 'primary';
             this.action = detail.action ?? null;
             this.open = true;
-            this.$nextTick(() => this.$refs.cancelButton?.focus());
         },
         confirm() {
             const action = this.action;
@@ -50,11 +49,20 @@
     aria-modal="true"
     aria-labelledby="confirm-modal-title"
 >
-    <div class="card w-full max-w-md p-6 shadow-lg">
+    {{--
+        x-trap (plugin de foco de Alpine, incluido en el bundle de Livewire —
+        no requiere instalar ni configurar nada aparte): mientras "open" es
+        true, atrapa el Tab dentro de este panel (antes se podía escapar
+        hacia el fondo de la página), enfoca el botón [autofocus] al abrir, y
+        al cerrar (Cancelar, Confirmar o Escape, los tres solo cambian
+        "open") devuelve el foco solo al elemento que lo tenía antes de
+        abrir el modal — el botón que lo disparó.
+    --}}
+    <div class="card w-full max-w-md p-6 shadow-lg" x-trap="open">
         <h2 id="confirm-modal-title" class="mb-2 text-base font-semibold text-text-primary" x-text="title"></h2>
         <p class="mb-6 text-sm text-text-secondary" x-html="body"></p>
         <div class="flex items-center justify-end gap-3">
-            <button type="button" x-ref="cancelButton" @click="open = false" class="btn-secondary">
+            <button type="button" autofocus @click="open = false" class="btn-secondary">
                 Cancelar
             </button>
             <button

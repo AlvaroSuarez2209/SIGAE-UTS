@@ -80,6 +80,23 @@ class ModalCloseBehaviorTest extends TestCase
     }
 
     /**
+     * Evaluación de accesibilidad del punto 23: antes, Tab podía escapar
+     * del modal hacia el fondo de la página. x-trap (plugin de foco de
+     * Alpine, incluido en el bundle de Livewire) ahora atrapa el Tab
+     * mientras "open" es true, y devuelve el foco al botón que abrió el
+     * modal al cerrarse (Cancelar, Confirmar o Escape, los tres solo
+     * cambian "open").
+     */
+    public function test_confirm_modal_traps_tab_focus_and_returns_it_to_the_trigger(): void
+    {
+        $response = $this->actingAs($this->admin())->get('/catalogs/components');
+
+        $response->assertOk();
+        $this->assertStringContainsString('x-trap="open"', $response->getContent());
+        $this->assertStringContainsString('autofocus', $response->getContent());
+    }
+
+    /**
      * Ajuste al punto 2: el nuevo modal de borrado real
      * (<x-catalog-delete-modal>) sigue el mismo criterio que el resto —
      * nunca un clic fuera, ver docstring de esta clase.
@@ -99,5 +116,26 @@ class ModalCloseBehaviorTest extends TestCase
         $this->assertStringContainsString('closeDeleteConfirmation', $html);
         $this->assertStringContainsString('role="dialog"', $html);
         $this->assertStringContainsString('aria-modal="true"', $html);
+    }
+
+    /**
+     * Evaluación de accesibilidad del punto 23: mismo x-trap que
+     * <x-confirm-modal>, pero con .noreturn.noautofocus — este modal se
+     * remonta por completo con cada apertura/cierre de Livewire, así que
+     * el foco inicial y el retorno al disparador siguen a cargo del
+     * mecanismo ya existente (x-init de abajo y
+     * window.__sigaeDeleteTrigger en cada botón, ya probados arriba);
+     * x-trap aquí solo agrega la contención del Tab.
+     */
+    public function test_catalog_delete_modal_traps_tab_focus(): void
+    {
+        $component = Component::factory()->create();
+
+        $html = Livewire::actingAs($this->admin())
+            ->test(ComponentIndex::class)
+            ->call('openDeleteConfirmation', $component)
+            ->html();
+
+        $this->assertStringContainsString('x-trap.noreturn.noautofocus="true"', $html);
     }
 }
