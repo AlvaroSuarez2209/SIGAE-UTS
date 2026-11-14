@@ -64,6 +64,24 @@ enum EvidenceStatus: string
     }
 
     /**
+     * Mensaje corto para la franja de estado del docente (rediseño visual
+     * de evidence-workspace.blade.php) — el caso base por estado, sin el
+     * contexto real del periodo/fechas que sí aplica
+     * EvidenceWorkspace::statusMessage() antes de usar este valor.
+     */
+    public function teacherStatusMessage(): string
+    {
+        return match ($this) {
+            self::Pending, self::Draft => 'Aún no la envías. Complétala antes de la fecha límite.',
+            self::Submitted => 'Enviada, a la espera de revisión.',
+            self::NeedsAdjustment => 'Devuelta para ajustes. Corrígela y vuelve a enviarla.',
+            self::Approved => 'Aprobada. No es necesario hacer nada más.',
+            self::Expired => 'El plazo venció sin envío.',
+            self::Exempt => 'Marcada como exenta. No necesitas enviarla.',
+        };
+    }
+
+    /**
      * Reverso de label(): los informes (ReportBuilder) entregan cada fila
      * ya como texto plano en español, no como el enum — necesario para
      * poder mostrar <x-status-badge> (que espera el enum) en la vista en

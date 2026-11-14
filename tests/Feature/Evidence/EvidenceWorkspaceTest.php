@@ -242,7 +242,7 @@ class EvidenceWorkspaceTest extends TestCase
             ->set('description', 'Mi evidencia')
             ->set('submissionComment', $comment)
             ->call('submit')
-            ->assertSee('Comentario enviado al revisor')
+            ->assertSee('Comentario:')
             ->assertSee('Primera línea.')
             ->assertSee('Segunda línea.');
     }
@@ -255,15 +255,16 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('description', 'Mi evidencia')
             ->call('submit')
-            ->assertDontSee('Comentario enviado al revisor');
+            ->assertDontSee('Comentario:');
     }
 
     /**
      * Tras una devolución, currentVersion sigue siendo la versión YA
      * enviada (con su comentario original) hasta la primera edición real
-     * — el bloque de solo lectura debe seguir mostrando ese comentario,
-     * pero el textarea para el nuevo envío debe arrancar vacío, no
-     * arrastrar el texto de la versión anterior.
+     * — el textarea para el nuevo envío debe arrancar vacío, no arrastrar
+     * el texto de la versión anterior. Ese comentario anterior sigue
+     * siendo consultable (ya no en un bloque aparte: ahora en la fila de
+     * su propia versión dentro del historial unificado).
      */
     public function test_reopening_after_a_return_starts_the_comment_textarea_empty(): void
     {
@@ -281,7 +282,7 @@ class EvidenceWorkspaceTest extends TestCase
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->assertSet('submissionComment', '')
-            ->assertSee('Comentario enviado al revisor')
+            ->assertSee('Historial')
             ->assertSee('Comentario de la primera entrega.');
     }
 
@@ -1486,7 +1487,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial de versiones')
+            ->assertSee('Historial')
             ->assertSee(route('evidence-files.download', $oldFile), false);
     }
 
@@ -1544,7 +1545,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial de versiones')
+            ->assertSee('Historial')
             ->assertSee('Sin archivos adjuntos.');
     }
 
@@ -1560,7 +1561,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial de versiones')
+            ->assertSee('Historial')
             ->assertSee($oldFile->original_name)
             ->assertSee('Archivo no disponible')
             ->assertDontSee(route('evidence-files.download', $oldFile), false);
@@ -1714,5 +1715,152 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertStringContainsString('instructivo.pdf', $html);
         $this->assertStringContainsString('Archivo no disponible', $html);
         $this->assertStringNotContainsString(route('deliverable-reference-files.download', $referenceFile), $html);
+    }
+
+    /**
+     * Rediseño visual del encabezado: antes leía
+     * $deliverable->activity?->is_mandatory (el campo de la Actividad,
+     * solo un valor por defecto al crear) en vez de
+     * $deliverable->is_mandatory (el campo real, el mismo que ya lee
+     * correctamente review-show.blade.php) — corregido como parte de
+     * este LOTE. Confirma que la insignia sigue al campo correcto incluso
+     * cuando difieren, y que ahora sí aparece en un entregable
+     * transversal (antes nunca podía, al no tener actividad).
+     */
+    public function test_the_mandatory_badge_follows_the_deliverables_own_field_not_the_activitys(): void
+    {
+        $mandatoryDeliverableOnOptionalActivity = $this->evidenceFor([
+            'is_mandatory' => true,
+            'activity_id' => Activity::factory()->create(['is_mandatory' => false])->id,
+        ]);
+
+        Livewire::actingAs($mandatoryDeliverableOnOptionalActivity->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $mandatoryDeliverableOnOptionalActivity])
+            ->assertSee('Obligatoria');
+
+        $optionalDeliverableOnMandatoryActivity = $this->evidenceFor([
+            'is_mandatory' => false,
+            'activity_id' => Activity::factory()->create(['is_mandatory' => true])->id,
+        ]);
+
+        Livewire::actingAs($optionalDeliverableOnMandatoryActivity->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $optionalDeliverableOnMandatoryActivity])
+            ->assertDontSee('Obligatoria');
+    }
+
+    public function test_the_mandatory_badge_can_now_appear_on_a_cross_cutting_deliverable(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->crossCutting()->create(['is_mandatory' => true]);
+        $evidence = Evidence::factory()->create([
+            'deliverable_id' => $deliverable->id,
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Obligatoria');
+    }
+
+    /**
+     * Rediseño visual, franja de estado contextual:
+     * EvidenceWorkspace::statusMessage() envuelve el mensaje base de
+     * EvidenceStatus::teacherStatusMessage() con el contexto real del
+     * periodo y las fechas — para no prometer algo que la pantalla no
+     * permite.
+     */
+    #[DataProvider('nonActivePeriodStatuses')]
+    public function test_status_message_warns_about_the_period_instead_of_the_default_message_when_not_active(AcademicPeriodStatus $periodStatus): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->deliverable->academicPeriod->update(['status' => $periodStatus]);
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->html();
+
+        $this->assertStringContainsString(e("No puedes enviarla mientras el periodo esté en estado \"{$periodStatus->label()}\"."), $html);
+        $this->assertStringNotContainsString('Complétala antes de la fecha límite', $html);
+    }
+
+    /**
+     * Misma franja, pero para una evidencia Devuelta: reenviar tras
+     * devolución sí se permite con el periodo no activo? No — ese caso
+     * también exige acceptsEvidenceSubmissions() (ver
+     * EvidenceWorkspace::saveDraft()), así que el mensaje de periodo
+     * inactivo aplica igual aquí, no solo a Pendiente/Borrador.
+     */
+    public function test_status_message_warns_about_the_period_for_a_returned_evidence_too(): void
+    {
+        $evidence = $this->evidenceFor();
+        $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+        $evidence->deliverable->academicPeriod->update(['status' => AcademicPeriodStatus::Closed]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('No puedes enviarla mientras el periodo esté en estado "Cerrado".')
+            ->assertDontSee('Corrígela y vuelve a enviarla');
+    }
+
+    /**
+     * Vencida: EvidenceStatus::isEditable() ya excluye este estado de los
+     * editables, así que saveDraft()/submit() la bloquean sin importar si
+     * closes_at ya pasó o no — el mensaje nunca promete que "todavía se
+     * puede enviar hasta el cierre" (hallazgo reportado aparte, no
+     * corregido en este LOTE).
+     */
+    public function test_status_message_for_expired_never_mentions_the_closing_date(): void
+    {
+        $evidence = $this->evidenceFor(['closes_at' => now()->addMonth()]);
+        $evidence->update(['status' => EvidenceStatus::Expired]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('El plazo venció y ya no es posible enviarla.')
+            ->assertDontSee('todavía puedes enviarla');
+    }
+
+    public function test_status_message_for_pending_past_the_closing_date_never_says_before_the_due_date(): void
+    {
+        $evidence = $this->evidenceFor(['due_at' => now()->subDays(2), 'closes_at' => now()->subDay()]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('La fecha límite para enviarla ya pasó.')
+            ->assertDontSee('Complétala antes de la fecha límite');
+    }
+
+    /**
+     * A diferencia del caso anterior, una evidencia Devuelta sí puede
+     * reenviarse pasado el cierre (ver submit()) — su mensaje por
+     * defecto sigue siendo correcto y no debe sobrescribirse.
+     */
+    public function test_status_message_for_needs_adjustment_past_the_closing_date_keeps_the_default_message(): void
+    {
+        $evidence = $this->evidenceFor(['due_at' => now()->subDays(2), 'closes_at' => now()->subDay()]);
+        $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('Devuelta para ajustes. Corrígela y vuelve a enviarla.')
+            ->assertDontSee('La fecha límite para enviarla ya pasó');
+    }
+
+    public function test_status_message_shows_the_default_text_for_approved_and_exempt(): void
+    {
+        $approved = $this->evidenceFor();
+        $approved->update(['status' => EvidenceStatus::Approved]);
+
+        Livewire::actingAs($approved->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $approved->fresh()])
+            ->assertSee('Aprobada. No es necesario hacer nada más.');
+
+        $exempt = $this->evidenceFor();
+        $exempt->update(['status' => EvidenceStatus::Exempt]);
+
+        Livewire::actingAs($exempt->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $exempt->fresh()])
+            ->assertSee('Marcada como exenta. No necesitas enviarla.');
     }
 }

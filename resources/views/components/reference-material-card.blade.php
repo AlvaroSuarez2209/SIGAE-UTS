@@ -16,7 +16,7 @@
 @props(['deliverable', 'referenceFiles'])
 
 @if ($deliverable->reference_url || $referenceFiles->isNotEmpty())
-    <div class="card mb-6 space-y-3 p-4">
+    <div class="card space-y-3 p-4">
         <h2 class="form-section-title">Material de referencia</h2>
 
         @if ($deliverable->reference_url)

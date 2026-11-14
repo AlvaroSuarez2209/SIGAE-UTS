@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Evidence;
 
+use App\Enums\EvidenceStatus;
 use App\Enums\EvidenceType;
 use App\Enums\ReviewDecision;
 use App\Enums\RoleName;
@@ -448,14 +449,50 @@ class EvidenceWorkspace extends Component
             || auth()->user()->hasAnyRole([RoleName::Administrator, RoleName::Coordination]);
     }
 
+    /**
+     * Mensaje de la franja de estado del rediseño visual — envuelve
+     * EvidenceStatus::teacherStatusMessage() (el caso base por estado) con
+     * el contexto real que sí importa para no prometer algo que la
+     * pantalla no permite: periodo no activo (cubre Pendiente/Borrador/
+     * Devuelta por igual, ver acceptsEvidenceSubmissions()), Vencida
+     * (bloqueada por isEditable() sin importar closes_at — ver hallazgo
+     * reportado aparte sobre Deliverable::isPastClosingDate()), y
+     * Pendiente/Borrador con la fecha límite ya pasada (nunca "antes de
+     * la fecha límite" cuando ya pasó). Devuelta no entra en ese último
+     * caso a propósito: reenviar tras devolución sí se permite pasado el
+     * cierre (ver submit()), así que su mensaje por defecto sigue siendo
+     * correcto incluso pasado closes_at.
+     */
+    public function statusMessage(): string
+    {
+        $status = $this->evidence->status;
+        $deliverable = $this->evidence->deliverable;
+
+        if ($status->isEditable() && ! $deliverable->acceptsEvidenceSubmissions()) {
+            return "No puedes enviarla mientras el periodo esté en estado \"{$deliverable->academicPeriod->status->label()}\".";
+        }
+
+        if ($status === EvidenceStatus::Expired) {
+            return 'El plazo venció y ya no es posible enviarla.';
+        }
+
+        if (in_array($status, [EvidenceStatus::Pending, EvidenceStatus::Draft], true) && $deliverable->isPastClosingDate()) {
+            return 'La fecha límite para enviarla ya pasó.';
+        }
+
+        return $status->teacherStatusMessage();
+    }
+
     public function render()
     {
         $this->evidence->load([
+            'deliverable.academicPeriod',
             'deliverable.activity.component',
             'deliverable.crossCuttingCommitment',
             'currentVersion.files',
             'currentVersion.links',
             'versions.files',
+            'versions.links',
             'reviews.reviewer',
             'reviews.observations',
             'reviews.version',
