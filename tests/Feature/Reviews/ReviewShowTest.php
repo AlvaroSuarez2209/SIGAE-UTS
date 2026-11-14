@@ -563,7 +563,7 @@ class ReviewShowTest extends TestCase
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
 
-        $this->assertStringContainsString('Historial de versiones', $html);
+        $this->assertStringContainsString('Historial', $html);
         $this->assertStringContainsString('Versión 1', $html);
         $this->assertStringContainsString('Versión 2', $html);
         $this->assertStringContainsString('Archivo no disponible', $html);
@@ -575,7 +575,7 @@ class ReviewShowTest extends TestCase
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
 
-        $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leader->name.'/s', $html);
+        $this->assertMatchesRegularExpression('/Versión 1.*'.$leader->name.'/s', $html);
     }
 
     /**
@@ -618,8 +618,8 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString('version-1.pdf', $html);
         $this->assertStringContainsString('version-2.pdf', $html);
         $this->assertStringContainsString('version-3.pdf', $html);
-        $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leaderA->name.'/s', $html);
-        $this->assertMatchesRegularExpression('/Versión 2.*·.*'.$leaderB->name.'/s', $html);
+        $this->assertMatchesRegularExpression('/Versión 1.*'.$leaderA->name.'/s', $html);
+        $this->assertMatchesRegularExpression('/Versión 2.*'.$leaderB->name.'/s', $html);
     }
 
     public function test_metadata_card_shows_period_activity_component_weight_and_mandatory(): void
@@ -634,7 +634,7 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString($deliverable->activity->component->name, $html);
         $this->assertStringContainsString($deliverable->activity->name, $html);
         $this->assertStringContainsString('40%', $html);
-        $this->assertStringContainsString('Obligatorio', $html);
+        $this->assertStringContainsString('Obligatoria', $html);
     }
 
     /**
@@ -763,14 +763,79 @@ class ReviewShowTest extends TestCase
         $this->assertEquals(ReviewDecision::Approved, $evidence->currentVersion->reviews()->first()->decision);
     }
 
-    public function test_shows_the_late_submission_indicator_when_submitted_after_the_due_date(): void
+    /**
+     * Rediseño visual del encabezado, punto 8: ReviewShow::reviewContextLabel()
+     * muestra la vigencia real cuando el usuario actual es el líder
+     * vigente de esta evidencia.
+     */
+    public function test_header_shows_the_leaders_own_validity_when_reviewing_within_scope(): void
     {
         [$evidence, $leader] = $this->submittedEvidenceWithLeader();
-        $evidence->deliverable->update(['due_at' => now()->subDays(5)]);
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
 
-        $this->assertStringContainsString('5 días después de la fecha límite', $html);
+        $this->assertStringContainsString('Tu liderazgo: vigente desde', $html);
+        $this->assertStringNotContainsString('Revisión como respaldo', $html);
+    }
+
+    /**
+     * Cuando Administración/Coordinación revisa porque hoy no hay ningún
+     * líder vigente sobre ese ámbito (el respaldo que ya permite
+     * EvidencePolicy::review()), el encabezado lo deja explícito en vez
+     * de mostrar una vigencia que no existe.
+     */
+    public function test_header_shows_backup_review_label_when_administrator_reviews_without_any_leader(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader(leaderInScope: false);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('Revisión como respaldo', $html);
+        $this->assertStringNotContainsString('Tu liderazgo: vigente desde', $html);
+    }
+
+    /**
+     * Para un entregable transversal, Administración/Coordinación son
+     * revisores primarios por diseño, no un respaldo — el encabezado no
+     * debe mostrar ninguno de los dos textos.
+     */
+    public function test_header_shows_no_review_context_for_a_cross_cutting_evidence(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $deliverable = Deliverable::factory()->crossCutting()->create();
+        $evidence = Evidence::factory()->create([
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+            'deliverable_id' => $deliverable->id,
+        ]);
+        $version = $evidence->startOrGetDraftVersion($teacher);
+        $version->update(['description' => 'Contenido de prueba']);
+        $evidence->submitCurrentVersion();
+
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringNotContainsString('Revisión como respaldo', $html);
+        $this->assertStringNotContainsString('Tu liderazgo: vigente desde', $html);
+    }
+
+    public function test_shows_the_late_submission_indicator_when_submitted_after_the_due_date(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+
+        // Se calcula a partir de submitted_at, ya fijo en este punto, en
+        // vez de un now()->subDays(5) aparte: evita una carrera de
+        // milisegundos entre dos llamadas a now() que podía redondear a
+        // 4 días en vez de 5 bajo carga (test flaky preexistente, no
+        // introducido por este rediseño).
+        $submittedAt = $evidence->currentVersion->submitted_at;
+        $evidence->deliverable->update(['due_at' => $submittedAt->copy()->subDays(5)]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('5 días tarde', $html);
     }
 
     public function test_does_not_show_the_late_submission_indicator_when_submitted_on_time(): void
@@ -780,7 +845,7 @@ class ReviewShowTest extends TestCase
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
 
-        $this->assertStringNotContainsString('después de la fecha límite', $html);
+        $this->assertStringNotContainsString('días tarde', $html);
     }
 
     public function test_leader_outside_scope_cannot_download_a_file_from_a_previous_version(): void

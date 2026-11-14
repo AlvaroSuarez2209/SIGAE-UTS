@@ -3,7 +3,9 @@
 namespace App\Livewire\Reviews;
 
 use App\Enums\EvidenceStatus;
+use App\Enums\RoleName;
 use App\Models\Evidence;
+use App\Models\Leadership;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -171,6 +173,55 @@ class ReviewShow extends Component
         session()->flash('status', 'Evidencia reabierta para que el docente pueda ajustarla.');
     }
 
+    /**
+     * Rediseño visual del encabezado, punto 8: la vigencia de la
+     * responsabilidad del líder sobre esta evidencia no se mostraba en
+     * ningún lugar. Devuelve, para la línea del encabezado:
+     * - La vigencia real cuando el usuario actual tiene un liderazgo
+     *   vigente que cubre la actividad/programa de esta evidencia.
+     * - "Revisión como respaldo" cuando el usuario es Administrador o
+     *   Coordinación revisando una evidencia NO transversal que hoy no
+     *   tiene ningún líder vigente en ese ámbito (el respaldo que ya
+     *   permite EvidencePolicy::review()).
+     * - null (no se muestra nada) para entregables transversales —ahí
+     *   Administración/Coordinación son revisores primarios por diseño,
+     *   no un respaldo— o cuando no aplica ninguno de los dos casos.
+     * Consulta de solo lectura, mismo criterio de vigencia que
+     * User::canLeadAssignment().
+     */
+    public function reviewContextLabel(): ?string
+    {
+        if ($this->evidence->deliverable->isCrossCutting()) {
+            return null;
+        }
+
+        $assignment = $this->evidence->matchingTeacherAssignment();
+
+        if (! $assignment) {
+            return null;
+        }
+
+        $leadership = Leadership::where('academic_period_id', $assignment->academic_period_id)
+            ->where('program_unit_id', $assignment->program_unit_id)
+            ->where(fn ($query) => $query->whereNull('activity_id')->orWhere('activity_id', $assignment->activity_id))
+            ->where('user_id', auth()->id())
+            ->where('starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+            ->first();
+
+        if ($leadership) {
+            $label = 'Tu liderazgo: vigente desde '.$leadership->starts_at->toReadable();
+
+            return $leadership->ends_at ? $label.' hasta '.$leadership->ends_at->toReadable() : $label;
+        }
+
+        if (auth()->user()->hasAnyRole([RoleName::Administrator, RoleName::Coordination])) {
+            return 'Revisión como respaldo';
+        }
+
+        return null;
+    }
+
     public function render()
     {
         $this->evidence->load([
@@ -180,6 +231,7 @@ class ReviewShow extends Component
             'currentVersion.files',
             'currentVersion.links',
             'versions.files',
+            'versions.links',
             'reviews.reviewer',
             'reviews.observations',
             'reviews.version',
