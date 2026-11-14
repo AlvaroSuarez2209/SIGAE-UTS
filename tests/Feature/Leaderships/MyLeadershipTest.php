@@ -56,6 +56,33 @@ class MyLeadershipTest extends TestCase
                 && $leaderships->first()->id === $own->id);
     }
 
+    /**
+     * Cuadro de seguimiento, punto 15: el caso inverso al de "Todo el
+     * programa" nunca se probó — un liderazgo acotado a una actividad
+     * específica debe mostrar el periodo, el componente/programa, el
+     * nombre real de la actividad, y las fechas de vigencia (Inicio/Fin)
+     * como texto legible, no solo el indicador Sí/No de "Vigente hoy".
+     */
+    public function test_leader_sees_the_specific_activity_period_and_validity_dates(): void
+    {
+        $leader = $this->userWithRole(RoleName::Leader);
+        $activity = \App\Models\Activity::factory()->create();
+        $leadership = Leadership::factory()->create([
+            'user_id' => $leader->id,
+            'activity_id' => $activity->id,
+            'starts_at' => '2026-01-15',
+            'ends_at' => '2026-06-30',
+        ]);
+
+        $this->actingAs($leader)->get('/my-leadership')
+            ->assertOk()
+            ->assertSee($leadership->academicPeriod->name)
+            ->assertSee($leadership->programUnit->name)
+            ->assertSee($leadership->activity->name)
+            ->assertSee($leadership->starts_at->toReadable())
+            ->assertSee($leadership->ends_at->toReadable());
+    }
+
     public function test_leader_sees_todo_el_programa_when_the_leadership_has_no_specific_activity(): void
     {
         $leader = $this->userWithRole(RoleName::Leader);

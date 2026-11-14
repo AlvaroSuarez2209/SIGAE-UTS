@@ -1344,6 +1344,36 @@ class EvidenceWorkspaceTest extends TestCase
     }
 
     /**
+     * Cuadro de seguimiento, punto 2: caso feliz — el dueño descarga un
+     * archivo que sí existe en disco. Toda la cobertura previa de
+     * EvidenceFileDownloadController probaba el 404 (archivo ausente) y
+     * el 403 (acceso no autorizado), pero nunca el 200 con el contenido
+     * real.
+     */
+    public function test_downloading_an_existing_evidence_file_succeeds_with_its_real_content(): void
+    {
+        $evidence = $this->evidenceFor();
+        $file = UploadedFile::fake()->create('evidencia.pdf', 100, 'application/pdf');
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [$file])
+            ->call('saveDraft');
+
+        $evidenceFile = $evidence->fresh()->currentVersion->files->first();
+
+        $response = $this->actingAs($evidence->user)
+            ->get(route('evidence-files.download', $evidenceFile));
+
+        $response->assertOk();
+        $this->assertStringContainsString('evidencia.pdf', $response->headers->get('content-disposition'));
+        $this->assertEquals(
+            Storage::disk('local')->get($evidenceFile->disk_path),
+            $response->streamedContent()
+        );
+    }
+
+    /**
      * El disco de Render es efímero — un redeploy puede dejar la fila de
      * evidence_files en la base sin su archivo físico. Antes de esta
      * prueba, Storage::download() dejaba pasar la excepción cruda de

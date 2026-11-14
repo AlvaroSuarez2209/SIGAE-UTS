@@ -578,6 +578,50 @@ class ReviewShowTest extends TestCase
         $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leader->name.'/s', $html);
     }
 
+    /**
+     * Cuadro de seguimiento, punto 3: cada prueba existente cubría como
+     * máximo 2 versiones. Esta encadena 3 versiones sucesivas, cada una
+     * con su propio archivo y, las dos primeras, devueltas por un líder
+     * DISTINTO cada vez — confirma que el historial no mezcla el archivo
+     * ni el revisor de una versión con los de otra.
+     */
+    public function test_opening_three_successive_versions_shows_each_ones_own_files_and_reviewer(): void
+    {
+        [$evidence, $leaderA, $teacher] = $this->submittedEvidenceWithLeader();
+
+        $v1 = $evidence->currentVersion;
+        $this->attachFile($v1, 'version-1.pdf');
+        $evidence->returnCurrentReviewForAdjustment($leaderA, 'Ajusta la versión 1.');
+
+        $leaderB = $this->userWithRole(RoleName::Leader);
+        $assignment = $evidence->matchingTeacherAssignment();
+        Leadership::factory()->create([
+            'user_id' => $leaderB->id,
+            'academic_period_id' => $assignment->academic_period_id,
+            'program_unit_id' => $assignment->program_unit_id,
+            'activity_id' => null,
+            'starts_at' => now()->subMonth(),
+            'ends_at' => null,
+        ]);
+
+        $v2 = $evidence->startOrGetDraftVersion($teacher);
+        $this->attachFile($v2, 'version-2.pdf');
+        $evidence->submitCurrentVersion();
+        $evidence->returnCurrentReviewForAdjustment($leaderB, 'Ajusta la versión 2.');
+
+        $v3 = $evidence->startOrGetDraftVersion($teacher);
+        $this->attachFile($v3, 'version-3.pdf');
+        $evidence->submitCurrentVersion();
+
+        $html = Livewire::actingAs($leaderA)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('version-1.pdf', $html);
+        $this->assertStringContainsString('version-2.pdf', $html);
+        $this->assertStringContainsString('version-3.pdf', $html);
+        $this->assertMatchesRegularExpression('/Versión 1.*·.*'.$leaderA->name.'/s', $html);
+        $this->assertMatchesRegularExpression('/Versión 2.*·.*'.$leaderB->name.'/s', $html);
+    }
+
     public function test_metadata_card_shows_period_activity_component_weight_and_mandatory(): void
     {
         [$evidence, $leader] = $this->submittedEvidenceWithLeader();
@@ -591,6 +635,28 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString($deliverable->activity->name, $html);
         $this->assertStringContainsString('40%', $html);
         $this->assertStringContainsString('Obligatorio', $html);
+    }
+
+    /**
+     * Cuadro de seguimiento, punto 15: ninguna prueba cubría la tarjeta
+     * "Instrucciones" (descripción/instrucciones/criterio de cumplimiento)
+     * desde la pantalla de revisión del líder — solo la tarjeta de
+     * metadatos (periodo/actividad/componente/peso/obligatorio) de arriba.
+     */
+    public function test_metadata_screen_also_shows_the_deliverables_instructions_card(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update([
+            'description' => 'Descripción de prueba del entregable.',
+            'instructions' => 'Instrucciones detalladas para esta entrega.',
+            'completion_criteria' => 'Criterio de cumplimiento de prueba.',
+        ]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString('Descripción de prueba del entregable.', $html);
+        $this->assertStringContainsString('Instrucciones detalladas para esta entrega.', $html);
+        $this->assertStringContainsString('Criterio de cumplimiento de prueba.', $html);
     }
 
     public function test_metadata_card_shows_transversal_commitment_name_for_cross_cutting_deliverables(): void
