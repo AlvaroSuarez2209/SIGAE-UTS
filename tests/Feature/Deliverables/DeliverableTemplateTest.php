@@ -53,6 +53,27 @@ class DeliverableTemplateTest extends TestCase
             ->assertDontSee('Plantilla inactiva');
     }
 
+    /**
+     * Lote "más reciente primero": el listado de plantillas ya no es
+     * alfabético, es por fecha de creación descendente (con id
+     * descendente como desempate).
+     */
+    public function test_template_index_lists_most_recently_created_first(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        DeliverableTemplate::factory()->create(['name' => 'Zonas de bienestar']);
+        DeliverableTemplate::factory()->create(['name' => 'Áreas académicas']);
+        DeliverableTemplate::factory()->create(['name' => 'Bienestar institucional']);
+
+        Livewire::actingAs($coordination)
+            ->test(TemplateIndex::class)
+            ->assertViewHas('templates', fn ($templates) => $templates->pluck('name')->all() === [
+                'Bienestar institucional',
+                'Áreas académicas',
+                'Zonas de bienestar',
+            ]);
+    }
+
     public function test_coordination_can_create_a_template(): void
     {
         $coordination = $this->userWithRole(RoleName::Coordination);

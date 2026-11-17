@@ -48,11 +48,20 @@ class DeliverableIndex extends Component
         // primero por fecha de creación del registro — mismo criterio
         // para los dos grupos, así que un solo orderByDesc('created_at')
         // basta como desempate una vez resuelto el orden entre grupos.
+        //
+        // Lote de ajustes "más reciente primero": esta tabla YA ordenaba
+        // por created_at desc dentro de cada grupo (nunca por fecha de
+        // vencimiento) — se agrega id desc solo como desempate estable
+        // para dos registros creados en el mismo segundo. El agrupamiento
+        // borrador-primero se conserva: es una prioridad de negocio
+        // (qué necesita atención) distinta de "más reciente primero", no
+        // algo que este lote haya pedido quitar.
         $deliverables = Deliverable::query()
             ->with(['academicPeriod', 'activity.component', 'crossCuttingCommitment', 'recipients'])
             ->when($this->periodFilter, fn ($query) => $query->where('academic_period_id', $this->periodFilter))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [DeliverableStatus::Draft->value])
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.deliverables.deliverable-index', [

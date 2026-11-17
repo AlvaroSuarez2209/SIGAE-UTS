@@ -53,8 +53,11 @@ class AssignmentIndex extends Component
             ->with(['user', 'academicPeriod', 'activity.component', 'activity.subcomponent', 'programUnit'])
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('users.name', $this->search))
             ->when($this->periodFilter, fn ($query) => $query->where('teacher_assignments.academic_period_id', $this->periodFilter))
-            ->orderByAccentInsensitive('users.name')
-            ->orderBy('teacher_assignments.id')
+            // Lote de ajustes "más reciente primero": created_at de la
+            // propia asignación, no el nombre del docente — pedido
+            // explícitamente para esta tabla.
+            ->orderByDesc('teacher_assignments.created_at')
+            ->orderByDesc('teacher_assignments.id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.distribution.assignment-index', [

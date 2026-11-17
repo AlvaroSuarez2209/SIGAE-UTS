@@ -273,10 +273,12 @@ class TeacherAssignmentTest extends TestCase
     }
 
     /**
-     * Punto 6 (ampliación): el listado se ordena por el nombre del
-     * docente (no por fecha de creación), insensible a tildes.
+     * Lote "más reciente primero": el listado ya no se ordena por el
+     * nombre del docente, se ordena por la fecha de creación de la
+     * propia asignación (created_at descendente, id descendente como
+     * desempate) — pedido explícitamente para esta tabla.
      */
-    public function test_assignment_index_lists_alphabetically_by_teacher_name_without_accents(): void
+    public function test_assignment_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $zoe = $this->teacher();
@@ -285,14 +287,43 @@ class TeacherAssignmentTest extends TestCase
         $andrea->update(['name' => 'Ángela Torres']);
 
         TeacherAssignment::factory()->create(['user_id' => $zoe->id]);
-        TeacherAssignment::factory()->create(['user_id' => $andrea->id]);
+        $newest = TeacherAssignment::factory()->create(['user_id' => $andrea->id]);
 
         Livewire::actingAs($admin)
             ->test(AssignmentIndex::class)
             ->set('periodFilter', null)
-            ->assertViewHas('assignments', fn ($assignments) => $assignments->pluck('user.name')->all() === [
-                'Ángela Torres',
-                'Zoe Ramírez',
-            ]);
+            ->assertViewHas('assignments', fn ($assignments) => $assignments->first()->id === $newest->id);
+    }
+
+    /**
+     * Lote "más reciente primero", punto 3: AssignmentForm::save()
+     * redirige a una URL sin "page" en la query, así que la nueva
+     * asignación (ahora la primera) siempre queda visible sin tener que
+     * paginar.
+     */
+    public function test_creating_an_assignment_redirects_to_an_url_without_a_page_parameter(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $teacher = $this->teacher();
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        $form = Livewire::actingAs($coordination)
+            ->test(AssignmentForm::class)
+            ->set('user_id', $teacher->id)
+            ->set('academic_period_id', $period->id)
+            ->set('activity_id', $activity->id)
+            ->set('program_unit_id', $programUnit->id)
+            ->set('assigned_hours', '5')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('distribution.index', ['search' => '', 'periodFilter' => '']));
+
+        $redirectUrl = $form->effects['redirect'] ?? null;
+        $this->assertNotNull($redirectUrl);
+
+        parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
+        $this->assertArrayNotHasKey('page', $query);
     }
 }

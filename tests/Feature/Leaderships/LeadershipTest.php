@@ -362,10 +362,13 @@ class LeadershipTest extends TestCase
     }
 
     /**
-     * Punto 6 (ampliación): el listado se ordena por el nombre del
-     * líder (no por fecha de inicio), insensible a tildes.
+     * Lote "más reciente primero": el listado ya no se ordena por el
+     * nombre del líder ni por starts_at, se ordena por la fecha de
+     * creación del propio liderazgo (created_at descendente, id
+     * descendente como desempate) — pedido explícitamente para esta
+     * tabla.
      */
-    public function test_leadership_index_lists_alphabetically_by_leader_name_without_accents(): void
+    public function test_leadership_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $zoe = $this->userWithRole(RoleName::Leader);
@@ -374,14 +377,42 @@ class LeadershipTest extends TestCase
         $angela->update(['name' => 'Ángela Torres']);
 
         Leadership::factory()->create(['user_id' => $zoe->id]);
-        Leadership::factory()->create(['user_id' => $angela->id]);
+        $newest = Leadership::factory()->create(['user_id' => $angela->id]);
 
         Livewire::actingAs($admin)
             ->test(LeadershipIndex::class)
             ->set('periodFilter', null)
-            ->assertViewHas('leaderships', fn ($leaderships) => $leaderships->pluck('user.name')->all() === [
-                'Ángela Torres',
-                'Zoe Ramírez',
-            ]);
+            ->assertViewHas('leaderships', fn ($leaderships) => $leaderships->first()->id === $newest->id);
+    }
+
+    /**
+     * Lote "más reciente primero", punto 3: LeadershipForm::save()
+     * redirige a una URL sin "page" en la query, así que el nuevo
+     * liderazgo (ahora el primero) siempre queda visible sin tener que
+     * paginar.
+     */
+    public function test_creating_a_leadership_redirects_to_an_url_without_a_page_parameter(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $leader = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $programUnit = ProgramUnit::factory()->create();
+
+        $form = Livewire::actingAs($admin)
+            ->test(LeadershipForm::class)
+            ->set('user_id', $leader->id)
+            ->set('academic_period_id', $period->id)
+            ->set('program_unit_id', $programUnit->id)
+            ->set('activity_id', null)
+            ->set('starts_at', now()->toDateString())
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('leaderships.index', ['search' => '', 'periodFilter' => '']));
+
+        $redirectUrl = $form->effects['redirect'] ?? null;
+        $this->assertNotNull($redirectUrl);
+
+        parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
+        $this->assertArrayNotHasKey('page', $query);
     }
 }

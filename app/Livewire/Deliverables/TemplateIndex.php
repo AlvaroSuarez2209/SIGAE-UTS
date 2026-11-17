@@ -109,9 +109,11 @@ class TemplateIndex extends Component
 
     public function render()
     {
+        // Lote de ajustes "más reciente primero" — ver el mismo comentario
+        // en ComponentIndex::render().
         return view('livewire.deliverables.template-index', [
-            'templates' => DeliverableTemplate::orderByAccentInsensitive('name')
-                ->orderBy('id')
+            'templates' => DeliverableTemplate::orderByDesc('created_at')
+                ->orderByDesc('id')
                 ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
                 ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
                 ->get(),

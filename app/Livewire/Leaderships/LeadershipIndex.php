@@ -60,8 +60,11 @@ class LeadershipIndex extends Component
             ->with(['user', 'activity.component', 'programUnit', 'academicPeriod'])
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('users.name', $this->search))
             ->when($this->periodFilter, fn ($query) => $query->where('leaderships.academic_period_id', $this->periodFilter))
-            ->orderByAccentInsensitive('users.name')
-            ->orderBy('leaderships.id')
+            // Lote de ajustes "más reciente primero": created_at del
+            // propio liderazgo, no el nombre del líder ni starts_at —
+            // pedido explícitamente para esta tabla.
+            ->orderByDesc('leaderships.created_at')
+            ->orderByDesc('leaderships.id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.leaderships.leadership-index', [

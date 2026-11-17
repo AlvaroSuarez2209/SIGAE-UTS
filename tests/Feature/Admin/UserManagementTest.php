@@ -626,4 +626,86 @@ class UserManagementTest extends TestCase
         $this->assertSame($teachers->pluck('id')->sort()->values()->all(), $seenIds->sort()->values()->all());
         $this->assertSame($seenIds->unique()->count(), $seenIds->count());
     }
+
+    /**
+     * Lote "más reciente primero": el listado de usuarios ya no es
+     * alfabético, es por fecha de creación descendente (con id
+     * descendente como desempate). El filtro de rol (selector, no se
+     * toca por este lote) sigue alfabético — ver
+     * test_role_filter_options_remain_alphabetical.
+     */
+    public function test_user_index_lists_most_recently_created_first(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        $oldest = $this->userWithRole(RoleName::Auditor, ['name' => 'Primero creado']);
+        $middle = $this->userWithRole(RoleName::Auditor, ['name' => 'Segundo creado']);
+        $newest = $this->userWithRole(RoleName::Auditor, ['name' => 'Tercero creado']);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->assertViewHas('users', fn ($users) => $users->pluck('id')->take(3)->all() === [
+                $newest->id,
+                $middle->id,
+                $oldest->id,
+            ]);
+    }
+
+    /**
+     * Lote "más reciente primero": el selector de filtro por rol (no
+     * una tabla, un <select>) no se toca por este lote — sigue
+     * alfabético e insensible a tildes.
+     */
+    public function test_role_filter_options_remain_alphabetical(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        Livewire::actingAs($admin)
+            ->test(UserIndex::class)
+            ->assertViewHas('roles', fn ($roles) => $roles->pluck('label')->all() === $roles->pluck('label')->sortBy(
+                fn ($label) => iconv('UTF-8', 'ASCII//TRANSLIT', $label)
+            )->values()->all());
+    }
+
+    /**
+     * Lote "más reciente primero", punto 3: el nuevo usuario debe verse
+     * sin tener que paginar — UserForm::save() redirige a una URL sin
+     * "page" en la query, así que la página siempre vuelve a ser 1 sin
+     * necesidad de un resetPage() explícito en el índice.
+     */
+    public function test_creating_a_user_redirects_to_an_url_without_a_page_parameter(): void
+    {
+        $coordination = $this->userWithRole(RoleName::Coordination);
+        $teachers = User::factory()->count(30)->create(['is_active' => true]);
+        $teachers->each(fn ($user) => $user->roles()->attach(Role::where('name', RoleName::Teacher->value)->first()));
+
+        // Confirma que, estando en la página 2, sigue habiendo filas ahí
+        // (de lo contrario la prueba de abajo no demostraría nada).
+        Livewire::withQueryParams(['page' => 2])
+            ->actingAs($coordination)
+            ->test(UserIndex::class)
+            ->assertViewHas('users', fn ($users) => $users->currentPage() === 2 && $users->count() > 0);
+
+        $form = Livewire::actingAs($coordination)
+            ->test(UserForm::class)
+            ->set('name', 'Usuario más reciente')
+            ->set('email', 'usuario.reciente@sigae.local')
+            ->set('password', 'Password123!')
+            ->set('selectedRoles', [RoleName::Teacher->value])
+            ->set('document_type', 'CC')
+            ->set('program_unit_id', ProgramUnit::factory()->create()->id)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('admin.users.index', ['search' => '', 'roleFilter' => '']));
+
+        $redirectUrl = $form->effects['redirect'] ?? null;
+        $this->assertNotNull($redirectUrl);
+
+        parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
+        $this->assertArrayNotHasKey('page', $query);
+
+        $final = Livewire::withQueryParams([])->actingAs($coordination)->test(UserIndex::class);
+        $users = $final->viewData('users');
+        $this->assertSame(1, $users->currentPage(), 'current page');
+        $this->assertSame('Usuario más reciente', $users->first()->name, 'first user name');
+    }
 }

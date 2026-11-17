@@ -174,8 +174,10 @@ class ProgramUnitIndex extends Component
 
     public function render()
     {
-        $programUnits = ProgramUnit::orderByAccentInsensitive('name')
-            ->orderBy('id')
+        // Lote de ajustes "más reciente primero" — ver el mismo comentario
+        // en ComponentIndex::render().
+        $programUnits = ProgramUnit::orderByDesc('created_at')
+            ->orderByDesc('id')
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
             ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
             ->get();

@@ -172,11 +172,13 @@ class SubcomponentIndex extends LivewireComponent
 
     public function render()
     {
+        // Lote de ajustes "más reciente primero" — ver el mismo comentario
+        // en ComponentIndex::render().
         $subcomponents = Subcomponent::with('component')
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
             ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-            ->orderByAccentInsensitive('name')
-            ->orderBy('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         return view('livewire.catalogs.subcomponent-index', [

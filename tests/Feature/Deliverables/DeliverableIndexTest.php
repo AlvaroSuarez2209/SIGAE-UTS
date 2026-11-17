@@ -84,4 +84,37 @@ class DeliverableIndexTest extends TestCase
             $deliverables->pluck('id')->all()
         );
     }
+
+    /**
+     * Lote "más reciente primero", punto 3: DeliverableForm::save()
+     * redirige a una URL sin "page" en la query, así que el nuevo
+     * entregable (ahora el primero, por ser borrador y además el más
+     * reciente) siempre queda visible sin tener que paginar.
+     */
+    public function test_creating_a_deliverable_redirects_to_an_url_without_a_page_parameter(): void
+    {
+        $admin = $this->admin();
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = \App\Models\Activity::factory()->create();
+        \App\Models\TeacherAssignment::factory()->create(['academic_period_id' => $period->id, 'activity_id' => $activity->id]);
+
+        $form = Livewire::actingAs($admin)
+            ->test(\App\Livewire\Deliverables\DeliverableForm::class)
+            ->set('academic_period_id', $period->id)
+            ->set('scope_type', 'activity')
+            ->set('activity_id', $activity->id)
+            ->set('name', 'Entregable de prueba')
+            ->set('periodicity_type', 'single')
+            ->set('opens_at', now()->toDateTimeString())
+            ->set('due_at', now()->addWeek()->toDateTimeString())
+            ->set('allowed_evidence_types', [\App\Enums\EvidenceType::File->value])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $redirectUrl = $form->effects['redirect'] ?? null;
+        $this->assertNotNull($redirectUrl);
+
+        parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
+        $this->assertArrayNotHasKey('page', $query);
+    }
 }

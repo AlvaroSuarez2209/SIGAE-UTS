@@ -131,8 +131,11 @@ class UserIndex extends Component
             ->when($this->roleFilter, fn ($query) => $query
                 ->whereHas('roles', fn ($q) => $q->where('name', $this->roleFilter))
             )
-            ->orderByAccentInsensitive('name')
-            ->orderBy('id')
+            // Lote de ajustes "más reciente primero" — ver el mismo
+            // comentario en ComponentIndex::render(). El selector de rol
+            // (líneas de abajo) no se toca, sigue alfabético.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.admin.users.user-index', [

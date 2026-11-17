@@ -130,6 +130,11 @@ class ActivityIndex extends LivewireComponent
         } else {
             Activity::create($data);
             session()->flash('status', 'Actividad creada correctamente.');
+            // Lote de ajustes "más reciente primero": la tabla ya ordena
+            // por created_at desc, pero el modal no redirige — sin esto,
+            // crear estando en la página 2 dejaba el nuevo registro
+            // (que ahora es el primero) fuera de vista.
+            $this->resetPage();
         }
 
         $this->showModal = false;
@@ -225,10 +230,18 @@ class ActivityIndex extends LivewireComponent
 
     public function render()
     {
+        // Lote de ajustes "más reciente primero": la tabla deja de usar
+        // orderedByHierarchy() (componente > subcomponente > actividad,
+        // alfabético) — ese scope sigue intacto y es el que usan todos
+        // los selectores de actividad de la aplicación (DeliverableForm,
+        // AssignmentForm, Dashboard, los informes, <x-activity-select-options>),
+        // ninguno de los cuales se toca aquí. Solo la consulta de ESTA
+        // tabla cambia a created_at desc, con id desc como desempate.
         $activities = Activity::with(['component', 'subcomponent'])
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
             ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
-            ->orderedByHierarchy()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(self::PER_PAGE);
 
         return view('livewire.catalogs.activity-index', [

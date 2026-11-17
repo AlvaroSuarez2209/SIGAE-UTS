@@ -190,8 +190,13 @@ class ComponentIndex extends LivewireComponent
 
     public function render()
     {
-        $components = Component::orderByAccentInsensitive('name')
-            ->orderBy('id')
+        // Lote de ajustes "más reciente primero": el registro recién creado
+        // debe verse de inmediato sin tener que buscarlo alfabéticamente —
+        // created_at desc con id desc como desempate estable. Ningún
+        // selector/desplegable usa esta consulta (solo alimenta la tabla),
+        // así que este cambio no toca ningún <select> de la aplicación.
+        $components = Component::orderByDesc('created_at')
+            ->orderByDesc('id')
             ->when($this->search, fn ($query) => $query->whereAccentInsensitive('name', $this->search))
             ->when($this->statusFilter !== '', fn ($query) => $query->where('is_active', $this->statusFilter === 'active'))
             ->get();

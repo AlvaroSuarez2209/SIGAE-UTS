@@ -60,12 +60,13 @@ class CatalogManagementTest extends TestCase
     }
 
     /**
-     * Punto 6 (ampliación), corrección tras pruebas manuales: el listado
-     * principal de cada catálogo vuelve a ser alfabético (antes era "más
-     * reciente primero", ver OrdersNewestFirst ya eliminado) e insensible
-     * a tildes.
+     * Lote "más reciente primero": el listado principal de cada catálogo
+     * ya no es alfabético, es por fecha de creación descendente (con id
+     * descendente como desempate) — el selector del formulario (no esta
+     * tabla) sigue alfabético e insensible a tildes, ver
+     * test_component_select_options_remain_alphabetical_without_accents.
      */
-    public function test_component_index_lists_alphabetically_without_accents(): void
+    public function test_component_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         Component::factory()->create(['name' => 'Zonas de bienestar']);
@@ -75,13 +76,13 @@ class CatalogManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ComponentIndex::class)
             ->assertViewHas('components', fn ($components) => $components->pluck('name')->all() === [
-                'Áreas académicas',
                 'Bienestar institucional',
+                'Áreas académicas',
                 'Zonas de bienestar',
             ]);
     }
 
-    public function test_a_newly_created_component_appears_in_its_alphabetical_position_not_at_the_top(): void
+    public function test_a_newly_created_component_appears_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         Component::factory()->create(['name' => 'Áreas académicas']);
@@ -94,6 +95,27 @@ class CatalogManagementTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(ComponentIndex::class)
+            ->assertViewHas('components', fn ($components) => $components->pluck('name')->all() === [
+                'Bienestar institucional',
+                'Zonas de bienestar',
+                'Áreas académicas',
+            ]);
+    }
+
+    /**
+     * Lote "más reciente primero": el selector "Componente" del formulario
+     * de Subcomponente/Actividad no se toca por este lote — sigue
+     * alfabético e insensible a tildes.
+     */
+    public function test_component_select_options_remain_alphabetical_without_accents(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Component::factory()->create(['name' => 'Zonas de bienestar']);
+        Component::factory()->create(['name' => 'Áreas académicas']);
+        Component::factory()->create(['name' => 'Bienestar institucional']);
+
+        Livewire::actingAs($admin)
+            ->test(SubcomponentIndex::class)
             ->assertViewHas('components', fn ($components) => $components->pluck('name')->all() === [
                 'Áreas académicas',
                 'Bienestar institucional',
@@ -257,11 +279,13 @@ class CatalogManagementTest extends TestCase
     }
 
     /**
-     * Mismo componente para las 3, sin subcomponente: dentro de ese
-     * único grupo, el orden jerárquico (ver test de hierarchy más
-     * abajo) se reduce al orden alfabético por nombre de actividad.
+     * Lote "más reciente primero": la tabla de Actividades ya no agrupa
+     * por componente/subcomponente (eso sigue intacto en
+     * Activity::orderedByHierarchy(), que usan los selectores — ver
+     * test_activity_select_options_remain_ordered_by_hierarchy), ahora
+     * muestra la actividad recién creada primero.
      */
-    public function test_activity_index_lists_alphabetically_without_accents(): void
+    public function test_activity_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $component = Component::factory()->create();
@@ -272,22 +296,23 @@ class CatalogManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ActivityIndex::class)
             ->assertViewHas('activities', fn ($activities) => $activities->pluck('name')->all() === [
-                'Áreas académicas',
                 'Bienestar institucional',
+                'Áreas académicas',
                 'Zonas de bienestar',
             ]);
     }
 
     /**
-     * Corrección posterior: ordena actividades por componente, luego
-     * subcomponente, luego nombre de actividad — todo insensible a
-     * tildes/mayúsculas. Las actividades sin subcomponente van al
-     * inicio de su componente (se tratan como cadena vacía).
+     * Lote "más reciente primero": el scope Activity::orderedByHierarchy()
+     * (componente > subcomponente > actividad, alfabético, insensible a
+     * tildes) no se toca por este lote — sigue siendo el que usan todos
+     * los selectores de actividad de la aplicación (DeliverableForm,
+     * AssignmentForm, Dashboard, los informes, <x-activity-select-options>).
+     * Solo la consulta propia de ActivityIndex (ver test de arriba) dejó
+     * de usarlo.
      */
-    public function test_activity_index_lists_by_component_then_subcomponent_then_activity_name(): void
+    public function test_activity_select_options_remain_ordered_by_hierarchy(): void
     {
-        $admin = $this->userWithRole(RoleName::Administrator);
-
         $componentZ = Component::factory()->create(['name' => 'Zonas de bienestar']);
         $componentA = Component::factory()->create(['name' => 'Ángel']);
 
@@ -299,15 +324,15 @@ class CatalogManagementTest extends TestCase
         Activity::factory()->create(['component_id' => $componentA->id, 'subcomponent_id' => $subB->id, 'name' => 'Última']);
         Activity::factory()->create(['component_id' => $componentA->id, 'subcomponent_id' => $subA->id, 'name' => 'Primera']);
 
-        Livewire::actingAs($admin)
-            ->test(ActivityIndex::class)
-            ->assertViewHas('activities', fn ($activities) => $activities->pluck('name')->all() === [
-                // Componente "Ángel" antes que "Zonas de bienestar" (A antes de Z).
-                'Zeta sin subcomponente', // sin subcomponente: va primero dentro de "Ángel".
-                'Primera', // subcomponente "Álvaro".
-                'Última', // subcomponente "Beta".
-                'Solitaria', // único de "Zonas de bienestar".
-            ]);
+        $activities = Activity::with(['component', 'subcomponent'])->orderedByHierarchy()->get();
+
+        $this->assertSame([
+            // Componente "Ángel" antes que "Zonas de bienestar" (A antes de Z).
+            'Zeta sin subcomponente', // sin subcomponente: va primero dentro de "Ángel".
+            'Primera', // subcomponente "Álvaro".
+            'Última', // subcomponente "Beta".
+            'Solitaria', // único de "Zonas de bienestar".
+        ], $activities->pluck('name')->all());
     }
 
     /**
@@ -335,6 +360,33 @@ class CatalogManagementTest extends TestCase
 
         $this->assertSame($activities->pluck('id')->sort()->values()->all(), $seenIds->sort()->values()->all());
         $this->assertSame($seenIds->unique()->count(), $seenIds->count());
+    }
+
+    /**
+     * Lote "más reciente primero", punto 3: a diferencia de los demás
+     * catálogos paginados (Usuarios, Asignaciones, Liderazgos,
+     * Entregables, que crean en un componente Form separado y
+     * redirigen), Actividad crea en el mismo modal del índice — sin un
+     * resetPage() explícito, crear estando en la página 2 dejaría la
+     * actividad recién creada (ahora la primera) fuera de vista.
+     */
+    public function test_creating_an_activity_from_page_two_returns_to_page_one(): void
+    {
+        $admin = $this->userWithRole(RoleName::Administrator);
+        Activity::factory()->count(30)->create();
+
+        $component = Component::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ActivityIndex::class)
+            ->call('gotoPage', 2)
+            ->set('name', 'Actividad recién creada')
+            ->set('component_id', $component->id)
+            ->set('subcomponent_id', null)
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertViewHas('activities', fn ($activities) => $activities->currentPage() === 1
+                && $activities->first()->name === 'Actividad recién creada');
     }
 
     public function test_deactivating_an_activity_preserves_historical_reference(): void
@@ -403,7 +455,7 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Clases teóricas');
     }
 
-    public function test_program_unit_index_lists_alphabetically_without_accents(): void
+    public function test_program_unit_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         ProgramUnit::factory()->create(['name' => 'Zonas de bienestar']);
@@ -413,8 +465,8 @@ class CatalogManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(ProgramUnitIndex::class)
             ->assertViewHas('programUnits', fn ($programUnits) => $programUnits->pluck('name')->all() === [
-                'Áreas académicas',
                 'Bienestar institucional',
+                'Áreas académicas',
                 'Zonas de bienestar',
             ]);
     }
@@ -434,7 +486,7 @@ class CatalogManagementTest extends TestCase
             ->assertSet('name', 'Facultad de Ciencias Naturales');
     }
 
-    public function test_cross_cutting_commitment_index_lists_alphabetically_without_accents(): void
+    public function test_cross_cutting_commitment_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         CrossCuttingCommitment::factory()->create(['name' => 'Zonas de bienestar']);
@@ -444,8 +496,8 @@ class CatalogManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(CrossCuttingCommitmentIndex::class)
             ->assertViewHas('commitments', fn ($commitments) => $commitments->pluck('name')->all() === [
-                'Áreas académicas',
                 'Bienestar institucional',
+                'Áreas académicas',
                 'Zonas de bienestar',
             ]);
     }
@@ -659,7 +711,7 @@ class CatalogManagementTest extends TestCase
         $test->assertSee('Siguiente');
     }
 
-    public function test_subcomponent_index_lists_alphabetically_without_accents(): void
+    public function test_subcomponent_index_lists_most_recently_created_first(): void
     {
         $admin = $this->userWithRole(RoleName::Administrator);
         $component = Component::factory()->create();
@@ -670,8 +722,8 @@ class CatalogManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(SubcomponentIndex::class)
             ->assertViewHas('subcomponents', fn ($subcomponents) => $subcomponents->pluck('name')->all() === [
-                'Áreas académicas',
                 'Bienestar institucional',
+                'Áreas académicas',
                 'Zonas de bienestar',
             ]);
     }

@@ -94,21 +94,23 @@ class AccentInsensitiveOrderingTest extends TestCase
     }
 
     /**
-     * El listado principal de Plantillas (a diferencia de los otros 5
-     * catálogos) nunca usó "más reciente primero" — entra de lleno en el
-     * punto 6, no es una excepción.
+     * Lote "más reciente primero": el listado principal de Plantillas
+     * pasó a ordenarse por fecha de creación descendente, igual que los
+     * demás catálogos — ya no es un caso de orderByAccentInsensitive.
+     * Ver test_template_index_lists_most_recently_created_first en
+     * DeliverableTemplateTest.
      */
-    public function test_the_template_index_listing_ignores_accents(): void
+    public function test_the_template_index_listing_is_most_recently_created_first(): void
     {
         $coordination = $this->coordination();
         DeliverableTemplate::factory()->create(['name' => 'Beatriz']);
         DeliverableTemplate::factory()->create(['name' => 'Ángela']);
-        DeliverableTemplate::factory()->create(['name' => 'Ana']);
+        $newest = DeliverableTemplate::factory()->create(['name' => 'Ana']);
 
         $templates = Livewire::actingAs($coordination)
             ->test(TemplateIndex::class)
             ->viewData('templates');
 
-        $this->assertSame(['Ana', 'Ángela', 'Beatriz'], $templates->pluck('name')->all());
+        $this->assertSame($newest->id, $templates->first()->id);
     }
 }
