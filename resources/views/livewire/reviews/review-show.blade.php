@@ -162,10 +162,6 @@
                                 </span>
                                 <span wire:loading wire:target="returnForAdjustment">Devolviendo...</span>
                             </button>
-                            <a href="{{ $this->reviewsIndexUrl() }}" class="btn-secondary">
-                                <x-icon name="chevron-left" class="h-4 w-4" />
-                                Volver
-                            </a>
                         </div>
                     </div>
                 @else
