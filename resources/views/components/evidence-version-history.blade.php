@@ -71,7 +71,7 @@
 
                 @if ($review)
                     <div class="border-t border-border-subtle pt-2">
-                        <x-status-badge :status="$review->decision" class="mb-1" />
+                        <x-status-badge :status="$review->decision" class="mb-1 text-sm" />
                         <p class="text-sm text-text-secondary">
                             {{ $review->reviewer->name }} · {{ $review->decided_at->toReadable() }}
                         </p>

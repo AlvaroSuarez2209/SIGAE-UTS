@@ -73,4 +73,30 @@ class FormattedTextTest extends TestCase
         $this->assertStringContainsString('whitespace-pre-line', $html);
         $this->assertStringContainsString("Primera línea.\nSegunda línea.", $html);
     }
+
+    /**
+     * Ajustes al rediseño visual, punto 8: un criterio de cumplimiento
+     * real, escrito como un párrafo corrido (sin pulsar Enter entre cada
+     * paso), no se convertía en lista — la versión anterior solo
+     * comparaba línea por línea, y un párrafo sin saltos de línea nunca
+     * llega a tener 2 "líneas". El texto exacto que reportó la directora
+     * usaba "…" para acortar cada paso al pegarlo; aquí se reconstruyen
+     * los 5 pasos completos (los puntos 3 y 4 no se mostraron en el
+     * reporte) conservando la misma forma: todo en un solo párrafo, sin
+     * saltos de línea entre pasos.
+     */
+    public function test_a_real_run_on_paragraph_with_five_inline_numbered_steps_renders_as_an_ordered_list(): void
+    {
+        $html = $this->render(
+            '1. La actividad corresponde a lo planificado en la distribución docente. '
+            .'2. Se describe claramente qué se entregó y en qué contexto. '
+            .'3. La evidencia está fechada dentro del periodo académico correspondiente. '
+            .'4. El formato del archivo coincide con lo permitido para este entregable. '
+            .'5. El documento es presentado en su versión final, sin cambios pendientes.'
+        );
+
+        $this->assertStringContainsString('<ol', $html);
+        $this->assertStringContainsString('<li>La actividad corresponde a lo planificado en la distribución docente.</li>', $html);
+        $this->assertStringContainsString('<li>El documento es presentado en su versión final, sin cambios pendientes.</li>', $html);
+    }
 }

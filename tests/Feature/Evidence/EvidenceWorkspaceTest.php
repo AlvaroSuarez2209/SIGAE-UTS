@@ -1601,6 +1601,14 @@ class EvidenceWorkspaceTest extends TestCase
         $this->assertEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }
 
+    /**
+     * Ajustes al rediseño visual, punto 9: closes_at ahora bloquea desde
+     * updatedNewFiles()/saveDraft(), no solo en el último paso de
+     * submit() — el archivo nunca llega a adjuntarse (updatedNewFiles()
+     * ya lo rechaza) y el estado se queda en Pendiente, no en Borrador
+     * (antes, saveDraft() sí alcanzaba a crear la versión con el
+     * archivo, y solo el envío final quedaba bloqueado).
+     */
     public function test_submitting_after_the_closing_date_is_blocked_with_a_clear_message(): void
     {
         $evidence = $this->evidenceFor(['closes_at' => now()->subDay()]);
@@ -1610,9 +1618,10 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('newFiles', [$file])
             ->call('submit')
-            ->assertSet('submissionError', 'El plazo de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.');
+            ->assertSet('submissionError', 'El plazo de envío de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.')
+            ->assertSet('newFiles', []);
 
-        $this->assertEquals(EvidenceStatus::Draft, $evidence->fresh()->status);
+        $this->assertEquals(EvidenceStatus::Pending, $evidence->fresh()->status);
     }
 
     /**
@@ -1636,9 +1645,48 @@ class EvidenceWorkspaceTest extends TestCase
     }
 
     /**
+     * Ajustes al rediseño visual, punto 9: antes de este ajuste, "Tu
+     * entrega" mostraba la zona de carga y los botones Guardar/Enviar
+     * como si todo siguiera activo, aunque closes_at ya hubiera pasado
+     * — el único bloqueo real ocurría recién al pulsar "Enviar". Ahora
+     * la tarjeta pasa a solo lectura en el mismo momento en que deja de
+     * ser posible enviar.
+     */
+    public function test_the_editable_form_is_hidden_once_the_closing_date_has_passed(): void
+    {
+        $evidence = $this->evidenceFor(['closes_at' => now()->subDay()]);
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringNotContainsString('wire:model="newFiles"', $html);
+        $this->assertStringNotContainsString('Guardar borrador', $html);
+        $this->assertStringNotContainsString('Enviar evidencia', $html);
+    }
+
+    public function test_adding_a_link_after_the_closing_date_is_blocked_with_a_clear_message(): void
+    {
+        $evidence = $this->evidenceFor([
+            'closes_at' => now()->subDay(),
+            'allowed_evidence_types' => [EvidenceType::Link->value],
+        ]);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newLinkUrl', 'https://example.com')
+            ->call('addLink')
+            ->assertHasErrors('newLinkUrl');
+
+        $this->assertNull($evidence->fresh()->current_version_id);
+    }
+
+    /**
      * Excepción deliberada: una corrección pedida por el líder no debe
      * quedar varada solo porque el plazo original ya pasó — ver el
-     * docblock de Deliverable::isPastClosingDate().
+     * docblock de Deliverable::isPastClosingDate(). El formulario
+     * editable (y no solo el botón Enviar) debe seguir disponible en
+     * este caso.
      */
     public function test_resubmitting_after_a_return_is_allowed_even_past_the_closing_date(): void
     {
@@ -1827,7 +1875,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
-            ->assertSee('La fecha límite para enviarla ya pasó.')
+            ->assertSee('El plazo de envío de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.')
             ->assertDontSee('Complétala antes de la fecha límite');
     }
 
@@ -1836,15 +1884,27 @@ class EvidenceWorkspaceTest extends TestCase
      * reenviarse pasado el cierre (ver submit()) — su mensaje por
      * defecto sigue siendo correcto y no debe sobrescribirse.
      */
+    /**
+     * blockedByClosingDate() comprueba si HUBO alguna vez una revisión
+     * real con decisión Devuelto — no solo si el estado actual dice
+     * "NeedsAdjustment" — para que la excepción solo aplique a una
+     * corrección real pedida por el líder, nunca a un estado puesto a
+     * mano sin ese antecedente.
+     */
     public function test_status_message_for_needs_adjustment_past_the_closing_date_keeps_the_default_message(): void
     {
         $evidence = $this->evidenceFor(['due_at' => now()->subDays(2), 'closes_at' => now()->subDay()]);
+        $version = $evidence->startOrGetDraftVersion($evidence->user);
+        \App\Models\Review::factory()->create([
+            'evidence_version_id' => $version->id,
+            'decision' => \App\Enums\ReviewDecision::Returned,
+        ]);
         $evidence->update(['status' => EvidenceStatus::NeedsAdjustment]);
 
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
             ->assertSee('Devuelta para ajustes. Corrígela y vuelve a enviarla.')
-            ->assertDontSee('La fecha límite para enviarla ya pasó');
+            ->assertDontSee('El plazo de envío de este entregable cerró');
     }
 
     public function test_status_message_shows_the_default_text_for_approved_and_exempt(): void
@@ -1862,5 +1922,102 @@ class EvidenceWorkspaceTest extends TestCase
         Livewire::actingAs($exempt->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $exempt->fresh()])
             ->assertSee('Marcada como exenta. No necesitas enviarla.');
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 1: "Volver" pasa de texto plano a
+     * botón secundario con ícono, en el encabezado y junto a las
+     * acciones de "Tu entrega".
+     */
+    public function test_volver_is_a_secondary_button_with_an_icon_in_the_header_and_next_to_the_main_actions(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Guardar borrador')
+            ->html();
+
+        $this->assertStringContainsString('btn-secondary', $html);
+        $this->assertMatchesRegularExpression('/btn-secondary[^"]*"[^>]*>\s*<svg/s', $html);
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 3: la fila de datos bajo el
+     * título ahora también muestra el programa y, si ya se envió, la
+     * fecha de envío (antes solo aparecían en la vista del líder).
+     */
+    public function test_data_row_shows_the_program_and_the_submission_date(): void
+    {
+        $evidence = $this->evidenceFor();
+        TeacherAssignment::factory()->create([
+            'user_id' => $evidence->user_id,
+            'academic_period_id' => $evidence->deliverable->academic_period_id,
+            'activity_id' => $evidence->deliverable->activity_id,
+            'program_unit_id' => ProgramUnit::factory()->create(['name' => 'Programa De Prueba']),
+        ]);
+        $evidence->update(['status' => EvidenceStatus::Submitted]);
+        $version = $evidence->startOrGetDraftVersion($evidence->user);
+        $version->update(['submitted_at' => now(), 'description' => 'Contenido de prueba']);
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('Programa De Prueba')
+            ->assertSee('Enviado:');
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 5: el recuadro de estado cambia
+     * de color según el estado — mismo tono que ya usa <x-status-badge>.
+     */
+    public function test_status_message_box_changes_color_tone_by_status(): void
+    {
+        $approved = $this->evidenceFor();
+        $approved->update(['status' => EvidenceStatus::Approved]);
+
+        $approvedHtml = Livewire::actingAs($approved->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $approved->fresh()])
+            ->html();
+        $this->assertStringContainsString('bg-status-success-subtle', $approvedHtml);
+
+        $returned = $this->evidenceFor();
+        $returned->update(['status' => EvidenceStatus::NeedsAdjustment]);
+
+        $returnedHtml = Livewire::actingAs($returned->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $returned->fresh()])
+            ->html();
+        $this->assertStringContainsString('bg-status-warning-subtle', $returnedHtml);
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 6: el panel de exención pasa a
+     * una sección plegada, cerrada por defecto (sin el atributo HTML
+     * "open"), con el nuevo título, y el botón de exentar ya no es
+     * btn-warning (relleno) sino btn-secondary (contorno). Validación y
+     * permisos sin cambios.
+     */
+    public function test_the_exemption_panel_is_a_closed_by_default_disclosure_with_a_secondary_button(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertStringContainsString('¿No puedes realizar esta entrega?', $html);
+
+        // Sin defaultOpenOnDesktop, <x-disclosure> no añade x-data/:open
+        // en absoluto — el <details> queda en su estado nativo, cerrado
+        // por defecto, sin el atributo "open".
+        preg_match('/<details[^>]*>\s*<summary[^>]*>\s*<svg[^>]*>.*?<\/svg>\s*¿No puedes realizar esta entrega\?/s', $html, $matches);
+        $this->assertNotEmpty($matches, 'No se encontró el <details> de la sección de exención.');
+        $this->assertStringNotContainsString(' open', $matches[0]);
+
+        // La validación y el gate siguen intactos: sin justificación, sigue fallando igual que antes.
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('exemptionJustification', '')
+            ->call('markExempt')
+            ->assertHasErrors('exemptionJustification');
     }
 }

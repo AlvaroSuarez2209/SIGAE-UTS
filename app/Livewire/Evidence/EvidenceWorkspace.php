@@ -92,6 +92,13 @@ class EvidenceWorkspace extends Component
             return;
         }
 
+        if ($this->blockedByClosingDate()) {
+            $this->addError('newFiles', $this->closingDateBlockedMessage());
+            $this->newFiles = [];
+
+            return;
+        }
+
         $rules = $this->fileValidationRules();
         $validFiles = [];
 
@@ -127,6 +134,39 @@ class EvidenceWorkspace extends Component
         return "No es posible cargar evidencias mientras el periodo académico esté en estado \"{$status}\". Solo se permite mientras el periodo está Activo.";
     }
 
+    /**
+     * Ajustes al rediseño visual, punto 9: closes_at es, según su propio
+     * docblock en Deliverable::isPastClosingDate(), "el único corte real
+     * de envío" — pero antes de este método solo submit() lo comprobaba.
+     * updatedNewFiles(), saveDraft() y addLink() dejaban guardar
+     * borradores y adjuntar archivos/enlaces indefinidamente pasada la
+     * fecha de cierre, para terminar bloqueados solo en el último paso
+     * (Enviar evidencia) — mientras tanto, "Tu entrega" se veía como un
+     * formulario completamente activo. Ahora los tres escriben la misma
+     * regla que ya aplicaba submit(), así que el formulario deja de
+     * aceptar contenido nuevo (y la vista deja de mostrarlo como
+     * editable) en el mismo momento en que deja de ser posible enviarlo
+     * — salvo la excepción ya existente: una corrección pedida por el
+     * líder (reenvío tras devolución) sigue permitida pasado el cierre.
+     */
+    public function blockedByClosingDate(): bool
+    {
+        $deliverable = $this->evidence->deliverable;
+
+        if (! $deliverable->isPastClosingDate()) {
+            return false;
+        }
+
+        $isResubmissionAfterReturn = $this->evidence->reviews()->where('decision', ReviewDecision::Returned)->exists();
+
+        return ! $isResubmissionAfterReturn;
+    }
+
+    private function closingDateBlockedMessage(): string
+    {
+        return "El plazo de envío de este entregable cerró el {$this->evidence->deliverable->closes_at->toReadable()}.";
+    }
+
     private function allowedTypes(): array
     {
         return $this->evidence->deliverable->allowed_evidence_types->map->value->all();
@@ -160,6 +200,12 @@ class EvidenceWorkspace extends Component
 
         if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
             $this->submissionError = $this->periodBlockedMessage();
+
+            return false;
+        }
+
+        if ($this->blockedByClosingDate()) {
+            $this->submissionError = $this->closingDateBlockedMessage();
 
             return false;
         }
@@ -240,6 +286,12 @@ class EvidenceWorkspace extends Component
 
         if (! $this->evidence->deliverable->acceptsEvidenceSubmissions()) {
             $this->addError('newLinkUrl', $this->periodBlockedMessage());
+
+            return;
+        }
+
+        if ($this->blockedByClosingDate()) {
+            $this->addError('newLinkUrl', $this->closingDateBlockedMessage());
 
             return;
         }
@@ -369,16 +421,11 @@ class EvidenceWorkspace extends Component
     {
         $this->submissionError = '';
 
+        // saveDraft() ya revalida el cierre (blockedByClosingDate()) antes
+        // de tocar nada — repetir aquí la misma condición sería código
+        // muerto, nunca alcanzable: si saveDraft() no bloqueó, la
+        // condición ya es falsa.
         if (! $this->saveDraft()) {
-            return;
-        }
-
-        $deliverable = $this->evidence->deliverable;
-        $isResubmissionAfterReturn = $this->evidence->reviews()->where('decision', ReviewDecision::Returned)->exists();
-
-        if ($deliverable->isPastClosingDate() && ! $isResubmissionAfterReturn) {
-            $this->submissionError = "El plazo de este entregable cerró el {$deliverable->closes_at->toReadable()}.";
-
             return;
         }
 
@@ -476,8 +523,8 @@ class EvidenceWorkspace extends Component
             return 'El plazo venció y ya no es posible enviarla.';
         }
 
-        if (in_array($status, [EvidenceStatus::Pending, EvidenceStatus::Draft], true) && $deliverable->isPastClosingDate()) {
-            return 'La fecha límite para enviarla ya pasó.';
+        if ($status->isEditable() && $this->blockedByClosingDate()) {
+            return $this->closingDateBlockedMessage();
         }
 
         return $status->teacherStatusMessage();

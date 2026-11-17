@@ -428,7 +428,7 @@ class DemoCycleSeederTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->set('newFiles', [UploadedFile::fake()->create('intento.pdf', 50, 'application/pdf')])
             ->call('submit')
-            ->assertSet('submissionError', 'El plazo de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.');
+            ->assertSet('submissionError', 'El plazo de envío de este entregable cerró el '.$evidence->deliverable->closes_at->toReadable().'.');
 
         $this->assertNotEquals(EvidenceStatus::Submitted, $evidence->fresh()->status);
     }

@@ -3,40 +3,99 @@
         $deliverable = $evidence->deliverable;
         $isCrossCutting = $deliverable->isCrossCutting();
         $sameDueAndClose = $deliverable->closes_at && $deliverable->due_at->eq($deliverable->closes_at);
+        $assignment = $evidence->matchingTeacherAssignment();
+        $version = $evidence->currentVersion;
+        $lateDays = $deliverable->lateSubmissionDays($version?->submitted_at);
+
+        // Mismo mapeo de tono que <x-status-badge> (ver status-badge.blade.php)
+        // — ajustes al rediseño visual, punto 5: la franja de estado ahora
+        // usa el mismo color por estado que ya usa la insignia, en vez de un
+        // gris neutro siempre igual.
+        $statusTones = [
+            'neutral' => 'bg-surface-muted text-text-secondary',
+            'secondary' => 'bg-surface-muted text-secondary',
+            'primary' => 'bg-brand-primary-subtle text-brand-primary-dark',
+            'warning' => 'bg-status-warning-subtle text-status-warning',
+            'success' => 'bg-status-success-subtle text-status-success',
+            'error' => 'bg-status-error-subtle text-status-error',
+            'accent' => 'bg-accent-subtle text-accent',
+        ];
+        $statusToneClasses = $statusTones[$evidence->status->color()] ?? $statusTones['neutral'];
     @endphp
 
-    {{-- Encabezado: fuera de las tarjetas de contenido, con "Volver" discreto. --}}
-    <div class="mb-2 flex items-start justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-3">
+    {{--
+        Ajustes al rediseño visual, punto 1: "Volver" pasa a botón
+        secundario con ícono, en la esquina superior derecha en escritorio
+        y encima del título en pantalla estrecha — mismo truco order-N/
+        lg:order-none que el resto del layout.
+    --}}
+    <div class="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div class="order-2 flex flex-wrap items-center gap-3 lg:order-none">
             <h1 class="page-title">{{ $deliverable->name }}</h1>
-            @if ($deliverable->is_mandatory)
-                <span class="badge bg-status-warning-subtle text-status-warning">Obligatoria</span>
-            @endif
-            <x-status-badge :status="$evidence->status" />
+            <x-status-badge :status="$evidence->status" class="text-sm" />
         </div>
-        <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-text shrink-0 text-sm text-text-secondary">Volver</a>
+        <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-secondary order-1 w-fit lg:order-none">
+            <x-icon name="chevron-left" class="h-4 w-4" />
+            Volver
+        </a>
     </div>
-    <p class="mb-6 text-sm text-text-secondary">
-        {{ $deliverable->academicPeriod->name }}
-        ·
-        @if ($isCrossCutting)
-            Transversal: {{ $deliverable->crossCuttingCommitment->name }}
-        @else
-            {{ $deliverable->activity->name }}
-        @endif
-        ·
-        @if ($sameDueAndClose)
-            Límite y cierre: {{ $deliverable->due_at->toReadable() }}
-        @else
-            Límite: {{ $deliverable->due_at->toReadable() }}
-            @if ($deliverable->closes_at)
-                · Cierre: {{ $deliverable->closes_at->toReadable() }}
-            @endif
-        @endif
-    </p>
 
-    {{-- Franja de estado contextual. --}}
-    <div class="mb-6 flex items-center gap-2 rounded-md bg-surface-muted p-4 text-sm text-text-secondary">
+    {{--
+        Ajustes al rediseño visual, punto 3: dos grupos (Contexto,
+        Etiquetas) con más separación entre grupos (gap-x-6) que dentro de
+        cada uno (gap-x-3), en tamaño de párrafo (text-base).
+    --}}
+    <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-base text-text-secondary">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            @if ($assignment)
+                <span>{{ $assignment->programUnit->name }}</span>
+                <span>·</span>
+            @endif
+            <span>{{ $deliverable->academicPeriod->name }}</span>
+            <span>·</span>
+            @if ($isCrossCutting)
+                <span>Transversal: {{ $deliverable->crossCuttingCommitment->name }}</span>
+            @else
+                <span>{{ $deliverable->activity->component->name }}</span>
+                <span>·</span>
+                <span>{{ $deliverable->activity->name }}</span>
+            @endif
+        </div>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            @if ($deliverable->is_mandatory)
+                <span class="badge bg-status-warning-subtle text-sm text-status-warning">
+                    Obligatoria{{ $deliverable->weight_percentage !== null ? ' ('.$deliverable->weight_percentage.'%)' : '' }}
+                </span>
+            @endif
+            <span class="inline-flex items-center gap-1">
+                <x-icon name="calendar" class="h-4 w-4 shrink-0" />
+                @if ($sameDueAndClose)
+                    Límite y cierre: {{ $deliverable->due_at->toReadable() }}
+                @else
+                    Límite: {{ $deliverable->due_at->toReadable() }}
+                    @if ($deliverable->closes_at)
+                        · Cierre: {{ $deliverable->closes_at->toReadable() }}
+                    @endif
+                @endif
+            </span>
+            @if ($version?->submitted_at)
+                <span class="inline-flex items-center gap-1">
+                    <x-icon name="send" class="h-4 w-4 shrink-0" />
+                    Enviado: {{ $version->submitted_at->toReadable() }}
+                    @if ($lateDays !== null)
+                        <span class="font-medium text-status-warning">({{ $lateDays }} {{ $lateDays === 1 ? 'día' : 'días' }} tarde)</span>
+                    @endif
+                </span>
+            @endif
+        </div>
+    </div>
+
+    {{--
+        Ajustes al rediseño visual, punto 5: recuadro con color por
+        estado (mismo tono que la insignia), ícono, y tamaño de párrafo —
+        ya no texto suelto sobre un gris neutro siempre igual.
+    --}}
+    <div class="mb-6 flex items-center gap-2 rounded-md p-4 text-base {{ $statusToneClasses }}">
         <x-icon :name="$evidence->status->icon()" class="h-4 w-4 shrink-0" />
         {{ $this->statusMessage() }}
     </div>
@@ -46,8 +105,8 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         {{-- Columna principal: Instrucciones, Tu entrega, Historial. --}}
         <div class="contents lg:flex lg:flex-col lg:col-span-2 lg:gap-6">
-            <div class="order-4 lg:order-none">
-                @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+            @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+                <div class="order-4 lg:order-none">
                     <div class="card space-y-4 p-4">
                         @if ($deliverable->description)
                             <div>
@@ -68,14 +127,14 @@
                             </div>
                         @endif
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
 
             <div class="order-3 lg:order-none">
                 <div class="card space-y-4 p-6">
                     <h2 class="form-section-title">Tu entrega</h2>
 
-                    @if ($evidence->status->isEditable())
+                    @if ($evidence->status->isEditable() && ! $this->blockedByClosingDate())
                         @if (in_array('text', $allowed))
                             <div>
                                 <label for="description" class="field-label">Texto de la evidencia</label>
@@ -220,6 +279,10 @@
                                 <span wire:loading.remove wire:target="submit">Enviar evidencia</span>
                                 <span wire:loading wire:target="submit">Enviando...</span>
                             </button>
+                            <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-secondary">
+                                <x-icon name="chevron-left" class="h-4 w-4" />
+                                Volver
+                            </a>
                         </div>
                     @else
                         @php
@@ -261,26 +324,28 @@
                 </div>
             </div>
 
-            <div class="order-6 lg:order-none">
-                @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
+            @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
+                <div class="order-6 lg:order-none">
                     <div class="card p-6">
                         <h2 class="form-section-title mb-3">Historial</h2>
                         <x-evidence-version-history :evidence="$evidence" />
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
 
         {{-- Columna lateral: Material de referencia, Otras acciones. --}}
         <div class="contents lg:flex lg:flex-col lg:col-span-1 lg:gap-6">
-            <div class="order-5 lg:order-none">
-                <x-reference-material-card :deliverable="$deliverable" :referenceFiles="$referenceFiles" />
-            </div>
+            @if ($deliverable->reference_url || $referenceFiles->isNotEmpty())
+                <div class="order-5 lg:order-none">
+                    <x-reference-material-card :deliverable="$deliverable" :referenceFiles="$referenceFiles" />
+                </div>
+            @endif
 
-            <div class="order-7 lg:order-none">
-                @php $isSelfExemption = auth()->id() === $evidence->user_id; @endphp
+            @php $isSelfExemption = auth()->id() === $evidence->user_id; @endphp
 
-                @if ($evidence->status->value === 'exempt')
+            @if ($evidence->status->value === 'exempt')
+                <div class="order-7 lg:order-none">
                     {{-- Visible para cualquiera que pueda ver esta página (docente, líder
                          y Coordinación/Administrador) — antes la razón no se le
                          mostraba a nadie, ni siquiera a quien quedó exento. --}}
@@ -315,48 +380,61 @@
                             </button>
                         @endcan
                     </div>
-                @elseif (auth()->user()->can('markExempt', $evidence))
-                    <div class="card space-y-4 p-6">
-                        <h2 class="form-section-title">
-                            {{ $isSelfExemption ? 'Marcarme como exento' : 'Exención (Administración/Coordinación)' }}
-                        </h2>
-                        <p class="text-base text-text-secondary">
-                            @if ($isSelfExemption)
-                                Si tienes otra prioridad que te impide realizar esta entrega (carga académica, un percance, etc.), puedes marcarte como exento: ya no estarás obligado a enviarla y no contará en tu % de avance.
-                            @else
-                                Eximir a este docente de este entregable: deja de estar obligado a enviarlo y ya no cuenta en su % de avance.
-                            @endif
-                        </p>
-                        <div>
-                            <label for="exemptionJustification" class="field-label">
-                                Justificación <span class="font-normal text-text-secondary">(obligatoria)</span>
-                            </label>
-                            <textarea id="exemptionJustification" wire:model="exemptionJustification" rows="3" class="field-input" placeholder="{{ $isSelfExemption ? 'Explica por qué no puedes realizar esta entrega.' : 'Explica por qué el docente no puede realizar esta entrega.' }}" aria-invalid="{{ $errors->has('exemptionJustification') ? 'true' : 'false' }}" aria-describedby="exemptionJustification-error"></textarea>
-                            <x-field-error field="exemptionJustification" />
+                </div>
+            @elseif (auth()->user()->can('markExempt', $evidence))
+                {{--
+                    Ajustes al rediseño visual, punto 6: pasa de tarjeta
+                    siempre visible a sección plegada, cerrada por
+                    defecto — el texto y el formulario quedan dentro. El
+                    botón de exentar pasa de btn-warning (relleno ámbar) a
+                    btn-secondary (contorno): sigue siendo una acción
+                    disponible, no una advertencia activa. Validación y
+                    permisos sin cambios (el mismo @can de arriba decide
+                    si esta sección existe).
+                --}}
+                <div class="order-7 lg:order-none">
+                    <x-disclosure summary="¿No puedes realizar esta entrega?">
+                        <div class="space-y-4">
+                            <p class="text-base text-text-secondary">
+                                @if ($isSelfExemption)
+                                    Si tienes otra prioridad que te impide realizar esta entrega (carga académica, un percance, etc.), puedes marcarte como exento: ya no estarás obligado a enviarla y no contará en tu % de avance.
+                                @else
+                                    Eximir a este docente de este entregable: deja de estar obligado a enviarlo y ya no cuenta en su % de avance.
+                                @endif
+                            </p>
+                            <div>
+                                <label for="exemptionJustification" class="field-label">
+                                    Justificación <span class="font-normal text-text-secondary">(obligatoria)</span>
+                                </label>
+                                <textarea id="exemptionJustification" wire:model="exemptionJustification" rows="3" class="field-input" placeholder="{{ $isSelfExemption ? 'Explica por qué no puedes realizar esta entrega.' : 'Explica por qué el docente no puede realizar esta entrega.' }}" aria-invalid="{{ $errors->has('exemptionJustification') ? 'true' : 'false' }}" aria-describedby="exemptionJustification-error"></textarea>
+                                <x-field-error field="exemptionJustification" />
+                            </div>
+                            <button
+                                type="button"
+                                class="btn-secondary"
+                                @click="$dispatch('confirm-modal', {
+                                    title: '{{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar evidencia como exenta' }}',
+                                    body: '{{ $isSelfExemption
+                                        ? '¿Marcarte como exento de este entregable? Ya no tendrás que enviarlo y dejará de contar en tu porcentaje de avance. Esta acción quedará registrada en la auditoría.'
+                                        : '¿Marcar esta evidencia como exenta? El docente ya no tendrá que enviarla y dejará de contar en su porcentaje de avance. Esta acción quedará registrada en la auditoría.' }}',
+                                    confirmLabel: 'Marcar como exento',
+                                    variant: 'warning',
+                                    action: () => $wire.markExempt(),
+                                })"
+                                wire:loading.attr="disabled"
+                                wire:target="markExempt"
+                            >
+                                <span wire:loading.remove wire:target="markExempt" class="inline-flex items-center gap-2">
+                                    <x-icon name="shield-check" class="h-4 w-4" />
+                                    {{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar como exento' }}
+                                </span>
+                                <span wire:loading wire:target="markExempt">Marcando...</span>
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            class="btn-warning"
-                            @click="$dispatch('confirm-modal', {
-                                title: '{{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar evidencia como exenta' }}',
-                                body: '{{ $isSelfExemption
-                                    ? '¿Marcarte como exento de este entregable? Ya no tendrás que enviarlo y dejará de contar en tu porcentaje de avance. Esta acción quedará registrada en la auditoría.'
-                                    : '¿Marcar esta evidencia como exenta? El docente ya no tendrá que enviarla y dejará de contar en su porcentaje de avance. Esta acción quedará registrada en la auditoría.' }}',
-                                confirmLabel: 'Marcar como exento',
-                                variant: 'warning',
-                                action: () => $wire.markExempt(),
-                            })"
-                            wire:loading.attr="disabled"
-                            wire:target="markExempt"
-                        >
-                            <span wire:loading.remove wire:target="markExempt" class="inline-flex items-center gap-2">
-                                <x-icon name="shield-check" class="h-4 w-4" />
-                                {{ $isSelfExemption ? 'Marcarme como exento' : 'Marcar como exento' }}
-                            </span>
-                            <span wire:loading wire:target="markExempt">Marcando...</span>
-                        </button>
-                    </div>
-                @elseif ($canManageExemptionByRole)
+                    </x-disclosure>
+                </div>
+            @elseif ($canManageExemptionByRole)
+                <div class="order-7 lg:order-none">
                     {{-- Tiene el rol para eximir (dueño, Administrador o Coordinación)
                          pero el estado actual no lo permite. --}}
                     <div class="card space-y-2 p-6">
@@ -372,8 +450,8 @@
                             @endif
                         </x-disclosure>
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

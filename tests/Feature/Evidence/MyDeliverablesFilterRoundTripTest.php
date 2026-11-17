@@ -79,7 +79,11 @@ class MyDeliverablesFilterRoundTripTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence]);
         $workspace->assertSet('periodFilter', null);
 
-        $backToIndexQuery = $this->queryParamsFromHref($workspace->html(), '/<a href="([^"]*)"[^>]*>Volver<\/a>/');
+        // Ajustes al rediseño visual, punto 1: "Volver" ya no es solo
+        // texto — ahora lleva un ícono adelante — el patrón tolera
+        // cualquier contenido dentro del MISMO <a> (nunca cruza a otro
+        // "</a>") antes de la palabra.
+        $backToIndexQuery = $this->queryParamsFromHref($workspace->html(), '/<a href="([^"]*)"[^>]*>(?:(?!<\/a>).)*?Volver\s*<\/a>/s');
         $this->assertArrayHasKey('periodFilter', $backToIndexQuery);
 
         $indexAgain = Livewire::withQueryParams($backToIndexQuery)
@@ -108,7 +112,7 @@ class MyDeliverablesFilterRoundTripTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence]);
         $workspace->assertSet('statusFilter', 'pending');
 
-        $backToIndexQuery = $this->queryParamsFromHref($workspace->html(), '/<a href="([^"]*)"[^>]*>Volver<\/a>/');
+        $backToIndexQuery = $this->queryParamsFromHref($workspace->html(), '/<a href="([^"]*)"[^>]*>(?:(?!<\/a>).)*?Volver\s*<\/a>/s');
 
         $indexAgain = Livewire::withQueryParams($backToIndexQuery)
             ->actingAs($teacher)
