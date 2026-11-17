@@ -279,10 +279,6 @@
                                 <span wire:loading.remove wire:target="submit">Enviar evidencia</span>
                                 <span wire:loading wire:target="submit">Enviando...</span>
                             </button>
-                            <a href="{{ $this->myDeliverablesIndexUrl() }}" class="btn-secondary">
-                                <x-icon name="chevron-left" class="h-4 w-4" />
-                                Volver
-                            </a>
                         </div>
                     @else
                         @php

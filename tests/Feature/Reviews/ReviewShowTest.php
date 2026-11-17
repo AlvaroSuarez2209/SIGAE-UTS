@@ -905,8 +905,8 @@ class ReviewShowTest extends TestCase
 
     /**
      * Ajustes al rediseño visual, punto 1: "Volver" pasa de texto a
-     * botón secundario con ícono, en el encabezado y junto a Aprobar/
-     * Devolver en "Tu decisión".
+     * botón secundario con ícono, en el encabezado — el único que
+     * queda en la pantalla (ver test_the_decision_box_has_no_own_volver_button).
      */
     public function test_volver_is_a_secondary_button_with_an_icon(): void
     {
@@ -966,5 +966,58 @@ class ReviewShowTest extends TestCase
         Livewire::actingAs($leader)
             ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
             ->assertSee('Cierre:');
+    }
+
+    /**
+     * Correcciones a las vistas, punto 1: un único "Volver" por pantalla
+     * (el del encabezado) — "Tu decisión" ya no tiene uno propio junto
+     * a Aprobar/Devolver.
+     */
+    public function test_the_decision_box_has_no_own_volver_button(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertSame(1, substr_count($html, 'Volver'));
+        $this->assertStringContainsString('Tu decisión', $html);
+    }
+
+    /**
+     * Correcciones a las vistas, punto 1: cuando la única acción posible
+     * es Reabrir (evidencia aprobada, usuario con permiso especial), ya
+     * no se duplica "Volver" junto al botón — el del encabezado basta.
+     */
+    public function test_the_reopen_only_state_has_no_duplicate_volver_button(): void
+    {
+        [$evidence] = $this->submittedEvidenceWithLeader();
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+        $admin = $this->userWithRole(RoleName::Administrator);
+
+        $html = Livewire::actingAs($admin)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertSame(1, substr_count($html, 'Volver'));
+        $this->assertStringContainsString('Reabrir (permiso especial)', $html);
+    }
+
+    /**
+     * Correcciones a las vistas, punto 1: una evidencia ya aprobada,
+     * vista por un líder (puede entrar a la página porque está en su
+     * ámbito, pero no puede decidir — ya se decidió — ni reabrir — eso
+     * es exclusivo de Administrador) no debe dejar ninguna tarjeta ni
+     * botón adicional con solo un "Volver" repetido: ni "Tu decisión"
+     * ni "Reabrir" aparecen, y sigue habiendo un único "Volver" (el del
+     * encabezado).
+     */
+    public function test_an_evidence_with_nothing_left_to_decide_shows_no_extra_box(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->update(['status' => EvidenceStatus::Approved]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertSame(1, substr_count($html, 'Volver'));
+        $this->assertStringNotContainsString('Tu decisión', $html);
+        $this->assertStringNotContainsString('Reabrir', $html);
     }
 }

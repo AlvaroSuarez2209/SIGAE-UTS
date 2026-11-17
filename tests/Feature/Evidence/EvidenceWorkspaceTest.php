@@ -1926,10 +1926,9 @@ class EvidenceWorkspaceTest extends TestCase
 
     /**
      * Ajustes al rediseño visual, punto 1: "Volver" pasa de texto plano a
-     * botón secundario con ícono, en el encabezado y junto a las
-     * acciones de "Tu entrega".
+     * botón secundario con ícono en el encabezado.
      */
-    public function test_volver_is_a_secondary_button_with_an_icon_in_the_header_and_next_to_the_main_actions(): void
+    public function test_volver_is_a_secondary_button_with_an_icon_in_the_header(): void
     {
         $evidence = $this->evidenceFor();
 
@@ -1940,6 +1939,23 @@ class EvidenceWorkspaceTest extends TestCase
 
         $this->assertStringContainsString('btn-secondary', $html);
         $this->assertMatchesRegularExpression('/btn-secondary[^"]*"[^>]*>\s*<svg/s', $html);
+    }
+
+    /**
+     * Correcciones a las vistas, punto 1: un único "Volver" por pantalla
+     * (el del encabezado) — "Tu entrega" ya no tiene uno propio junto a
+     * Guardar borrador/Enviar evidencia.
+     */
+    public function test_the_submission_card_has_no_own_volver_button(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        $html = Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->assertSee('Guardar borrador')
+            ->html();
+
+        $this->assertSame(1, substr_count($html, 'Volver'));
     }
 
     /**

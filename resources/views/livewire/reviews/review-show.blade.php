@@ -111,8 +111,8 @@
                 </div>
             </div>
 
-            <div class="order-4 lg:order-none">
-                @if ($evidence->status->value === 'submitted')
+            @if ($evidence->status->value === 'submitted')
+                <div class="order-4 lg:order-none">
                     <div class="card space-y-4 p-6">
                         <h2 class="form-section-title">Tu decisión</h2>
                         <div>
@@ -164,35 +164,31 @@
                             </button>
                         </div>
                     </div>
-                @else
-                    <div class="flex items-center gap-3">
-                        @can('reopen', $evidence)
-                            @if ($evidence->status->value === 'approved')
-                                <button
-                                    type="button"
-                                    class="btn-secondary"
-                                    @click="$dispatch('confirm-modal', {
-                                        title: 'Reabrir evidencia aprobada',
-                                        body: '¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada.',
-                                        confirmLabel: 'Reabrir',
-                                        variant: 'warning',
-                                        action: () => $wire.reopen(),
-                                    })"
-                                    wire:loading.attr="disabled"
-                                    wire:target="reopen"
-                                >
-                                    <span wire:loading.remove wire:target="reopen">Reabrir (permiso especial)</span>
-                                    <span wire:loading wire:target="reopen">Reabriendo...</span>
-                                </button>
-                            @endif
-                        @endcan
-                        <a href="{{ $this->reviewsIndexUrl() }}" class="btn-secondary">
-                            <x-icon name="chevron-left" class="h-4 w-4" />
-                            Volver
-                        </a>
+                </div>
+            @elseif ($evidence->status->value === 'approved')
+                @can('reopen', $evidence)
+                    <div class="order-4 lg:order-none">
+                        <div class="flex items-center gap-3">
+                            <button
+                                type="button"
+                                class="btn-secondary"
+                                @click="$dispatch('confirm-modal', {
+                                    title: 'Reabrir evidencia aprobada',
+                                    body: '¿Reabrir esta evidencia aprobada? Esta es una acción excepcional y quedará registrada.',
+                                    confirmLabel: 'Reabrir',
+                                    variant: 'warning',
+                                    action: () => $wire.reopen(),
+                                })"
+                                wire:loading.attr="disabled"
+                                wire:target="reopen"
+                            >
+                                <span wire:loading.remove wire:target="reopen">Reabrir (permiso especial)</span>
+                                <span wire:loading wire:target="reopen">Reabriendo...</span>
+                            </button>
+                        </div>
                     </div>
-                @endif
-            </div>
+                @endcan
+            @endif
 
             @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
                 <div class="order-6 lg:order-none">
