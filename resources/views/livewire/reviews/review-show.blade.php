@@ -204,7 +204,7 @@
             @endif
         </div>
 
-        {{-- Columna lateral: Instrucciones (con Descripción y Criterio), Material de referencia. --}}
+        {{-- Columna lateral: Detalle del entregable (con Descripción, Instrucciones y Criterio), Material de referencia. --}}
         <div class="contents lg:flex lg:flex-col lg:col-span-1 lg:gap-6">
             @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
                 {{--
@@ -218,7 +218,7 @@
                     el usuario puede cerrarla).
                 --}}
                 <div class="order-3 lg:order-none">
-                    <x-disclosure summary="Instrucciones" default-open-on-desktop>
+                    <x-disclosure summary="Detalle del entregable" default-open-on-desktop>
                         <div class="space-y-3">
                             @if ($deliverable->description)
                                 <div>

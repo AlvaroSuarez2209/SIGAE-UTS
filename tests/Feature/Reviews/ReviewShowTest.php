@@ -921,7 +921,7 @@ class ReviewShowTest extends TestCase
      * Ajustes al rediseño visual, punto 2: la tarjeta destacada aparte
      * de "Criterio de cumplimiento" desaparece — su texto pasa a vivir
      * junto a Descripción e Instrucciones, dentro de la misma sección
-     * plegable "Instrucciones".
+     * plegable (renombrada después a "Detalle del entregable").
      */
     public function test_completion_criteria_card_is_removed_and_merged_into_the_instructions_disclosure(): void
     {
@@ -934,13 +934,14 @@ class ReviewShowTest extends TestCase
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
 
         $this->assertStringNotContainsString('bg-brand-primary-subtle p-4', $html);
-        $this->assertMatchesRegularExpression('/Instrucciones.*Descripción.*Descripción de prueba\..*Criterio de cumplimiento.*Criterio de prueba\./s', $html);
+        $this->assertMatchesRegularExpression('/Detalle del entregable.*Descripción.*Descripción de prueba\..*Criterio de cumplimiento.*Criterio de prueba\./s', $html);
     }
 
     /**
-     * Ajustes al rediseño visual, punto 2: en escritorio, "Instrucciones"
-     * arranca abierta (aunque sigue siendo plegable) — a diferencia de la
-     * vista del docente, que la mantiene cerrada por defecto.
+     * Ajustes al rediseño visual, punto 2: en escritorio, "Detalle del
+     * entregable" arranca abierta (aunque sigue siendo plegable) — a
+     * diferencia de la vista del docente, que la mantiene cerrada por
+     * defecto.
      */
     public function test_instructions_disclosure_defaults_open_on_desktop(): void
     {
