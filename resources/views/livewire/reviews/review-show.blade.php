@@ -6,46 +6,81 @@
         $assignment = $evidence->matchingTeacherAssignment();
         $lateDays = $deliverable->lateSubmissionDays($version->submitted_at);
         $reviewContext = $this->reviewContextLabel();
+        $sameDueAndClose = $deliverable->closes_at && $deliverable->due_at->eq($deliverable->closes_at);
     @endphp
 
-    {{-- Encabezado: fuera de las tarjetas de contenido. --}}
-    <div class="mb-2 flex items-start justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-3">
+    {{--
+        Ajustes al rediseño visual, punto 1: "Volver" pasa a botón
+        secundario con ícono, en la esquina superior derecha en
+        escritorio / encima del título en móvil — mismo truco order-N/
+        lg:order-none que el resto del layout.
+    --}}
+    <div class="mb-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div class="order-2 flex flex-wrap items-center gap-3 lg:order-none">
             <h1 class="page-title">{{ $deliverable->name }}</h1>
-            <x-status-badge :status="$evidence->status" />
+            <x-status-badge :status="$evidence->status" class="text-sm" />
+        </div>
+        <a href="{{ $this->reviewsIndexUrl() }}" class="btn-secondary order-1 w-fit lg:order-none">
+            <x-icon name="chevron-left" class="h-4 w-4" />
+            Volver
+        </a>
+    </div>
+
+    {{--
+        Ajustes al rediseño visual, punto 3: dos grupos (Contexto,
+        Etiquetas) con más separación entre grupos (gap-x-6) que dentro
+        de cada uno (gap-x-3), en tamaño de párrafo (text-base).
+    --}}
+    <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-base text-text-secondary">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span class="inline-flex items-center gap-1 font-medium text-text-primary">
+                <x-icon name="user" class="h-4 w-4 shrink-0" />
+                {{ $evidence->user->name }}
+            </span>
+            <span>·</span>
+            @if ($assignment)
+                <span>{{ $assignment->programUnit->name }}</span>
+                <span>·</span>
+            @endif
+            <span>{{ $deliverable->academicPeriod->name }}</span>
+            <span>·</span>
+            @if ($isCrossCutting)
+                <span>Transversal: {{ $deliverable->crossCuttingCommitment->name }}</span>
+            @else
+                <span>{{ $deliverable->activity->component->name }}</span>
+                <span>·</span>
+                <span>{{ $deliverable->activity->name }}</span>
+            @endif
+        </div>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            @if ($deliverable->is_mandatory)
+                <span class="badge bg-status-warning-subtle text-sm text-status-warning">
+                    Obligatoria{{ $deliverable->weight_percentage !== null ? ' ('.$deliverable->weight_percentage.'%)' : '' }}
+                </span>
+            @endif
+            <span class="inline-flex items-center gap-1">
+                <x-icon name="calendar" class="h-4 w-4 shrink-0" />
+                @if ($sameDueAndClose)
+                    Límite y cierre: {{ $deliverable->due_at->toReadable() }}
+                @else
+                    Límite: {{ $deliverable->due_at->toReadable() }}
+                    @if ($deliverable->closes_at)
+                        · Cierre: {{ $deliverable->closes_at->toReadable() }}
+                    @endif
+                @endif
+            </span>
+            <span class="inline-flex items-center gap-1">
+                <x-icon name="send" class="h-4 w-4 shrink-0" />
+                Enviado: {{ $version->submitted_at?->toReadable() ?? '—' }}
+                @if ($lateDays !== null)
+                    <span class="font-medium text-status-warning">({{ $lateDays }} {{ $lateDays === 1 ? 'día' : 'días' }} tarde)</span>
+                @endif
+            </span>
+            @if ($reviewContext)
+                <span class="badge bg-brand-primary-subtle text-sm text-brand-primary-dark">{{ $reviewContext }}</span>
+            @endif
         </div>
     </div>
-    <p class="mb-1 text-base font-medium text-text-primary">{{ $evidence->user->name }}</p>
-    <p class="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-secondary">
-        @if ($assignment)
-            <span>{{ $assignment->programUnit->name }}</span>
-            <span>·</span>
-        @endif
-        <span>{{ $deliverable->academicPeriod->name }}</span>
-        <span>·</span>
-        @if ($isCrossCutting)
-            <span>Transversal: {{ $deliverable->crossCuttingCommitment->name }}</span>
-        @else
-            <span>{{ $deliverable->activity->component->name }}</span>
-            <span>·</span>
-            <span>{{ $deliverable->activity->name }}</span>
-        @endif
-        @if ($deliverable->is_mandatory)
-            <span>·</span>
-            <span>Obligatoria{{ $deliverable->weight_percentage !== null ? ' ('.$deliverable->weight_percentage.'%)' : '' }}</span>
-        @endif
-        <span>·</span>
-        <span>Límite: {{ $deliverable->due_at->toReadable() }}</span>
-        <span>·</span>
-        <span>Enviado: {{ $version->submitted_at?->toReadable() ?? '—' }}</span>
-        @if ($lateDays !== null)
-            <span class="font-medium text-status-warning">({{ $lateDays }} {{ $lateDays === 1 ? 'día' : 'días' }} tarde)</span>
-        @endif
-        @if ($reviewContext)
-            <span>·</span>
-            <span>{{ $reviewContext }}</span>
-        @endif
-    </p>
 
     <x-flash-message />
 
@@ -127,7 +162,10 @@
                                 </span>
                                 <span wire:loading wire:target="returnForAdjustment">Devolviendo...</span>
                             </button>
-                            <a href="{{ $this->reviewsIndexUrl() }}" class="btn-text text-text-secondary">Volver</a>
+                            <a href="{{ $this->reviewsIndexUrl() }}" class="btn-secondary">
+                                <x-icon name="chevron-left" class="h-4 w-4" />
+                                Volver
+                            </a>
                         </div>
                     </div>
                 @else
@@ -152,41 +190,39 @@
                                 </button>
                             @endif
                         @endcan
-                        <a href="{{ $this->reviewsIndexUrl() }}" class="btn-text text-text-secondary">Volver</a>
+                        <a href="{{ $this->reviewsIndexUrl() }}" class="btn-secondary">
+                            <x-icon name="chevron-left" class="h-4 w-4" />
+                            Volver
+                        </a>
                     </div>
                 @endif
             </div>
 
-            <div class="order-7 lg:order-none">
-                @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
+            @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
+                <div class="order-6 lg:order-none">
                     <div class="card p-6">
                         <h2 class="form-section-title mb-3">Historial</h2>
                         <x-evidence-version-history :evidence="$evidence" pending-review-label="Pendiente de tu revisión" />
                     </div>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
 
-        {{-- Columna lateral: Criterio de cumplimiento, Material de referencia, Instrucciones. --}}
+        {{-- Columna lateral: Instrucciones (con Descripción y Criterio), Material de referencia. --}}
         <div class="contents lg:flex lg:flex-col lg:col-span-1 lg:gap-6">
-            <div class="order-3 lg:order-none">
-                @if ($deliverable->completion_criteria)
-                    <div class="card space-y-2 bg-brand-primary-subtle p-4">
-                        <h2 class="form-section-title text-brand-primary-dark">Criterio de cumplimiento</h2>
-                        <div class="text-brand-primary-dark">
-                            <x-formatted-text :text="$deliverable->completion_criteria" />
-                        </div>
-                    </div>
-                @endif
-            </div>
-
-            <div class="order-5 lg:order-none">
-                <x-reference-material-card :deliverable="$deliverable" :referenceFiles="$referenceFiles" />
-            </div>
-
-            <div class="order-6 lg:order-none">
-                @if ($deliverable->description || $deliverable->instructions)
-                    <x-disclosure summary="Instrucciones">
+            @if ($deliverable->description || $deliverable->instructions || $deliverable->completion_criteria)
+                {{--
+                    Ajustes al rediseño visual, punto 2: elimina la tarjeta
+                    azul destacada de "Criterio de cumplimiento" — su
+                    contenido pasa a esta misma sección, junto a
+                    Descripción e Instrucciones, igual que en la vista del
+                    docente. Toma el lugar que tenía esa tarjeta en el
+                    orden de móvil (antes de "Tu decisión") y, en
+                    escritorio, abre por defecto (sigue siendo plegable:
+                    el usuario puede cerrarla).
+                --}}
+                <div class="order-3 lg:order-none">
+                    <x-disclosure summary="Instrucciones" default-open-on-desktop>
                         <div class="space-y-3">
                             @if ($deliverable->description)
                                 <div>
@@ -200,10 +236,22 @@
                                     <x-formatted-text :text="$deliverable->instructions" />
                                 </div>
                             @endif
+                            @if ($deliverable->completion_criteria)
+                                <div>
+                                    <h3 class="font-medium text-text-primary">Criterio de cumplimiento</h3>
+                                    <x-formatted-text :text="$deliverable->completion_criteria" />
+                                </div>
+                            @endif
                         </div>
                     </x-disclosure>
-                @endif
-            </div>
+                </div>
+            @endif
+
+            @if ($deliverable->reference_url || $referenceFiles->isNotEmpty())
+                <div class="order-5 lg:order-none">
+                    <x-reference-material-card :deliverable="$deliverable" :referenceFiles="$referenceFiles" />
+                </div>
+            @endif
         </div>
     </div>
 </div>

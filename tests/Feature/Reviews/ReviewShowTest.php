@@ -902,4 +902,68 @@ class ReviewShowTest extends TestCase
         $this->assertStringContainsString('Archivo no disponible', $html);
         $this->assertStringNotContainsString(route('deliverable-reference-files.download', $referenceFile), $html);
     }
+
+    /**
+     * Ajustes al rediseño visual, punto 1: "Volver" pasa de texto a
+     * botón secundario con ícono, en el encabezado y junto a Aprobar/
+     * Devolver en "Tu decisión".
+     */
+    public function test_volver_is_a_secondary_button_with_an_icon(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertMatchesRegularExpression('/btn-secondary[^"]*"[^>]*>\s*<svg[\s\S]*?<\/svg>\s*Volver/s', $html);
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 2: la tarjeta destacada aparte
+     * de "Criterio de cumplimiento" desaparece — su texto pasa a vivir
+     * junto a Descripción e Instrucciones, dentro de la misma sección
+     * plegable "Instrucciones".
+     */
+    public function test_completion_criteria_card_is_removed_and_merged_into_the_instructions_disclosure(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update([
+            'description' => 'Descripción de prueba.',
+            'completion_criteria' => 'Criterio de prueba.',
+        ]);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringNotContainsString('bg-brand-primary-subtle p-4', $html);
+        $this->assertMatchesRegularExpression('/Instrucciones.*Descripción.*Descripción de prueba\..*Criterio de cumplimiento.*Criterio de prueba\./s', $html);
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 2: en escritorio, "Instrucciones"
+     * arranca abierta (aunque sigue siendo plegable) — a diferencia de la
+     * vista del docente, que la mantiene cerrada por defecto.
+     */
+    public function test_instructions_disclosure_defaults_open_on_desktop(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update(['description' => 'Descripción de prueba.']);
+
+        $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence->fresh()])->html();
+
+        $this->assertStringContainsString("window.matchMedia('(min-width: 1024px)')", $html);
+    }
+
+    /**
+     * Ajustes al rediseño visual, punto 3: la fila de datos ahora
+     * también muestra el cierre (si es distinto del límite) — antes
+     * nunca aparecía en esta pantalla.
+     */
+    public function test_data_row_shows_the_closing_date_when_different_from_the_due_date(): void
+    {
+        [$evidence, $leader] = $this->submittedEvidenceWithLeader();
+        $evidence->deliverable->update(['closes_at' => $evidence->deliverable->due_at->copy()->addDays(3)]);
+
+        Livewire::actingAs($leader)
+            ->test(ReviewShow::class, ['evidence' => $evidence->fresh()])
+            ->assertSee('Cierre:');
+    }
 }

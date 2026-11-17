@@ -98,7 +98,10 @@ class ReviewFilterRoundTripTest extends TestCase
      */
     private function queryParamsFromHref(string $html, string $linkText): array
     {
-        $pattern = '/<a href="([^"]*)"[^>]*>\s*'.preg_quote($linkText, '/').'\s*<\/a>/';
+        // Ajustes al rediseño visual, punto 1: "Volver" ahora lleva un
+        // ícono adelante — el patrón tolera cualquier contenido dentro
+        // del MISMO <a> (nunca cruza a otro "</a>") antes del texto.
+        $pattern = '/<a href="([^"]*)"[^>]*>(?:(?!<\/a>).)*?'.preg_quote($linkText, '/').'\s*<\/a>/s';
         $this->assertMatchesRegularExpression($pattern, $html, "No se encontró un enlace \"{$linkText}\" en el HTML renderizado.");
 
         preg_match($pattern, $html, $matches);
