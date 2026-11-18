@@ -563,7 +563,7 @@ class ReviewShowTest extends TestCase
 
         $html = Livewire::actingAs($leader)->test(ReviewShow::class, ['evidence' => $evidence])->html();
 
-        $this->assertStringContainsString('Historial', $html);
+        $this->assertStringContainsString('Versiones anteriores', $html);
         $this->assertStringContainsString('Versión 1', $html);
         $this->assertStringContainsString('Versión 2', $html);
         $this->assertStringContainsString('Archivo no disponible', $html);

@@ -282,7 +282,7 @@ class EvidenceWorkspaceTest extends TestCase
         Livewire::actingAs($evidence->user)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->assertSet('submissionComment', '')
-            ->assertSee('Historial')
+            ->assertSee('Versiones anteriores')
             ->assertSee('Comentario de la primera entrega.');
     }
 
@@ -1487,7 +1487,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial')
+            ->assertSee('Versiones anteriores')
             ->assertSee(route('evidence-files.download', $oldFile), false);
     }
 
@@ -1545,7 +1545,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial')
+            ->assertSee('Versiones anteriores')
             ->assertSee('Sin archivos adjuntos.');
     }
 
@@ -1561,7 +1561,7 @@ class EvidenceWorkspaceTest extends TestCase
 
         Livewire::actingAs($teacher)
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
-            ->assertSee('Historial')
+            ->assertSee('Versiones anteriores')
             ->assertSee($oldFile->original_name)
             ->assertSee('Archivo no disponible')
             ->assertDontSee(route('evidence-files.download', $oldFile), false);
@@ -1585,6 +1585,119 @@ class EvidenceWorkspaceTest extends TestCase
             ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
             ->assertSee('Versión 1')
             ->assertSee($leader->name);
+    }
+
+    /**
+     * Ajuste al historial de versiones, punto 1: la versión actual (un
+     * borrador en edición, tras "Guardar borrador") no debe aparecer como
+     * una tarjeta más dentro de "Versiones anteriores" — solo la línea de
+     * contexto de arriba la menciona.
+     */
+    public function test_version_history_never_repeats_the_current_version_as_a_card(): void
+    {
+        [$evidence, $teacher] = $this->evidenceWithAReturnedPreviousVersion();
+
+        $html = Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->html();
+
+        $this->assertSame(1, substr_count($html, '(actual)'));
+        $this->assertStringNotContainsString('Versión 2 —', $html);
+    }
+
+    /**
+     * Ajuste al historial de versiones, punto 1: con una sola versión (sin
+     * ninguna anterior), el historial lo dice explícitamente.
+     */
+    public function test_a_single_version_shows_the_first_version_message(): void
+    {
+        $evidence = $this->evidenceFor();
+
+        Livewire::actingAs($evidence->user)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('newFiles', [UploadedFile::fake()->create('v1.pdf', 50, 'application/pdf')])
+            ->call('submit')
+            ->assertSee('Esta es la primera versión.');
+    }
+
+    /**
+     * Ajuste al historial de versiones, puntos 1 y 2: con 3 versiones
+     * (2 anteriores, ya revisadas, más la actual en edición), "Versiones
+     * anteriores" las lista de la más reciente a la más antigua, cada una
+     * con su insignia de estado, revisor, fecha y observación.
+     */
+    public function test_previous_versions_are_listed_newest_first_with_status_reviewer_date_and_observation(): void
+    {
+        $teacher = $this->userWithRole(RoleName::Teacher);
+        $leaderA = $this->userWithRole(RoleName::Leader);
+        $leaderB = $this->userWithRole(RoleName::Leader);
+        $period = AcademicPeriod::factory()->create(['status' => AcademicPeriodStatus::Active]);
+        $activity = Activity::factory()->create();
+        $programUnit = ProgramUnit::factory()->create();
+
+        TeacherAssignment::factory()->create([
+            'user_id' => $teacher->id,
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'program_unit_id' => $programUnit->id,
+        ]);
+        foreach ([$leaderA, $leaderB] as $leader) {
+            Leadership::factory()->create([
+                'user_id' => $leader->id,
+                'academic_period_id' => $period->id,
+                'activity_id' => null,
+                'program_unit_id' => $programUnit->id,
+                'starts_at' => now()->subMonth(),
+                'ends_at' => null,
+            ]);
+        }
+
+        $deliverable = Deliverable::factory()->create([
+            'academic_period_id' => $period->id,
+            'activity_id' => $activity->id,
+            'allowed_evidence_types' => [EvidenceType::Text->value],
+        ]);
+        $evidence = Evidence::factory()->create([
+            'deliverable_id' => $deliverable->id,
+            'user_id' => $teacher->id,
+            'status' => EvidenceStatus::Pending,
+        ]);
+
+        Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence])
+            ->set('description', 'Primera versión')
+            ->call('submit');
+        $evidence->refresh();
+        $evidence->returnCurrentReviewForAdjustment($leaderA, 'Ajusta la versión 1.');
+
+        $v2 = $evidence->startOrGetDraftVersion($teacher);
+        $v2->update(['description' => 'Segunda versión']);
+        $evidence->submitCurrentVersion();
+        $evidence->returnCurrentReviewForAdjustment($leaderB, 'Ajusta la versión 2.');
+
+        $evidence->startOrGetDraftVersion($teacher);
+
+        $html = Livewire::actingAs($teacher)
+            ->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()])
+            ->html();
+
+        // Versión 2 (más reciente de las anteriores) antes que la versión 1.
+        $posV2 = strpos($html, 'Versión 2 —');
+        $posV1 = strpos($html, 'Versión 1 —');
+        $this->assertNotFalse($posV2);
+        $this->assertNotFalse($posV1);
+        $this->assertLessThan($posV1, $posV2);
+
+        $this->assertStringContainsString('Devuelto', $html);
+        $this->assertStringContainsString($leaderA->name, $html);
+        $this->assertStringContainsString($leaderB->name, $html);
+        $this->assertStringContainsString('Observación de '.$leaderA->name.':</span> Ajusta la versión 1.', $html);
+        $this->assertStringContainsString('Observación de '.$leaderB->name.':</span> Ajusta la versión 2.', $html);
+
+        // La observación de cada versión aparece después de su propio
+        // encabezado, nunca antes (cada tarjeta trae su propia revisión).
+        $this->assertGreaterThan($posV1, strpos($html, 'Observación de '.$leaderA->name));
+        $this->assertGreaterThan($posV2, strpos($html, 'Observación de '.$leaderB->name));
     }
 
     public function test_submitting_before_the_closing_date_succeeds(): void

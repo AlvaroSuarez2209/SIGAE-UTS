@@ -206,7 +206,7 @@ class ReopenedEvidenceFileGapTest extends TestCase
 
         $workspace = Livewire::actingAs($teacher)->test(EvidenceWorkspace::class, ['evidence' => $evidence->fresh()]);
 
-        $workspace->assertSee('Historial')
+        $workspace->assertSee('Versiones anteriores')
             ->assertSee('Archivo no disponible')
             ->assertDontSee('Quitar');
 

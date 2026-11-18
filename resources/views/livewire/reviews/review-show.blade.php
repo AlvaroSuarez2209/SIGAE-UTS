@@ -85,7 +85,7 @@
     <x-flash-message />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-        {{-- Columna principal: Entrega para revisar, Tu decisión, Historial. --}}
+        {{-- Columna principal: Entrega para revisar, Tu decisión, Versiones anteriores. --}}
         <div class="contents lg:flex lg:flex-col lg:col-span-2 lg:gap-6">
             <div class="order-2 lg:order-none">
                 <div class="card space-y-4 p-6">
@@ -193,7 +193,7 @@
             @if ($evidence->versions->contains(fn ($v) => $v->submitted_at !== null))
                 <div class="order-6 lg:order-none">
                     <div class="card p-6">
-                        <h2 class="form-section-title mb-3">Historial</h2>
+                        <h2 class="form-section-title mb-3">Versiones anteriores</h2>
                         <x-evidence-version-history :evidence="$evidence" pending-review-label="Pendiente de tu revisión" />
                     </div>
                 </div>
