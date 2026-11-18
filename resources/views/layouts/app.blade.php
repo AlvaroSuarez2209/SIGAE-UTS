@@ -13,7 +13,25 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased">
+{{--
+    Corrección al diseño, punto 2 (scroll doble): "body" solo tenía
+    min-h-screen, sin overflow — el wrapper interior (h-screen
+    overflow-hidden, más abajo) clips visualmente su propio contenido,
+    pero NO evita que el documento (html/body) registre su propio
+    overflow "scrollable" cuando hay suficiente contenido vertical
+    dentro de <main> (confirmado con Playwright: document.documentElement
+    .scrollHeight crece con el contenido aunque el wrapper interior nunca
+    cambia de tamaño — un escape de overflow a través de flex/overflow-hidden
+    anidados, no un bug de este rediseño en particular). El síntoma real:
+    con el mouse sobre una zona sin su propio scroll (la barra lateral, los
+    márgenes), la rueda del mouse scrollea el documento completo en vez de
+    quedar contenida en <main>, desplazando visualmente la barra lateral
+    hacia arriba. overflow-hidden en "body" (solo con sesión — la pantalla
+    de login nunca tuvo este problema y no debe perder su scroll normal si
+    su contenido alguna vez excede la ventana) basta para bloquear ese
+    escape sin tocar "html" ni el wrapper existente.
+--}}
+<body class="min-h-screen bg-surface-muted font-sans text-text-primary antialiased @auth overflow-hidden @endauth">
     @php
         $user = auth()->user();
         $isTeacher = $user?->hasRole('teacher') ?? false;
