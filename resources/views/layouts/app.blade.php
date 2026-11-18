@@ -231,8 +231,34 @@
              scroll vertical en <main> — completamente independiente del
              sidebar (que nunca se mueve ni cambia de tamaño con esto). El
              scroll horizontal de una tabla ancha se queda dentro de su
-             propio .table-shell (overflow-x-auto), nunca aquí. --}}
-        <div class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+             propio .table-shell (overflow-x-auto), nunca aquí.
+
+             Corrección al diseño, punto 3 (el selector de archivos
+             recortaba el layout): <main> pasa de "flex-1 overflow-y-auto"
+             (un hijo flex más, dentro de un flex-col) a position:absolute
+             con inset — ya no es "el resto del espacio que le toca repartir
+             al flexbox", es una caja con límites propios e inamovibles
+             dentro de este contenedor (ahora position:relative). La razón:
+             confirmado con Playwright, un <main> flex con overflow-y:auto
+             SÍ se renderiza clipeado a 100vh visualmente, pero su overflow
+             real seguía "escapando" hacia el documento (html.scrollHeight
+             crecía con el contenido aunque el wrapper nunca cambiaba de
+             tamaño) — overflow-hidden en el padre no bastaba para
+             contenerlo (ver el commit del punto 2). Eso no se nota con la
+             rueda del mouse (bloqueada aparte), pero el navegador SÍ puede
+             seguir moviendo scrollTop del documento por código — y lo hace
+             al enfocar el <input type="file"> oculto del selector de
+             archivos (su scrollIntoView interno recorre TODOS los
+             contenedores con overflow, documento incluido, aunque <main>
+             ya haya scrolleado lo suficiente por su cuenta) — ni
+             overflow-hidden ni overflow-clip en html/body lo evitan:
+             confirmado que Chromium sigue permitiendo mover
+             document.documentElement.scrollTop por código con cualquiera
+             de los dos. Con position:absolute, <main> nunca tiene
+             "overflow" que repartir ni medir — su scrollHeight de
+             documento nunca excede el de la ventana, así que no hay nada
+             que el navegador pueda ni necesite desplazar. --}}
+        <div class="relative flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
             <header class="flex h-18 shrink-0 items-center gap-4 border-b border-border-subtle bg-surface px-5 md:hidden">
                 <button type="button" @click="mobileOpen = true" aria-label="Abrir menú">
                     <x-icon name="menu" class="h-7 w-7 text-text-secondary" />
@@ -245,7 +271,7 @@
                 <livewire:institution-brand-header key="brand-sidebar-mobile-topbar" logo-class="h-8 w-8" gap="gap-2" />
             </header>
 
-            <main class="min-w-0 flex-1 overflow-y-auto px-6 py-8 sm:px-8 lg:px-10">
+            <main class="absolute inset-x-0 bottom-0 top-18 min-w-0 overflow-y-auto px-6 py-8 sm:px-8 md:top-0 lg:px-10">
                 <x-flash-message />
                 {{ $slot }}
             </main>

@@ -56,4 +56,33 @@ class LayoutScrollTest extends TestCase
             $response->getContent()
         );
     }
+
+    /**
+     * Correcciones a las vistas, punto 3 (el selector de archivos recortaba
+     * el layout): overflow-hidden en "body" no bastaba porque el navegador
+     * puede seguir moviendo document.documentElement.scrollTop por código
+     * (confirmado con Playwright al enfocar un <input type="file"> oculto),
+     * sin importar overflow:hidden/clip. La única forma de que no haya
+     * nada que desplazar es que <main> nunca tenga overflow de documento
+     * que medir: pasa de "flex-1" (un hijo más del flex-col, su tamaño
+     * final dependía del reparto del flexbox) a position:absolute con
+     * límites propios e inamovibles, dentro de un contenedor ahora
+     * position:relative.
+     */
+    public function test_main_content_area_is_absolutely_positioned_not_flex_sized(): void
+    {
+        $user = User::factory()->create(['is_active' => true]);
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/<div class="relative flex h-screen[^"]*">/',
+            $response->getContent()
+        );
+        $this->assertMatchesRegularExpression(
+            '/<main class="absolute inset-x-0 bottom-0[^"]*">/',
+            $response->getContent()
+        );
+    }
 }
